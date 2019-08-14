@@ -123,6 +123,19 @@ class rgcSimTask(pipeBase.CmdLineTask):
 
         g1  =   g1List[0]
         g2  =   g2List[0]
+        # setup galaxy configuration
+        while True:
+            index   =   np.random.randint(0,nrgcDat)
+            if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
+                break
+        gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
+        gal0    *=  flux_scaling
+        # rotate the galaxy
+        ang     =   ud()*2.*np.pi * galsim.radians
+        gal0    =   gal0.rotate(ang)
+        # Shear the galaxy
+        gal     =   gal0.shear(g1=g1,g2=g2)
+        final   =   galsim.Convolve([psf,gal],gsparams=bigfft)
         # setup the galaxy image and the noise image
         gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         gal_image.setOrigin(0,0)
@@ -130,27 +143,13 @@ class rgcSimTask(pipeBase.CmdLineTask):
         var_image.setOrigin(0,0)
         i           =   0
         while i <ndata:
-            #self.log.info('processing stamp %d of field %d' %(i,ifield))
+            self.log.info('processing stamp %d of field %d' %(i,ifield))
             # Prepare the subimage
             ix      =   i%nx
             iy      =   i//nx
             b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
             sub_gal_image = gal_image[b]
             sub_var_image = var_image[b]
-            #simulate the galaxy
-            while True:
-                index   =   np.random.randint(0,nrgcDat)
-                if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
-                    break
-            gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
-            gal0    *=  flux_scaling
-            # rotate the galaxy
-            ang     =   ud()*2.*np.pi * galsim.radians
-            gal0    =   gal0.rotate(ang)
-            ss      =   rgcCat[index]
-            # Shear the galaxy
-            gal     =   gal0.shear(g1=g1,g2=g2)
-            final   =   galsim.Convolve([psf,gal],gsparams=bigfft)
             # Draw the galaxy image
             final.drawImage(sub_gal_image,method='no_pixel')
             #whiten the noise
@@ -163,7 +162,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         var_image   =   max_variance - var_image
         vn          =   galsim.VariableGaussianNoise(rng,var_image)
         gal_image.addNoise(vn)
-        corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
+        corNoise    =   galsim.getCOSMOSNoise(file_name='./correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
         unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
         corNoise    =   corNoise-unCorNoise
         corNoise.applyTo(gal_image)
