@@ -162,7 +162,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             var_image   =   max_variance - var_image
             vn          =   galsim.VariableGaussianNoise(rng,var_image)
             gal_image.addNoise(vn)
-            corNoise    =   galsim.getCOSMOSNoise(file_name='./correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
+            corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
             unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
             corNoise    =   corNoise-unCorNoise
             corNoise.applyTo(gal_image)
