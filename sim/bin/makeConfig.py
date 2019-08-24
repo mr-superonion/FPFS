@@ -3,13 +3,14 @@ import os
 import numpy as np
 from configparser import ConfigParser
 
-def addInfoSparse(parser,fwhm,variance):
+def addInfo(parser,fwhm,variance):
     #PSF
-    parser['psf']=      {'fwhm'      :'%s' %fwhm
-                        }
+    parser['psf']   =      {'fwhm'      :'%s' %fwhm
+                            }
     #noise
-    parser[noise]=      {'variance':'%s'  %variance,
-                         'corFname':'%s'  %corFname}
+    corFname        =       'corPre/correlation.fits'
+    parser['noise'] =       {'variance':'%s'  %variance,
+                            'corFname':'%s'  %corFname}
     return parser
 
 

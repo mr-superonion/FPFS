@@ -27,6 +27,7 @@ import galsim
 import numpy as np
 from astropy.table import Table
 import astropy.io.fits as pyfits
+from configparser import ConfigParser
 
 # lsst Tasks
 import lsst.daf.base as dafBase
@@ -45,31 +46,23 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-class rgcSimConfig(pexConfig.Config):
-    rootDir      =   pexConfig.Field(dtype=str, default='rgc', doc = 'directory to store exposures')
-    def setDefaults(self):
-        pexConfig.Config.setDefaults(self)
-    
-    def validate(self):
-        pexConfig.Config.validate(self)
-        if not os.path.exists(self.rootDir):
-            os.mkdir(self.rootDir)
-        expDir  =   os.path.join(self.rootDir,'expSim')
-        if not os.path.exists(expDir):
-            os.mkdir(expDir)
 
 class rgcSimTask(pipeBase.CmdLineTask):
-    _DefaultName = "rgcSim"
-    ConfigClass = rgcSimConfig
+    _DefaultName=   "rgcSim"
+    ConfigClass =   pexConfig.Config
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
     
     @pipeBase.timeMethod
-    def run(self,ifield):
-        badIDENT    =   [78798,276775,908556,81452,200743]
-        self.log.info('begining for field %04d' %(ifield))
+    def run(self,ifield,rootDir,conpend):
+        rootDir2    =   os.path.join(rootDir,conpend)
+        configName  =   'noiPsfConfig/config_%s.ini' %conpend
+        self.log.info('using configuration %s' %(configName))
         self.log.info('simulating field %s' %(ifield))
+        badIDENT    =   [78798,276775,908556,81452,200743]
+        parser      =   ConfigParser()
+        parser.read(configName)
         # Basic parameters
         ngrid       =   64
         nx          =   50 
@@ -80,15 +73,18 @@ class rgcSimTask(pipeBase.CmdLineTask):
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
-        variance    =   0.008 
+        variance    =   parser.getfloat('noise','variance')
+        corFname    =   parser.get('noise','corFname')
+        rng         =   galsim.BaseDeviate(ifield)
+        corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
         g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
         g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         
         # Get the psf and nosie information 
         # Get the PSF image
         psf_beta    =   3.5 
-        psf_fwhm    =   0.65        # arcsec
-        psf_trunc   =   5.*psf_fwhm # arcsec (=pixels)
+        psf_fwhm    =   parser.getfloat('psf','fwhm') #arcsec
+        psf_trunc   =   5.*psf_fwhm # arcsec
         psf_e1      =   0.          #
         psf_e2      =   0.025       #
         psf         =   galsim.Moffat(beta=psf_beta, 
@@ -133,7 +129,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             galR=   gal0.rotate(angR)
             for ig in range(8):
                 prepend     =   '-id%d-g%d-r%d'%(index,ig,irot)
-                outFname    =   os.path.join(self.config.rootDir,'expSim','image%s.fits' %prepend)
+                outFname    =   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
                 if os.path.exists(outFname):
                     self.log.info('Already have the outcome')
                     return
@@ -163,15 +159,13 @@ class rgcSimTask(pipeBase.CmdLineTask):
                     sub_var_image+=  galNoiVar
                     i       +=  1
                 self.log.info('Adding correlated noise')
-                rng = galsim.BaseDeviate(ifield)
                 max_variance=   np.max(var_image.array)
                 var_image   =   max_variance - var_image
                 vn          =   galsim.VariableGaussianNoise(rng,var_image)
                 gal_image.addNoise(vn)
-                corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
                 unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
-                corNoise    =   corNoise-unCorNoise
-                corNoise.applyTo(gal_image)
+                corNoise2   =   corNoise-unCorNoise
+                corNoise2.applyTo(gal_image)
                 exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
                 exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
                 del gal_image
@@ -224,11 +218,30 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class rgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
-    rgcSim = pexConfig.ConfigurableField(
+    perGroup=   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
+    rgcSim  =   pexConfig.ConfigurableField(
         target = rgcSimTask,
         doc = "rgcSim task to run on multiple cores"
     )
+    rootDir =   pexConfig.Field(dtype=str, 
+                default='rgc', doc = 'root directory'
+    )
+    conpend =   pexConfig.Field(dtype=str,
+                default='fwhm4_var4', doc = 'prepend for one configuration'
+    )
+    def setDefaults(self):
+        pexConfig.Config.setDefaults(self)
+    
+    def validate(self):
+        pexConfig.Config.validate(self)
+        if not os.path.exists(self.rootDir):
+            os.mkdir(self.rootDir)
+        rootDir2=   os.path.join(self.rootDir,self.conpend)
+        if not os.path.exists(rootDir2):
+            os.mkdir(rootDir2)
+        expDir  =   os.path.join(rootDir2,'expSim')
+        if not os.path.exists(expDir):
+            os.mkdir(expDir)
     
 class rgcSimRunner(TaskRunner):
     @staticmethod
@@ -264,13 +277,15 @@ class rgcSimBatchTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("rgcSim")
         pool.cacheClear()
+        pool.storeSet(rootDir=self.config.rootDir)
+        pool.storeSet(conpend=self.config.conpend)
         fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
         
     def process(self,cache,ifield):
-        self.rgcSim.run(ifield)
+        self.rgcSim.run(ifield,cache.rootDir,cache.conpend)
         self.log.info('finish field %04d' %(ifield))
         return 
 
