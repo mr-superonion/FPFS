@@ -46,14 +46,17 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class rgcSimConfig(pexConfig.Config):
-    expDir      =   pexConfig.Field(dtype=str, default='rgc', doc = 'directory to store exposures')
+    rootDir      =   pexConfig.Field(dtype=str, default='rgc', doc = 'directory to store exposures')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     
     def validate(self):
         pexConfig.Config.validate(self)
-        if not os.path.exists(self.expDir):
-            os.mkdir(self.expDir)
+        if not os.path.exists(self.rootDir):
+            os.mkdir(self.rootDir)
+        expDir  =   os.path.join(self.rootDir,'expSim')
+        if not os.path.exists(expDir):
+            os.mkdir(expDir)
 
 class rgcSimTask(pipeBase.CmdLineTask):
     _DefaultName = "rgcSim"
@@ -113,7 +116,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             badIdList   =   []
         # setup galaxy configuration
         while True:
-            index   =   np.random.randint(0,nrgcDat)
+            index   =   np.range(nrgcDat)
             if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
                 break
         gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
@@ -127,7 +130,8 @@ class rgcSimTask(pipeBase.CmdLineTask):
         g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015,0.022 ,0.005]
         g2List      =   [-0.015,0.028 ,0.007,0.  ,0.02  ,-0.02 ,-0.005,0.01 ]
         for ig in range(8):
-            outFname    =   os.path.join(self.config.expDir,'image_id%d_g%d.fits' %(index,ig))
+            prepend     =   '-id%d-g%d'%(index,ig)
+            outFname    =   os.path.join(self.config.rootDir,'expSim','image%s.fits' %prepend)
             if os.path.exists(outFname):
                 self.log.info('Already have the outcome')
                 return

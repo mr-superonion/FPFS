@@ -64,30 +64,34 @@ class processSimTask(pipeBase.CmdLineTask):
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
+        self.makeSubtask("readDataSim",schema=self.schema)        
         self.makeSubtask('fpfsBase', schema=self.schema)
-        self.makeSubtask("readDataSim",schema=self.schema)
+        
         
     @pipeBase.timeMethod
     def run(self,ifield):
-        self.log.info('begining for field %04d' %(ifield))
-        inputdir=  './rgc/expSim/' 
-        inFname    =   os.path.join(inputdir,'image-%04d.fits' %(ifield))
+        index       =   ifield//8
+        ig          =   ifield%8
+        prepend     =   '-id%d-g%d' %(index,ig)
+        self.log.info('begining for index: %d, shear: %d' %(index,ig))
+        inputdir    =   './rgc/expSim/' 
+        inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
         if not os.path.exists(inFname):
             self.log.info('Cannot find the input exposure')
             return
-        outputdir   =  './outcomeFPFS/' 
-        outFname    =   'src-%04d.fits'  %(ifield)
+        outputdir   =   './rgc/outcomeFPFS/' 
+        outFname    =   'src%s.fits' %(prepend)
         outFname    =   os.path.join(outputdir,outFname)
         if os.path.exists(outFname):
             self.log.info('Already have the output file')
             return
-        dataStruct  =  self.readDataSim.readData(ifield)
+        dataStruct  =   self.readDataSim.readData(prepend)
         if dataStruct is None:
             self.log.info('failed to read data')
             return
         else:
             self.log.info('successed in reading data')
-        #self.fpfsBase.run(dataStruct)
+        self.fpfsBase.run(dataStruct)
         dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
     
@@ -158,7 +162,7 @@ class processSimDriverTask(BatchPoolTask):
     def process(self,cache,ifield):
         self.processSim.run(ifield)
         self.log.info('finish field %03d' %(ifield))
-        return 
+        return
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
