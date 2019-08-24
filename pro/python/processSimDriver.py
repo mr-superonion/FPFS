@@ -57,6 +57,9 @@ class processSimConfig(pexConfig.Config):
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
+        self.fpfsBase.doTest=   False
+        self.fpfsBase.doFD  =   False
+        self.fpfsBase.dedge =   2
 
 class processSimTask(pipeBase.CmdLineTask):
     _DefaultName = "processSim"
@@ -73,13 +76,15 @@ class processSimTask(pipeBase.CmdLineTask):
         index       =   ifield//8
         ig          =   ifield%8
         prepend     =   '-id%d-g%d' %(index,ig)
-        self.log.info('begining for index: %d, shear: %d' %(index,ig))
+        self.log.info('start index: %d, shear: %d' %(index,ig))
         inputdir    =   './rgc/expSim/' 
         inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
         if not os.path.exists(inFname):
             self.log.info('Cannot find the input exposure')
             return
         outputdir   =   './rgc/outcomeFPFS/' 
+        if not os.path.exists(outputdir):
+            os.mkdir(outputdir)
         outFname    =   'src%s.fits' %(prepend)
         outFname    =   os.path.join(outputdir,outFname)
         if os.path.exists(outFname):

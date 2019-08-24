@@ -75,17 +75,20 @@ class rgcSimTask(pipeBase.CmdLineTask):
         nx          =   50 
         ny          =   nx
         ndata       =   nx*ny
-        nrot        =   2
+        nrot        =   4
         scale       =   0.168
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
+        variance    =   0.008 
+        g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
+        g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         
         # Get the psf and nosie information 
         # Get the PSF image
         psf_beta    =   3.5 
         psf_fwhm    =   0.65        # arcsec
-        psf_trunc   =   4.*psf_fwhm # arcsec (=pixels)
+        psf_trunc   =   5.*psf_fwhm # arcsec (=pixels)
         psf_e1      =   0.          #
         psf_e2      =   0.025       #
         psf         =   galsim.Moffat(beta=psf_beta, 
@@ -116,7 +119,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
             badIdList   =   []
         # setup galaxy configuration
         while True:
-            index   =   np.range(nrgcDat)
+            index   =   ifield
             if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
                 break
         gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
@@ -125,80 +128,79 @@ class rgcSimTask(pipeBase.CmdLineTask):
         # rotate the galaxy
         ang     =   ud()*2.*np.pi * galsim.radians
         gal0    =   gal0.rotate(ang)
-        variance    =   0.008 
-        np.random.seed(ifield*10000+1)
-        g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015,0.022 ,0.005]
-        g2List      =   [-0.015,0.028 ,0.007,0.  ,0.02  ,-0.02 ,-0.005,0.01 ]
-        for ig in range(8):
-            prepend     =   '-id%d-g%d'%(index,ig)
-            outFname    =   os.path.join(self.config.rootDir,'expSim','image%s.fits' %prepend)
-            if os.path.exists(outFname):
-                self.log.info('Already have the outcome')
-                return
-            g1  =   g1List[ig]
-            g2  =   g2List[ig]
-            # Shear the galaxy
-            gal     =   gal0.shear(g1=g1,g2=g2)
-            final   =   galsim.Convolve([psf,gal],gsparams=bigfft)
-            # setup the galaxy image and the noise image
-            gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
-            gal_image.setOrigin(0,0)
-            var_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
-            var_image.setOrigin(0,0)
-            i           =   0
-            while i <ndata:
-                #self.log.info('processing stamp %d of field %d' %(i,ifield))
-                # Prepare the subimage
-                ix      =   i%nx
-                iy      =   i//nx
-                b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
-                sub_gal_image = gal_image[b]
-                sub_var_image = var_image[b]
-                # Draw the galaxy image
-                final.drawImage(sub_gal_image,method='no_pixel')
-                #whiten the noise
-                galNoiVar   =   sub_gal_image.whitenNoise(final.noise)
-                sub_var_image+=  galNoiVar
-                i   +=  1
-            self.log.info('Adding correlated noise')
-            rng = galsim.BaseDeviate(ifield)
-            max_variance=   np.max(var_image.array)
-            var_image   =   max_variance - var_image
-            vn          =   galsim.VariableGaussianNoise(rng,var_image)
-            gal_image.addNoise(vn)
-            corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
-            unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
-            corNoise    =   corNoise-unCorNoise
-            corNoise.applyTo(gal_image)
-            exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
-            exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-            del gal_image
-            del var_image
-            #Set the PSF
-            psfArray    =   psfImg.array
-            ngridPsf    =   psfArray.shape[0]
-            psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-            psfLsst.getArray()[:,:]= psfArray
-            psfLsst     =   psfLsst.convertD()
-            kernel      =   afwMath.FixedKernel(psfLsst)
-            kernelPSF   =   meaAlg.KernelPsf(kernel)
-            exposure.setPsf(kernelPSF)
-            #prepare the wcs
-            #Rotation
-            cdelt   =   (0.168*afwGeom.arcseconds)
-            CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
-            #wcs
-            crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
-            crpix   =   afwGeom.Point2D(0.0, 0.0)
-            dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-            exposure.setWcs(dataWcs)
-            #prepare the frc
-            dataCalib = afwImg.Calib()
-            dataCalib.setFluxMag0(63095734448.0194)
-            exposure.setCalib(dataCalib)
-            self.log.info('writing exposure')
-            exposure.writeFits(outFname)
-            del exposure
+        for irot in range(4):
+            angR=   np.pi/4.*irot*galsim.radians
+            galR=   gal0.rotate(angR)
+            for ig in range(8):
+                prepend     =   '-id%d-g%d-r%d'%(index,ig,irot)
+                outFname    =   os.path.join(self.config.rootDir,'expSim','image%s.fits' %prepend)
+                if os.path.exists(outFname):
+                    self.log.info('Already have the outcome')
+                    return
+                g1  =   g1List[ig]
+                g2  =   g2List[ig]
+                # Shear the galaxy
+                gal     =   galR.shear(g1=g1,g2=g2)
+                final   =   galsim.Convolve([psf,gal],gsparams=bigfft)
+                # setup the galaxy image and the noise image
+                gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
+                gal_image.setOrigin(0,0)
+                var_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
+                var_image.setOrigin(0,0)
+                i           =   0
+                while i <ndata:
+                    #self.log.info('processing stamp %d of field %d' %(i,ifield))
+                    # Prepare the subimage
+                    ix      =   i%nx
+                    iy      =   i//nx
+                    b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
+                    sub_gal_image = gal_image[b]
+                    sub_var_image = var_image[b]
+                    # Draw the galaxy image
+                    final.drawImage(sub_gal_image,method='no_pixel')
+                    #whiten the noise
+                    galNoiVar   =   sub_gal_image.whitenNoise(final.noise)
+                    sub_var_image+=  galNoiVar
+                    i       +=  1
+                self.log.info('Adding correlated noise')
+                rng = galsim.BaseDeviate(ifield)
+                max_variance=   np.max(var_image.array)
+                var_image   =   max_variance - var_image
+                vn          =   galsim.VariableGaussianNoise(rng,var_image)
+                gal_image.addNoise(vn)
+                corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
+                unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
+                corNoise    =   corNoise-unCorNoise
+                corNoise.applyTo(gal_image)
+                exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
+                exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
+                del gal_image
+                del var_image
+                #Set the PSF
+                psfArray    =   psfImg.array
+                ngridPsf    =   psfArray.shape[0]
+                psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
+                psfLsst.getArray()[:,:]= psfArray
+                psfLsst     =   psfLsst.convertD()
+                kernel      =   afwMath.FixedKernel(psfLsst)
+                kernelPSF   =   meaAlg.KernelPsf(kernel)
+                exposure.setPsf(kernelPSF)
+                #prepare the wcs
+                #Rotation
+                cdelt   =   (0.168*afwGeom.arcseconds)
+                CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
+                #wcs
+                crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
+                crpix   =   afwGeom.Point2D(0.0, 0.0)
+                dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
+                exposure.setWcs(dataWcs)
+                #prepare the frc
+                dataCalib = afwImg.Calib()
+                dataCalib.setFluxMag0(63095734448.0194)
+                exposure.setCalib(dataCalib)
+                self.log.info('writing exposure')
+                exposure.writeFits(outFname)
+                del exposure
         return
 
     @classmethod
@@ -222,7 +224,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class rgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=80, doc = 'data per field')
+    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
     rgcSim = pexConfig.ConfigurableField(
         target = rgcSimTask,
         doc = "rgcSim task to run on multiple cores"
@@ -269,10 +271,7 @@ class rgcSimBatchTask(BatchPoolTask):
         
     def process(self,cache,ifield):
         self.rgcSim.run(ifield)
-        try:
-            self.log.info('finish field %04d' %(ifield))
-        except:
-            self.log.info('fail to finish field %04d'%(ifield) )
+        self.log.info('finish field %04d' %(ifield))
         return 
 
     @classmethod
