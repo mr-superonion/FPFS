@@ -131,6 +131,8 @@ class rgcSimTask(pipeBase.CmdLineTask):
                 prepend     =   '-id%d-g%d-r%d'%(index,ig,irot)
                 outFname    =   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
                 if os.path.exists(outFname):
+                    exposure=   afwImg.ExposureF.readFits(outFname)
+                    exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
                     self.log.info('Already have the outcome')
                     return
                 g1  =   g1List[ig]
@@ -166,8 +168,10 @@ class rgcSimTask(pipeBase.CmdLineTask):
                 unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
                 corNoise2   =   corNoise-unCorNoise
                 corNoise2.applyTo(gal_image)
+                #Make Lsst exposure
                 exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
                 exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
+                exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
                 del gal_image
                 del var_image
                 #Set the PSF
