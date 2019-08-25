@@ -55,11 +55,18 @@ class processSimConfig(pexConfig.Config):
         target = fpfsBaseTask,
         doc = "Subtask to run measurement of fpfs method"
     )
+    rootDir     = pexConfig.Field(
+        dtype=str, 
+        default="rgc/fwhm4_var4/", 
+        doc="Root Diectory"
+    )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-        self.fpfsBase.doTest=   False
-        self.fpfsBase.doFD  =   False
-        self.fpfsBase.dedge =   2
+        self.readDataSim.rootDir=   self.rootDir
+        self.readDataSim.doWrite=   False
+        self.fpfsBase.doTest    =   False
+        self.fpfsBase.doFD      =   False
+        self.fpfsBase.dedge     =   2
 
 class processSimTask(pipeBase.CmdLineTask):
     _DefaultName = "processSim"
@@ -73,31 +80,33 @@ class processSimTask(pipeBase.CmdLineTask):
         
     @pipeBase.timeMethod
     def run(self,ifield):
-        index       =   ifield//8
-        ig          =   ifield%8
-        prepend     =   '-id%d-g%d' %(index,ig)
-        self.log.info('start index: %d, shear: %d' %(index,ig))
-        inputdir    =   './rgc/expSim/' 
-        inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
-        if not os.path.exists(inFname):
-            self.log.info('Cannot find the input exposure')
-            return
-        outputdir   =   './rgc/outcomeFPFS/' 
+        rootDir     =   self.config.rootDir
+        inputdir    =   os.path.join(self.config.rootDir,'expSim')
+        outputdir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
         if not os.path.exists(outputdir):
             os.mkdir(outputdir)
-        outFname    =   'src%s.fits' %(prepend)
-        outFname    =   os.path.join(outputdir,outFname)
-        if os.path.exists(outFname):
-            self.log.info('Already have the output file')
-            return
-        dataStruct  =   self.readDataSim.readData(prepend)
-        if dataStruct is None:
-            self.log.info('failed to read data')
-            return
-        else:
-            self.log.info('successed in reading data')
-        self.fpfsBase.run(dataStruct)
-        dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
+        index       =   ifield
+        for ig in range(8):
+            for irot in range(4):
+                prepend     =   '-id%d-g%d-r%d' %(index,ig,irot)
+                self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
+                inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
+                if not os.path.exists(inFname):
+                    self.log.info('Cannot find the input exposure')
+                    return
+                outFname    =   'src%s.fits' %(prepend)
+                outFname    =   os.path.join(outputdir,outFname)
+                if os.path.exists(outFname):
+                    self.log.info('Already have the output file')
+                    return
+                dataStruct  =   self.readDataSim.readData(prepend)
+                if dataStruct is None:
+                    self.log.info('failed to read data')
+                    return
+                else:
+                    self.log.info('successed in reading data')
+                self.fpfsBase.run(dataStruct)
+                dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
     
     @classmethod
