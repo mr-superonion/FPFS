@@ -133,8 +133,9 @@ class rgcSimTask(pipeBase.CmdLineTask):
                 if os.path.exists(outFname):
                     exposure=   afwImg.ExposureF.readFits(outFname)
                     exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
-                    self.log.info('Already have the outcome')
-                    return
+                    exposure.writeFits(outFname)
+                    self.log.info('Already have the outcome for %s' %prepend)
+                    continue
                 g1  =   g1List[ig]
                 g2  =   g2List[ig]
                 # Shear the galaxy

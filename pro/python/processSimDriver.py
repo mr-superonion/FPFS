@@ -97,8 +97,8 @@ class processSimTask(pipeBase.CmdLineTask):
                 outFname    =   'src%s.fits' %(prepend)
                 outFname    =   os.path.join(outputdir,outFname)
                 if os.path.exists(outFname):
-                    self.log.info('Already have the output file')
-                    return
+                    self.log.info('Already have the output file%s' %prepend)
+                    continue
                 dataStruct  =   self.readDataSim.readData(prepend)
                 if dataStruct is None:
                     self.log.info('failed to read data')
@@ -131,7 +131,7 @@ class processSimTask(pipeBase.CmdLineTask):
 
 class processSimDriverConfig(pexConfig.Config):
     minField =   pexConfig.Field(dtype=int, default=0, doc = 'minField')
-    maxField =   pexConfig.Field(dtype=int, default=1, doc = 'minField')
+    maxField =   pexConfig.Field(dtype=int, default=1000, doc = 'minField')
     processSim = pexConfig.ConfigurableField(
         target = processSimTask,
         doc = "processSim task to run on multiple cores"
