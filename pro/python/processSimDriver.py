@@ -111,17 +111,10 @@ class processSimTask(pipeBase.CmdLineTask):
     
     @classmethod
     def _makeArgumentParser(cls):
-        """Create an argument parser
-        """
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minGroup', type= int, 
-                        default=0,
-                        help='minimum group number')
-        parser.add_argument('--maxGroup', type= int, 
-                        default=10,
-                        help='maximum group number')
         return parser
 
+    @classmethod
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
 
@@ -190,6 +183,12 @@ class processSimDriverTask(BatchPoolTask):
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        parser.add_argument('--minGroup', type= int, 
+                        default=0,
+                        help='minimum group number')
+        parser.add_argument('--maxGroup', type= int, 
+                        default=10,
+                        help='maximum group number')
         return parser
     
     @classmethod
