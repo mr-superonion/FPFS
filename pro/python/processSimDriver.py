@@ -114,6 +114,12 @@ class processSimTask(pipeBase.CmdLineTask):
         """Create an argument parser
         """
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
+        parser.add_argument('--minGroup', type= int, 
+                        default=0,
+                        help='minimum group number')
+        parser.add_argument('--maxGroup', type= int, 
+                        default=10,
+                        help='maximum group number')
         return parser
 
     def writeConfig(self, butler, clobber=False, doBackup=False):
@@ -130,8 +136,7 @@ class processSimTask(pipeBase.CmdLineTask):
         
 
 class processSimDriverConfig(pexConfig.Config):
-    minField =   pexConfig.Field(dtype=int, default=0, doc = 'minField')
-    maxField =   pexConfig.Field(dtype=int, default=1000, doc = 'minField')
+    perGroup=   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
     processSim = pexConfig.ConfigurableField(
         target = processSimTask,
         doc = "processSim task to run on multiple cores"
@@ -142,7 +147,9 @@ class processSimDriverConfig(pexConfig.Config):
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        return [(ref, kwargs) for ref in range(1)] 
+        minGroup    =  parsedCmd.minGroup 
+        maxGroup    =  parsedCmd.maxGroup 
+        return [(ref, kwargs) for ref in range(minGroup,maxGroup)] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -164,12 +171,13 @@ class processSimDriverTask(BatchPoolTask):
     
     @abortOnError
     def run(self,Id):
-        # Get the  galaxy generator      
-        # Load data
+        perGroup=   self.config.perGroup
+        fMin    =   perGroup*Id
+        fMax    =   perGroup*(Id+1)
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(self.config.minField,self.config.maxField)
+        fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         return
         
