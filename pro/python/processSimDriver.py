@@ -101,7 +101,7 @@ class processSimTask(pipeBase.CmdLineTask):
                 dataStruct  =   self.readDataSim.readData(prepend)
                 if dataStruct is None:
                     self.log.info('failed to read data')
-                    return
+                    continue
                 else:
                     self.log.info('successed in reading data')
                 self.fpfsBase.run(dataStruct)
@@ -170,14 +170,9 @@ class processSimDriverTask(BatchPoolTask):
         pool    =   Pool("processSim")
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
-        pool.map(self.process,fieldList)
+        pool.map(self.processSim.run,fieldList)
         return
         
-    def process(self,cache,ifield):
-        self.processSim.run(ifield)
-        self.log.info('finish field %03d' %(ifield))
-        return
-
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
