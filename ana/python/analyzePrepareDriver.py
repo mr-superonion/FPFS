@@ -24,7 +24,7 @@
 import os
 import galsim
 import numpy as np
-import astropy.io.fits as pyfits
+import astropy.table as astTab
 
 # lsst Tasks
 import lsst.daf.base as dafBase
@@ -45,7 +45,7 @@ import lsst.obs.subaru.filterFraction
 from fpfsBase import fpfsBaseTask
 from readDataSim import readDataSimTask
 
-class processSimConfig(pexConfig.Config):
+class analyzePrepareConfig(pexConfig.Config):
     "config"
     readDataSim= pexConfig.ConfigurableField(
         target  = readDataSimTask,
@@ -68,9 +68,9 @@ class processSimConfig(pexConfig.Config):
         self.fpfsBase.doFD      =   False
         self.fpfsBase.dedge     =   2
 
-class processSimTask(pipeBase.CmdLineTask):
-    _DefaultName = "processSim"
-    ConfigClass = processSimConfig
+class analyzePrepareTask(pipeBase.CmdLineTask):
+    _DefaultName = "analyzePrepare"
+    ConfigClass = analyzePrepareConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
@@ -81,33 +81,40 @@ class processSimTask(pipeBase.CmdLineTask):
     @pipeBase.timeMethod
     def run(self,index):
         rootDir     =   self.config.rootDir
-        inputdir    =   os.path.join(self.config.rootDir,'expSim')
         outputdir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
         if not os.path.exists(outputdir):
-            os.mkdir(outputdir)
+            self.log.info('cannot find the output directory')
+            return
+        g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
+        g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         for ig in range(8):
             for irot in range(4):
-                prepend     =   '-id%d-g%d-r%d' %(index,ig,irot)
+                prepend =   '-id%d-g%d-r%d' %(index,ig,irot)
                 self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
-                inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
+                inFname =   'src%s.fits' %(prepend)
+                inFname =   os.path.join(outputdir,outFname)
                 if not os.path.exists(inFname):
-                    self.log.info('Cannot find the input exposure')
-                    return
-                outFname    =   'src%s.fits' %(prepend)
-                outFname    =   os.path.join(outputdir,outFname)
-                if os.path.exists(outFname):
-                    self.log.info('Already have the output file%s' %prepend)
+                    self.log.info('cannot find the output file%s' %prepend)
                     continue
-                dataStruct  =   self.readDataSim.readData(prepend)
-                if dataStruct is None:
-                    self.log.info('failed to read data')
-                    return
-                else:
-                    self.log.info('successed in reading data')
-                self.fpfsBase.run(dataStruct)
-                dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
+                src     =   astTab.Table.read(inFname)
+                src     =   self.keepUnique(src)
+
+                
         return
-    
+
+    def keepUnique(self,src):
+        src['ipos']     =   (src['base_SdssCentroid_y']//64)*100 +(src['base_SdssCentroid_x']//64)
+        src['ipos']     =   src['ipos'].astype(np.int)
+        src['centDist'] =   ((src['base_SdssCentroid_y']%64-32)**2. +
+                                (src['base_SdssCentroid_x']%64-32)**2.)
+        src['centDist'] =   np.sqrt(src['centDist'])
+        # First, keep only detections that are the closest to the grid point
+        # Get sorted index by grid index and grid distance
+        inds        =   np.lexsort([src['centDist'], src['ipos']])
+        inds_unique =   np.unique(src['ipos'][inds], return_index=True)[1]
+        src     =   src[inds[inds_unique]]
+        src     =   src[(src['centDist']<5.)]
+        return src
     @classmethod
     def _makeArgumentParser(cls):
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
@@ -127,16 +134,16 @@ class processSimTask(pipeBase.CmdLineTask):
         pass
         
 
-class processSimDriverConfig(pexConfig.Config):
+class analyzePrepareDriverConfig(pexConfig.Config):
     perGroup=   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
-    processSim = pexConfig.ConfigurableField(
-        target = processSimTask,
-        doc = "processSim task to run on multiple cores"
+    analyzePrepare = pexConfig.ConfigurableField(
+        target = analyzePrepareTask,
+        doc = "analyzePrepare task to run on multiple cores"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
-class processSimRunner(TaskRunner):
+class analyzePrepareRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minGroup    =  parsedCmd.minGroup 
@@ -147,10 +154,10 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class processSimDriverTask(BatchPoolTask):
-    ConfigClass = processSimDriverConfig
-    RunnerClass = processSimRunner
-    _DefaultName = "processSimDriver"
+class analyzePrepareDriverTask(BatchPoolTask):
+    ConfigClass = analyzePrepareDriverConfig
+    RunnerClass = analyzePrepareRunner
+    _DefaultName = "analyzePrepareDriver"
     
     def __reduce__(self):
         """Pickler"""
@@ -159,7 +166,7 @@ class processSimDriverTask(BatchPoolTask):
 
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        self.makeSubtask("processSim")
+        self.makeSubtask("analyzePrepare")
     
     @abortOnError
     def run(self,Id):
@@ -167,14 +174,14 @@ class processSimDriverTask(BatchPoolTask):
         fMin    =   perGroup*Id
         fMax    =   perGroup*(Id+1)
         #Prepare the pool
-        pool    =   Pool("processSim")
+        pool    =   Pool("analyzePrepare")
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         return
         
     def process(self,cache,ifield):
-        self.processSim.run(ifield)
+        self.analyzePrepare.run(ifield)
         self.log.info('finish field %03d' %(ifield))
         return
 
@@ -186,7 +193,7 @@ class processSimDriverTask(BatchPoolTask):
                         default=0,
                         help='minimum group number')
         parser.add_argument('--maxGroup', type= int, 
-                        default=10,
+                        default=1,
                         help='maximum group number')
         return parser
     
