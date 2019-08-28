@@ -79,12 +79,13 @@ class processSimTask(pipeBase.CmdLineTask):
         
         
     @pipeBase.timeMethod
-    def run(self,index):
+    def run(self,ifield):
         rootDir     =   self.config.rootDir
         inputdir    =   os.path.join(self.config.rootDir,'expSim')
         outputdir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
         if not os.path.exists(outputdir):
             os.mkdir(outputdir)
+        index       =   ifield
         for ig in range(8):
             for irot in range(4):
                 prepend     =   '-id%d-g%d-r%d' %(index,ig,irot)
@@ -92,7 +93,7 @@ class processSimTask(pipeBase.CmdLineTask):
                 inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
                 if not os.path.exists(inFname):
                     self.log.info('Cannot find the input exposure')
-                    return
+                    continue
                 outFname    =   'src%s.fits' %(prepend)
                 outFname    =   os.path.join(outputdir,outFname)
                 if os.path.exists(outFname):
@@ -102,8 +103,6 @@ class processSimTask(pipeBase.CmdLineTask):
                 if dataStruct is None:
                     self.log.info('failed to read data')
                     continue
-                else:
-                    self.log.info('successed in reading data')
                 self.fpfsBase.run(dataStruct)
                 dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
         return
@@ -170,9 +169,14 @@ class processSimDriverTask(BatchPoolTask):
         pool    =   Pool("processSim")
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
-        pool.map(self.processSim.run,fieldList)
+        pool.map(self.process,fieldList)
         return
         
+    def process(self,cache,ifield):
+        self.processSim.run(ifield)
+        self.log.info('finish field %03d' %(ifield))
+        return
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
