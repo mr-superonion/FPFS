@@ -75,8 +75,6 @@ class rgcSimTask(pipeBase.CmdLineTask):
         flux_scaling=   2.587
         variance    =   parser.getfloat('noise','variance')
         corFname    =   parser.get('noise','corFname')
-        rng         =   galsim.BaseDeviate(ifield)
-        corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
         g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
         g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         
@@ -162,11 +160,13 @@ class rgcSimTask(pipeBase.CmdLineTask):
                     sub_var_image+=  galNoiVar
                     i       +=  1
                 self.log.info('Adding correlated noise')
+                rng         =   galsim.BaseDeviate(index*32+ig+irot*8)
                 max_variance=   np.max(var_image.array)
                 var_image   =   max_variance - var_image
                 vn          =   galsim.VariableGaussianNoise(rng,var_image)
                 gal_image.addNoise(vn)
                 unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
+                corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
                 corNoise2   =   corNoise-unCorNoise
                 corNoise2.applyTo(gal_image)
                 #Make Lsst exposure

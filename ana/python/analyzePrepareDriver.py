@@ -23,38 +23,23 @@
 # python lib
 import os
 import galsim
+import k3match
+import catStat
 import numpy as np
+
 import astropy.table as astTab
 
 # lsst Tasks
-import lsst.daf.base as dafBase
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-import lsst.afw.math as afwMath
-import lsst.afw.table as afwTable
-import lsst.afw.image as afwImg
-import lsst.afw.detection as afwDet
-import lsst.afw.geom as afwGeom
-import lsst.afw.coord as afwCoord
-
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 import lsst.obs.subaru.filterFraction
-from fpfsBase import fpfsBaseTask
-from readDataSim import readDataSimTask
 
 class analyzePrepareConfig(pexConfig.Config):
     "config"
-    readDataSim= pexConfig.ConfigurableField(
-        target  = readDataSimTask,
-        doc     = "Subtask to run measurement of fpfs method"
-    )
-    fpfsBase = pexConfig.ConfigurableField(
-        target = fpfsBaseTask,
-        doc = "Subtask to run measurement of fpfs method"
-    )
     rootDir     = pexConfig.Field(
         dtype=str, 
         default="rgc/fwhm4_var4/", 
@@ -62,45 +47,81 @@ class analyzePrepareConfig(pexConfig.Config):
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-        self.readDataSim.rootDir=   self.rootDir
-        self.readDataSim.doWrite=   False
-        self.fpfsBase.doTest    =   False
-        self.fpfsBase.doFD      =   False
-        self.fpfsBase.dedge     =   2
 
 class analyzePrepareTask(pipeBase.CmdLineTask):
     _DefaultName = "analyzePrepare"
     ConfigClass = analyzePrepareConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
-        self.schema     =   afwTable.SourceTable.makeMinimalSchema()
-        self.makeSubtask("readDataSim",schema=self.schema)        
-        self.makeSubtask('fpfsBase', schema=self.schema)
         
         
     @pipeBase.timeMethod
     def run(self,index):
-        rootDir     =   self.config.rootDir
-        outputdir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
-        if not os.path.exists(outputdir):
-            self.log.info('cannot find the output directory')
+        inputDir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
+        if not os.path.exists(inputDir):
+            self.log.info('cannot find the input directory')
             return
-        g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
-        g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
+        cFname  =   'CBase.npy'
+        cRatio  =   4.
+        const   =   (np.load(cFname))*cRatio
+        rows    =   []
         for ig in range(8):
+            srcAll  =   []
+            minNum  =   2500
             for irot in range(4):
                 prepend =   '-id%d-g%d-r%d' %(index,ig,irot)
                 self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
                 inFname =   'src%s.fits' %(prepend)
-                inFname =   os.path.join(outputdir,outFname)
+                inFname =   os.path.join(inputDir,inFname)
                 if not os.path.exists(inFname):
-                    self.log.info('cannot find the output file%s' %prepend)
+                    self.log.info('cannot find the input file%s' %prepend)
                     continue
                 src     =   astTab.Table.read(inFname)
-                src     =   self.keepUnique(src)
-
-                
+                self.log.info('%s' %len(src))
+                #src     =   self.getNeibourInfo(src)
+                #src     =   self.keepUnique(src)
+                maskG       =   np.all(~np.isnan(src['fpfs_moments']),axis=1)
+                src         =   src[maskG]
+                num     =   len(src)
+                self.log.info('%s' %num)
+                if num< minNum:
+                    minNum=num
+                srcAll.append(src)
+            srcAll2 =   []
+            for irot in range(4):
+                srcAll2.append(srcAll[irot][:minNum])
+            srcAll  =   astTab.vstack(srcAll2)
+            del srcAll2
+            srcAll.write('src-%s-%s.fits' %(index,ig))
+            row     =   self.measureShear(srcAll,const)
+            rows.append(row)
+        names   =   ['g1e','g1err','g2e','g2err']
+        tableO  =   astTab.Table(rows=rows,names=names)
+        g1List  =   np.array([-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005])
+        g2List  =   np.array([-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010])
+        tableO['g1']=g1List
+        tableO['g2']=g2List
+        tableO.write('index%s.csv' %index)
         return
+
+    def getNeibourInfo(self,src):
+        x   =   src['base_SdssShape_x']
+        y   =   src['base_SdssShape_y']
+        z   =   np.zeros(len(x))
+        id1,id2,dis =   k3match.cartesian(x,y,z,x,y,z,50.)
+        src2    =   src[id2]
+        inds    =   np.lexsort([dis, id1])
+        inds_unique =   np.unique(id1[inds], return_index=True)[1]
+        id1     =   id1[inds[inds_unique]]
+        id2     =   id2[inds[inds_unique]]
+        dis     =   dis[inds[inds_unique]]
+        src[id1]['distance_neibor']=dis
+        namesU  =   ['base_FootprintArea_value','base_CircularApertureFlux_3_0_fluxSigma','base_CircularApertureFlux_3_0_flux']
+        for name in namesU:
+            nameA=  name+'_neibor'
+            src[id1][nameA]=src[id2][name]
+        return src
+        
 
     def keepUnique(self,src):
         src['ipos']     =   (src['base_SdssCentroid_y']//64)*100 +(src['base_SdssCentroid_x']//64)
@@ -112,9 +133,27 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         # Get sorted index by grid index and grid distance
         inds        =   np.lexsort([src['centDist'], src['ipos']])
         inds_unique =   np.unique(src['ipos'][inds], return_index=True)[1]
-        src     =   src[inds[inds_unique]]
-        src     =   src[(src['centDist']<5.)]
+        src         =   src[inds[inds_unique]]
+        src         =   src[(src['centDist']<5.)]
+        #we also mask out galaxies without measurement
         return src
+
+    def measureShear(self,src,const):
+        #Shapelet modes
+        moments =   src['fpfs_moments']
+        #Get weight
+        weight  =   moments[:,0]+const
+        #Ellipticity
+        e1      =   -moments[:,1]/weight
+        e2      =   -moments[:,2]/weight
+        #Response factor 
+        R1      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e1**2.)
+        R2      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e2**2.)
+        RA      =   (R1+R2)/2.
+        g1,g1err=   catStat.shearAverage(RA,e1) 
+        g2,g2err=   catStat.shearAverage(RA,e2)
+        return g1,g1err,g2,g2err
+        
     @classmethod
     def _makeArgumentParser(cls):
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
@@ -171,8 +210,8 @@ class analyzePrepareDriverTask(BatchPoolTask):
     @abortOnError
     def run(self,Id):
         perGroup=   self.config.perGroup
-        fMin    =   perGroup*Id
-        fMax    =   perGroup*(Id+1)
+        fMin    =   perGroup*Id+100
+        fMax    =   perGroup*(Id+1)+100
         #Prepare the pool
         pool    =   Pool("analyzePrepare")
         pool.cacheClear()

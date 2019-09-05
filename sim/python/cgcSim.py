@@ -27,6 +27,7 @@ import galsim
 import numpy as np
 from astropy.table import Table
 import astropy.io.fits as pyfits
+from configparser import ConfigParser
 
 # lsst Tasks
 import lsst.daf.base as dafBase
@@ -45,175 +46,133 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-class cgcSimConfig(pexConfig.Config):
-    expDir      =   pexConfig.Field(dtype=str, default='expDir', doc = 'directory to store exposures')
-    catPre      =   pexConfig.Field(dtype=str, default='catPre', doc = 'directory to store pre-catalog')
-    psfPre      =   pexConfig.Field(dtype=str, default='psfPre', doc = 'directory to store pre-PSF')
-    def setDefaults(self):
-        pexConfig.Config.setDefaults(self)
-    
-    def validate(self):
-        pexConfig.Config.validate(self)
-        if not os.path.exists(self.expDir):
-            os.mkdir(self.expDir)
-        if not os.path.exists(self.catPre):
-            os.mkdir(self.catPre)
-        if not os.path.exists(self.psfPre):
-            raise RuntimeError("Cannot find PSF images")
 
 class cgcSimTask(pipeBase.CmdLineTask):
-    _DefaultName = "cgcSim"
-    ConfigClass = cgcSimConfig
+    _DefaultName=   "cgcSim"
+    ConfigClass =   pexConfig.Config
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
     
     @pipeBase.timeMethod
-    def run(self,ifield):
-        badIDENT    =   [78798,276775,908556,81452,200743]
-        self.log.info('begining for field %04d' %(ifield))
-        outFname    =   os.path.join(self.config.expDir,'image-%04d.fits' %(ifield))
-        if os.path.exists(outFname):
-            self.log.info('Already have the outcome')
-            return
-        self.log.info('simulating field %s' %(ifield))
+    def run(self,index,rootDir,conpend):
+        rootDir2    =   os.path.join(rootDir,conpend)
+        configName  =   'noiPsfConfig/config_%s.ini' %conpend
+        self.log.info('using configuration %s' %(configName))
+        self.log.info('simulating index %s' %(index))
+        parser      =   ConfigParser()
+        parser.read(configName)
         # Basic parameters
         ngrid       =   64
-        nx          =   100 
+        nx          =   50 
         ny          =   nx
         ndata       =   nx*ny
-        nrot        =   2
+        nrot        =   4
         scale       =   0.168
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
+        variance    =   parser.getfloat('noise','variance')
+        corFname    =   parser.get('noise','corFname')
+        g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
+        g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         
         # Get the psf and nosie information 
-        psfFname    =   os.path.join(self.config.psfPre,'psf%04d.fits'%(ifield))
-        psfImg      =   galsim.fits.read(psfFname)
-        noiseHead   =   pyfits.getheader(psfFname)
-        psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.) 
-        # Get the shear information
-        g1          =   noiseHead['g1']
-        g2          =   noiseHead['g2']
-        fwhm        =   noiseHead['fwhm'] 
-        if fwhm <0.6 and fwhm>0.2:
-            iparent =   0
-        elif fwhm<=0.85 and fwhm>=0.6:
-            iparent =   0
-        elif fwhm>0.85:
-            iparent =   0
-        else:
-            self.log.info('incorrect PSF fwhm')
-            return
+        # Get the PSF image
+        psf_beta    =   3.5 
+        psf_fwhm    =   parser.getfloat('psf','fwhm') #arcsec
+        psf_trunc   =   5.*psf_fwhm # arcsec
+        psf_e1      =   0.          #
+        psf_e2      =   0.025       #
+        psf         =   galsim.Moffat(beta=psf_beta, 
+                        fwhm=psf_fwhm,trunc=psf_trunc)
+        psf         =   psf.shear(e1=psf_e1,e2=psf_e2)        
+        psfImg      =   psf.drawImage(nx=45,ny=45,scale=scale)
         # Get the  galaxy generator      
+        flux_scaling=   2.587*15
         # Load data
-        Xnames      =   ['best','median','worst']
-        Xname       =   Xnames[iparent]
-        catName     =   'real_galaxy_catalog_%s.fits' %(Xname)
-        directory   =   '/work/xiangchong.li/work/galsim_train/parent_%s_processed' %(Xname)
-        rgc         =   galsim.RealGalaxyCatalog(catName,dir=directory)
-        rgcCat      =   rgc.cat
-        nrgcDat     =   len(rgcCat)
-        if iparent  ==  1: 
-            badIdList   =   [148999,100999] 
-        else:
-            badIdList   =   []
-        extFname    =   '/work/xiangchong.li/work/galsim_train/cosmos_extinction_HSC.hdf5'
-        extTab      =   Table.read(extFname,"/%s" %iparent)
-        assert  len(extTab)==nrgcDat, 'number of galaxies in extinction file does not math that of rgc catalog'
-
-        variance    =   noiseHead['var']
-        rescale     =   noiseHead['rescale']
-        ud          =   galsim.UniformDeviate(ifield*10000+1)
-        np.random.seed(ifield*10000+1)
-
-        # setup the galaxy image and the noise image
-        gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
-        gal_image.setOrigin(0,0)
-        var_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
-        var_image.setOrigin(0,0)
-        data_rows   =   []
-        i           =   0
-        while i <ndata:
-            #self.log.info('processing stamp %d of field %d' %(i,ifield))
-            # Prepare the subimage
-            ix      =   i%nx
-            iy      =   i//nx
-            b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
-            sub_gal_image = gal_image[b]
-            sub_var_image = var_image[b]
-            #simulate the galaxy
-            if i%nrot==0:
-                while True:
-                    index   =   np.random.randint(0,nrgcDat)
-                    if (index not in badIdList) and (rgcCat[index]['IDENT'] not in badIDENT):
-                        break
-                gal0    =   galsim.RealGalaxy(rgc,index=index,gsparams=bigfft)
-                gal0    *=  flux_scaling
-                # rotate the galaxy
-                ang     =   ud()*2.*np.pi * galsim.radians
-                gal0    =   gal0.rotate(ang)
-            else:
-                gal0    =   gal0.rotate(1./nrot*np.pi*galsim.radians)
-            ss      =   rgcCat[index]
-            ssExt   =   extTab[index]
-            assert ssExt['IDENT']==ss['IDENT'], 'IDENT does not match'
-            # Shear the galaxy
-            gal     =   gal0.shear(g1=g1,g2=g2)
-            final   =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-            # Draw the galaxy image
-            final.drawImage(sub_gal_image,method='no_pixel')
-            #whiten the noise
-            galNoiVar   =   sub_gal_image.whitenNoise(final.noise)
-            sub_var_image+=  galNoiVar
-            row=(i,index,ss['IDENT'],ss['RA'],ss['DEC'],ss['MAG'],ssExt['a_i'],iparent)
-            data_rows.append(row)
-            i   +=  1
-        self.log.info('Adding correlated noise')
-        rng = galsim.BaseDeviate(ifield)
-        max_variance=   np.max(var_image.array)
-        var_image   =   max_variance - var_image
-        vn          =   galsim.VariableGaussianNoise(rng,var_image)
-        gal_image.addNoise(vn)
-        corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=rng,cosmos_scale=scale,variance=variance)
-        unCorNoise  =   galsim.UncorrelatedNoise(max_variance,rng=rng,scale=scale)
-        corNoise    =   corNoise-unCorNoise
-        corNoise.applyTo(gal_image)
-        exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
-        exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance*rescale
-        del gal_image
-        del var_image
-        #Set the PSF
-        psfArray    =   psfImg.array
-        ngridPsf    =   psfArray.shape[0]
-        psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-        psfLsst.getArray()[:,:]= psfArray
-        psfLsst     =   psfLsst.convertD()
-        kernel      =   afwMath.FixedKernel(psfLsst)
-        kernelPSF   =   meaAlg.KernelPsf(kernel)
-        exposure.setPsf(kernelPSF)
-        #prepare the wcs
-        #Rotation
-        cdelt   =   (0.168*afwGeom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
-        #wcs
-        crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
-        crpix   =   afwGeom.Point2D(0.0, 0.0)
-        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-        exposure.setWcs(dataWcs)
-        #prepare the frc
-        dataCalib = afwImg.Calib()
-        dataCalib.setFluxMag0(63095734448.0194)
-        exposure.setCalib(dataCalib)
-        self.log.info('writing exposure')
-        exposure.writeFits(outFname)
-        del exposure
-        t = Table(rows=data_rows, names=('ipos','COSMOS_INDEX','IDENT','RA','DEC','COSMOS_MAG','a_i','parent_seeing'))
-        catPreName  =   os.path.join(self.config.catPre,'catalog-%04d.fits' %(ifield))
-        t.write(catPreName,overwrite=True)
-        del t
+        catName     =   'real_galaxy_catalog_25.2.fits'
+        dir         =   '../galsim_train/COSMOS_25.2_training_sample/'
+        cosmos_cat  =   galsim.COSMOSCatalog(catName, dir=dir)
+        # index
+        index_use   =   cosmos_cat.orig_index
+        # parametric catalog
+        param_cat   =   cosmos_cat.param_cat[index_use]
+        record      =   param_cat[index]
+        # prepare the galaxies        
+        gal0        =   cosmos_cat.makeGalaxy(gal_type='parametric',index=index,gsparams=bigfft)
+        gal0        *=  flux_scaling
+        ud          =   galsim.UniformDeviate(index*10000+1)
+        # rotate the galaxy
+        ang         =   ud()*2.*np.pi * galsim.radians
+        gal0        =   gal0.rotate(ang)
+        for irot in range(4):
+            angR=   np.pi/4.*irot*galsim.radians
+            galR=   gal0.rotate(angR)
+            for ig in range(8):
+                prepend     =   '-id%d-g%d-r%d'%(index,ig,irot)
+                outFname    =   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
+                if os.path.exists(outFname):
+                    exposure=   afwImg.ExposureF.readFits(outFname)
+                    exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+                    exposure.writeFits(outFname)
+                    self.log.info('Already have the outcome for %s' %prepend)
+                    continue
+                g1  =   g1List[ig]
+                g2  =   g2List[ig]
+                # Shear the galaxy
+                gal     =   galR.shear(g1=g1,g2=g2)
+                final   =   galsim.Convolve([psf,gal],gsparams=bigfft)
+                # setup the galaxy image and the noise image
+                gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
+                gal_image.setOrigin(0,0)
+                var_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
+                var_image.setOrigin(0,0)
+                i           =   0
+                while i <ndata:
+                    # Prepare the subimage
+                    ix      =   i%nx
+                    iy      =   i//nx
+                    b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
+                    sub_gal_image = gal_image[b]
+                    # Draw the galaxy image
+                    final.drawImage(sub_gal_image,method='no_pixel')
+                    i       +=  1
+                self.log.info('Adding correlated noise')
+                rng         =   galsim.BaseDeviate(index*32+ig+irot*8)
+                corNoise    =   galsim.getCOSMOSNoise(file_name=corFname,rng=rng,cosmos_scale=scale,variance=variance)
+                corNoise.applyTo(gal_image)
+                #Make Lsst exposure
+                exposure    =   afwImg.ExposureF(nx*ngrid,ny*ngrid)
+                exposure.getMaskedImage().getImage().getArray()[:,:]=gal_image.array
+                exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+                del gal_image
+                del var_image
+                #Set the PSF
+                psfArray    =   psfImg.array
+                ngridPsf    =   psfArray.shape[0]
+                psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
+                psfLsst.getArray()[:,:]= psfArray
+                psfLsst     =   psfLsst.convertD()
+                kernel      =   afwMath.FixedKernel(psfLsst)
+                kernelPSF   =   meaAlg.KernelPsf(kernel)
+                exposure.setPsf(kernelPSF)
+                #prepare the wcs
+                #Rotation
+                cdelt   =   (0.168*afwGeom.arcseconds)
+                CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
+                #wcs
+                crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
+                crpix   =   afwGeom.Point2D(0.0, 0.0)
+                dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
+                exposure.setWcs(dataWcs)
+                #prepare the frc
+                dataCalib = afwImg.Calib()
+                dataCalib.setFluxMag0(63095734448.0194)
+                exposure.setCalib(dataCalib)
+                self.log.info('writing exposure')
+                exposure.writeFits(outFname)
+                del exposure
         return
 
     @classmethod
@@ -237,11 +196,30 @@ class cgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class cgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=80, doc = 'data per field')
-    cgcSim = pexConfig.ConfigurableField(
+    perGroup=   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
+    cgcSim  =   pexConfig.ConfigurableField(
         target = cgcSimTask,
         doc = "cgcSim task to run on multiple cores"
     )
+    rootDir =   pexConfig.Field(dtype=str, 
+                default='cgc', doc = 'root directory'
+    )
+    conpend =   pexConfig.Field(dtype=str,
+                default='fwhm4_var4', doc = 'prepend for one configuration'
+    )
+    def setDefaults(self):
+        pexConfig.Config.setDefaults(self)
+    
+    def validate(self):
+        pexConfig.Config.validate(self)
+        if not os.path.exists(self.rootDir):
+            os.mkdir(self.rootDir)
+        rootDir2=   os.path.join(self.rootDir,self.conpend)
+        if not os.path.exists(rootDir2):
+            os.mkdir(rootDir2)
+        expDir  =   os.path.join(rootDir2,'expSim')
+        if not os.path.exists(expDir):
+            os.mkdir(expDir)
     
 class cgcSimRunner(TaskRunner):
     @staticmethod
@@ -277,17 +255,16 @@ class cgcSimBatchTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("cgcSim")
         pool.cacheClear()
+        pool.storeSet(rootDir=self.config.rootDir)
+        pool.storeSet(conpend=self.config.conpend)
         fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
         
-    def process(self,cache,ifield):
-        self.cgcSim.run(ifield)
-        try:
-            self.log.info('finish field %04d' %(ifield))
-        except:
-            self.log.info('fail to finish field %04d'%(ifield) )
+    def process(self,cache,index):
+        self.cgcSim.run(index,cache.rootDir,cache.conpend)
+        self.log.info('finish index %04d' %(index))
         return 
 
     @classmethod
