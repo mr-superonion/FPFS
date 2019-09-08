@@ -57,14 +57,17 @@ class processSimConfig(pexConfig.Config):
     )
     rootDir     = pexConfig.Field(
         dtype=str, 
-        default="rgc/fwhm4_var4/", 
+        default="cgc-control-1gal-nonoise/fwhm4_var4/", 
         doc="Root Diectory"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.readDataSim.rootDir=   self.rootDir
         self.readDataSim.doWrite=   False
+        self.readDataSim.doDeblend= False
+        self.readDataSim.doAddFP=   False
         self.fpfsBase.doTest    =   False
+        self.fpfsBase.doDebug   =   False
         self.fpfsBase.doFD      =   False
         self.fpfsBase.dedge     =   2
 
@@ -79,15 +82,16 @@ class processSimTask(pipeBase.CmdLineTask):
         
         
     @pipeBase.timeMethod
-    def run(self,ifield):
+    def run(self,index):
         rootDir     =   self.config.rootDir
         inputdir    =   os.path.join(self.config.rootDir,'expSim')
         outputdir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
         if not os.path.exists(outputdir):
             os.mkdir(outputdir)
-        index       =   ifield
-        for ig in range(8):
-            for irot in range(4):
+        nrot    =   4
+        nshear  =   8
+        for ig in range(nshear):
+            for irot in range(nrot):
                 prepend     =   '-id%d-g%d-r%d' %(index,ig,irot)
                 self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
                 inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
@@ -168,7 +172,8 @@ class processSimDriverTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(fMin,fMax)
+        #fieldList=  range(fMin,fMax)
+        fieldList=  range(0,1)
         pool.map(self.process,fieldList)
         return
         
@@ -185,7 +190,7 @@ class processSimDriverTask(BatchPoolTask):
                         default=0,
                         help='minimum group number')
         parser.add_argument('--maxGroup', type= int, 
-                        default=10,
+                        default=1,
                         help='maximum group number')
         return parser
     

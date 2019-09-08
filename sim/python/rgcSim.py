@@ -88,7 +88,7 @@ class rgcSimTask(pipeBase.CmdLineTask):
         psf         =   galsim.Moffat(beta=psf_beta, 
                         fwhm=psf_fwhm,trunc=psf_trunc)
         psf         =   psf.shear(e1=psf_e1,e2=psf_e2)        
-        psfImg      =   psf.drawImage(nx=45,ny=45,scale=scale)
+        psfImg      =   psf.drawImage(nx=45,ny=45,scale=scale,method='no_pixel')
         if psf_fwhm <0.6 and psf_fwhm>0.2:
             iparent =   0
         elif psf_fwhm<=0.85 and psf_fwhm>=0.6:

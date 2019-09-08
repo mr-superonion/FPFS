@@ -42,7 +42,7 @@ class analyzePrepareConfig(pexConfig.Config):
     "config"
     rootDir     = pexConfig.Field(
         dtype=str, 
-        default="rgc/fwhm4_var4/", 
+        default="cgc-control-1gal-nonoise/fwhm4_var4/", 
         doc="Root Diectory"
     )
     def setDefaults(self):
@@ -61,14 +61,16 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         if not os.path.exists(inputDir):
             self.log.info('cannot find the input directory')
             return
+        nrot    =   4
+        nshear  =   8
         cFname  =   'CBase.npy'
         cRatio  =   4.
         const   =   (np.load(cFname))*cRatio
         rows    =   []
-        for ig in range(8):
+        for ig in range(nshear):
             srcAll  =   []
             minNum  =   2500
-            for irot in range(4):
+            for irot in range(nrot):
                 prepend =   '-id%d-g%d-r%d' %(index,ig,irot)
                 self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
                 inFname =   'src%s.fits' %(prepend)
@@ -88,11 +90,11 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
                     minNum=num
                 srcAll.append(src)
             srcAll2 =   []
-            for irot in range(4):
+            for irot in range(nrot):
                 srcAll2.append(srcAll[irot][:minNum])
             srcAll  =   astTab.vstack(srcAll2)
             del srcAll2
-            srcAll.write('src-%s-%s.fits' %(index,ig))
+            #srcAll.write('src-%s-%s.fits' %(index,ig))
             row     =   self.measureShear(srcAll,const)
             rows.append(row)
         names   =   ['g1e','g1err','g2e','g2err']
@@ -101,6 +103,15 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         g2List  =   np.array([-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010])
         tableO['g1']=g1List
         tableO['g2']=g2List
+        w1  =   1./tableO['g1err']
+        w2  =   1./tableO['g2err']
+        [m1,c1],cov1=np.polyfit(tableO['g1'],tableO['g1e'],1,w=w1,cov=True)
+        [m2,c2],cov2=np.polyfit(tableO['g2'],tableO['g2e'],1,w=w2,cov=True)
+        erm1=np.sqrt(cov1[0,0]);erc1=np.sqrt(cov1[1,1])
+        erm2=np.sqrt(cov2[0,0]);erc2=np.sqrt(cov2[1,1])
+        m1-=1;m2-=1
+        print(m1,m2,c1,c2)
+        print(erm1,erm2,erc1,erc2)
         tableO.write('index%s.csv' %index)
         return
 
@@ -150,8 +161,8 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         R1      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e1**2.)
         R2      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e2**2.)
         RA      =   (R1+R2)/2.
-        g1,g1err=   catStat.shearAverage(RA,e1) 
-        g2,g2err=   catStat.shearAverage(RA,e2)
+        g1,g1err=   catStat.shearAverage(R1,e1) 
+        g2,g2err=   catStat.shearAverage(R2,e2)
         return g1,g1err,g2,g2err
         
     @classmethod
@@ -210,12 +221,13 @@ class analyzePrepareDriverTask(BatchPoolTask):
     @abortOnError
     def run(self,Id):
         perGroup=   self.config.perGroup
-        fMin    =   perGroup*Id+100
-        fMax    =   perGroup*(Id+1)+100
+        fMin    =   perGroup*Id
+        fMax    =   perGroup*(Id+1)
         #Prepare the pool
         pool    =   Pool("analyzePrepare")
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
+        fieldList=  range(1)
         pool.map(self.process,fieldList)
         return
         

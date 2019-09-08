@@ -55,7 +55,8 @@ class cgcSimTask(pipeBase.CmdLineTask):
 
     
     @pipeBase.timeMethod
-    def run(self,index,rootDir,conpend):
+    def run(self,index,sample,conpend):
+        rootDir     =   'cgc-%s' %sample
         rootDir2    =   os.path.join(rootDir,conpend)
         configName  =   'noiPsfConfig/config_%s.ini' %conpend
         self.log.info('using configuration %s' %(configName))
@@ -63,61 +64,64 @@ class cgcSimTask(pipeBase.CmdLineTask):
         parser      =   ConfigParser()
         parser.read(configName)
         # Basic parameters
-        ngrid       =   64
-        nx          =   50 
+        if '1gal' in sample:
+            ngrid       =   64
+        elif '2gal' in sample:
+            ngrid       =   80
+        nx          =   4 
         ny          =   nx
         ndata       =   nx*ny
         nrot        =   4
         scale       =   0.168
         ngridTot    =   ngrid*nx
-        bigfft      =   galsim.GSParams(maximum_fft_size=10240)
-        flux_scaling=   2.587
+        bigfft      =   galsim.GSParams(maximum_fft_size=20480)
         variance    =   parser.getfloat('noise','variance')
+        variance    =   1.e-7
         corFname    =   parser.get('noise','corFname')
         g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
         g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         
         # Get the psf and nosie information 
         # Get the PSF image
-        psf_beta    =   3.5 
+        psf_beta    =   3.5
         psf_fwhm    =   parser.getfloat('psf','fwhm') #arcsec
-        psf_trunc   =   5.*psf_fwhm # arcsec
-        psf_e1      =   0.          #
-        psf_e2      =   0.025       #
+        psf_trunc   =   4.*psf_fwhm # arcsec
         psf         =   galsim.Moffat(beta=psf_beta, 
                         fwhm=psf_fwhm,trunc=psf_trunc)
+        psf_e1      =   0.          #
+        psf_e2      =   0.025       #
         psf         =   psf.shear(e1=psf_e1,e2=psf_e2)        
-        psfImg      =   psf.drawImage(nx=45,ny=45,scale=scale)
-        # Get the  galaxy generator      
-        flux_scaling=   2.587*15
-        # Load data
-        catName     =   'real_galaxy_catalog_25.2.fits'
-        dir         =   '../galsim_train/COSMOS_25.2_training_sample/'
-        cosmos_cat  =   galsim.COSMOSCatalog(catName, dir=dir)
-        # index
-        index_use   =   cosmos_cat.orig_index
-        # parametric catalog
-        param_cat   =   cosmos_cat.param_cat[index_use]
-        record      =   param_cat[index]
-        # prepare the galaxies        
-        gal0        =   cosmos_cat.makeGalaxy(gal_type='parametric',index=index,gsparams=bigfft)
-        gal0        *=  flux_scaling
-        ud          =   galsim.UniformDeviate(index*10000+1)
-        # rotate the galaxy
+        psfImg      =   psf.drawImage(nx=45,ny=45,scale=scale,method='no_pixel')
+        nrot        =   4
+        nshear      =   8
+        # galaxy simulation
+        if 'real' in sample:
+            catName     =   'real_galaxy_catalog_25.2.fits'
+            dir         =   '../galsim_train/COSMOS_25.2_training_sample/'
+            cosmos_cat  =   galsim.COSMOSCatalog(catName, dir=dir)
+            # index
+            index_use   =   cosmos_cat.orig_index
+            # prepare the galaxies        
+            gal0        =   cosmos_cat.makeGalaxy(gal_type='parametric',index=index,gsparams=bigfft)
+            flux_scaling=   2.587
+            gal0        *=  flux_scaling
+        elif 'control' in sample:
+            gal0        =   galsim.Sersic(n=1.,half_light_radius=.5,flux=20)
+            gal_e1      =   0.2          #
+            gal_e2      =   -0.12       #
+            gal0        =   gal0.shear(e1=gal_e1,e2=gal_e2)        
+        """
+        # randomly rotate the galaxy
+        ud          =   galsim.UniformDeviate(index)
         ang         =   ud()*2.*np.pi * galsim.radians
         gal0        =   gal0.rotate(ang)
-        for irot in range(4):
-            angR=   np.pi/4.*irot*galsim.radians
-            galR=   gal0.rotate(angR)
-            for ig in range(8):
+        """
+        for irot in range(nrot):
+            angR        =   np.pi/4.*irot*galsim.radians
+            galR        =   gal0.rotate(angR)
+            for ig in range(nshear):
                 prepend     =   '-id%d-g%d-r%d'%(index,ig,irot)
                 outFname    =   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
-                if os.path.exists(outFname):
-                    exposure=   afwImg.ExposureF.readFits(outFname)
-                    exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
-                    exposure.writeFits(outFname)
-                    self.log.info('Already have the outcome for %s' %prepend)
-                    continue
                 g1  =   g1List[ig]
                 g2  =   g2List[ig]
                 # Shear the galaxy
@@ -201,8 +205,8 @@ class cgcSimBatchConfig(pexConfig.Config):
         target = cgcSimTask,
         doc = "cgcSim task to run on multiple cores"
     )
-    rootDir =   pexConfig.Field(dtype=str, 
-                default='cgc', doc = 'root directory'
+    sample  =   pexConfig.Field(dtype=str, 
+                default='control-1gal-nonoise', doc = 'root directory'
     )
     conpend =   pexConfig.Field(dtype=str,
                 default='fwhm4_var4', doc = 'prepend for one configuration'
@@ -212,9 +216,10 @@ class cgcSimBatchConfig(pexConfig.Config):
     
     def validate(self):
         pexConfig.Config.validate(self)
-        if not os.path.exists(self.rootDir):
-            os.mkdir(self.rootDir)
-        rootDir2=   os.path.join(self.rootDir,self.conpend)
+        rootDir =   'cgc-%s' %self.sample
+        if not os.path.exists(rootDir):
+            os.mkdir(rootDir)
+        rootDir2=   os.path.join(rootDir,self.conpend)
         if not os.path.exists(rootDir2):
             os.mkdir(rootDir2)
         expDir  =   os.path.join(rootDir2,'expSim')
@@ -255,15 +260,16 @@ class cgcSimBatchTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("cgcSim")
         pool.cacheClear()
-        pool.storeSet(rootDir=self.config.rootDir)
+        pool.storeSet(sample=self.config.sample)
         pool.storeSet(conpend=self.config.conpend)
         fieldList=  range(fMin,fMax)
+        fieldList=  range(1)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
         
     def process(self,cache,index):
-        self.cgcSim.run(index,cache.rootDir,cache.conpend)
+        self.cgcSim.run(index,cache.sample,cache.conpend)
         self.log.info('finish index %04d' %(index))
         return 
 
@@ -275,7 +281,7 @@ class cgcSimBatchTask(BatchPoolTask):
                         default=0,
                         help='minimum group number')
         parser.add_argument('--maxGroup', type= int, 
-                        default=10,
+                        default=1,
                         help='maximum group number')
         return parser
     
