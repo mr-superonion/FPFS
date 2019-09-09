@@ -106,9 +106,9 @@ class cgcSimTask(pipeBase.CmdLineTask):
             flux_scaling=   2.587
             gal0        *=  flux_scaling
         elif 'control' in sample:
-            gal0        =   galsim.Sersic(n=1.,half_light_radius=.5,flux=20)
-            gal_e1      =   0.2          #
-            gal_e2      =   -0.12       #
+            gal0        =   galsim.Sersic(n=1.,half_light_radius=.3,flux=20)
+            gal_e1      =   0.8          #
+            gal_e2      =   0.12       #
             gal0        =   gal0.shear(e1=gal_e1,e2=gal_e2)        
         """
         # randomly rotate the galaxy
