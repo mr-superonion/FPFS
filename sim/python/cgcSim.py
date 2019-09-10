@@ -22,12 +22,9 @@
 #
 # python lib
 import os
-import logging
 import galsim
 import numpy as np
-from astropy.table import Table
-import astropy.io.fits as pyfits
-from configparser import ConfigParser
+import astropy.table as astTab
 
 # lsst Tasks
 import lsst.daf.base as dafBase
@@ -58,40 +55,25 @@ class cgcSimTask(pipeBase.CmdLineTask):
     def run(self,index,sample,conpend):
         rootDir     =   'cgc-%s' %sample
         rootDir2    =   os.path.join(rootDir,conpend)
-        configName  =   'noiPsfConfig/config_%s.ini' %conpend
-        self.log.info('using configuration %s' %(configName))
         self.log.info('simulating index %s' %(index))
-        parser      =   ConfigParser()
-        parser.read(configName)
         # Basic parameters
         if '1gal' in sample:
             ngrid       =   64
         elif '2gal' in sample:
             ngrid       =   80
-        nx          =   4 
+        nx          =   2 
         ny          =   nx
         ndata       =   nx*ny
         nrot        =   4
         scale       =   0.168
         ngridTot    =   ngrid*nx
-        bigfft      =   galsim.GSParams(maximum_fft_size=20480)
-        variance    =   parser.getfloat('noise','variance')
-        variance    =   1.e-7
-        corFname    =   parser.get('noise','corFname')
+        bigfft      =   galsim.GSParams(maximum_fft_size=10240)
+        corFname    =   'corPre/correlation.fits'
+        catPrename  =   'catPre/control_cat.csv'
+        cat         =   astTab.Table.read(catPrename)[index]
         g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
         g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
         
-        # Get the psf and nosie information 
-        # Get the PSF image
-        psf_beta    =   3.5
-        psf_fwhm    =   parser.getfloat('psf','fwhm') #arcsec
-        psf_trunc   =   4.*psf_fwhm # arcsec
-        psf         =   galsim.Moffat(beta=psf_beta, 
-                        fwhm=psf_fwhm,trunc=psf_trunc)
-        psf_e1      =   0.          #
-        psf_e2      =   0.025       #
-        psf         =   psf.shear(e1=psf_e1,e2=psf_e2)        
-        psfImg      =   psf.drawImage(nx=45,ny=45,scale=scale,method='no_pixel')
         nrot        =   4
         nshear      =   8
         # galaxy simulation
@@ -105,23 +87,31 @@ class cgcSimTask(pipeBase.CmdLineTask):
             gal0        =   cosmos_cat.makeGalaxy(gal_type='parametric',index=index,gsparams=bigfft)
             flux_scaling=   2.587
             gal0        *=  flux_scaling
+            # randomly rotate the galaxy
+            ud          =   galsim.UniformDeviate(index)
+            ang         =   ud()*2.*np.pi * galsim.radians
+            gal0        =   gal0.rotate(ang)
         elif 'control' in sample:
-            gal0        =   galsim.Sersic(n=1.,half_light_radius=.3,flux=20)
-            gal_e1      =   0.8          #
-            gal_e2      =   0.12       #
-            gal0        =   gal0.shear(e1=gal_e1,e2=gal_e2)        
-        """
-        # randomly rotate the galaxy
-        ud          =   galsim.UniformDeviate(index)
-        ang         =   ud()*2.*np.pi * galsim.radians
-        gal0        =   gal0.rotate(ang)
-        """
+            cat['dist']=5
+            gal1        =   galsim.Sersic(n=cat['nser1'],half_light_radius=cat['rgal1'],flux=cat['flux1'])
+            gal1        =   gal1.shear(e1=cat['e1gal1'],e2=cat['e2gal1'])        
+            gal1        =   gal1.shift(-cat['dist']/2.,0.)
+            gal2        =   galsim.Sersic(n=cat['nser2'],half_light_radius=cat['rgal2'],flux=cat['flux2'])
+            gal2        =   gal1.shear(e1=cat['e1gal2'],e2=cat['e2gal2'])        
+            gal2        =   gal2.shift(cat['dist']/2.,0.)
+            gal0        =   gal1+gal2
+            # Get the psf and nosie information 
+            # Get the PSF image
+            psf         =   galsim.Moffat(beta=cat['beta'],fwhm=cat['fwhm'],trunc=4*cat['fwhm'])
+            psf         =   psf.shear(e1=cat['e1psf'],e2=cat['e2psf'])        
+            variance    =   cat['varNoi']
+        psfImg          =   psf.drawImage(nx=45,ny=45,scale=scale,method='no_pixel')
         for irot in range(nrot):
             angR        =   np.pi/4.*irot*galsim.radians
             galR        =   gal0.rotate(angR)
             for ig in range(nshear):
-                prepend     =   '-id%d-g%d-r%d'%(index,ig,irot)
-                outFname    =   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
+                prepend =   '-id%d-g%d-r%d'%(index,ig,irot)
+                outFname=   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
                 g1  =   g1List[ig]
                 g2  =   g2List[ig]
                 # Shear the galaxy
@@ -206,7 +196,7 @@ class cgcSimBatchConfig(pexConfig.Config):
         doc = "cgcSim task to run on multiple cores"
     )
     sample  =   pexConfig.Field(dtype=str, 
-                default='control-1gal-nonoise', doc = 'root directory'
+                default='control-2gal', doc = 'root directory'
     )
     conpend =   pexConfig.Field(dtype=str,
                 default='fwhm4_var4', doc = 'prepend for one configuration'
@@ -263,7 +253,7 @@ class cgcSimBatchTask(BatchPoolTask):
         pool.storeSet(sample=self.config.sample)
         pool.storeSet(conpend=self.config.conpend)
         fieldList=  range(fMin,fMax)
-        fieldList=  range(1)
+        fieldList=  range(2)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return

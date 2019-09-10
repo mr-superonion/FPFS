@@ -159,8 +159,8 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         e1      =   -moments[:,1]/weight
         e2      =   -moments[:,2]/weight
         #Response factor 
-        R1      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight#+np.sqrt(2)*(e1**2.)
-        R2      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight#+np.sqrt(2)*(e2**2.)
+        R1      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e1**2.)
+        R2      =   1./np.sqrt(2.)*(moments[:,0]-moments[:,3])/weight+np.sqrt(2)*(e2**2.)
         RA      =   (R1+R2)/2.
         g1,g1err=   catStat.shearAverage(R1,e1) 
         g2,g2err=   catStat.shearAverage(R2,e2)
