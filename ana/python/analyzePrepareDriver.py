@@ -22,12 +22,12 @@
 #
 # python lib
 import os
-import galsim
 import k3match
 import catStat
 import numpy as np
 
 import astropy.table as astTab
+import astropy.io.ascii as ascii
 
 # lsst Tasks
 import lsst.pex.config as pexConfig
@@ -36,13 +36,11 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-import lsst.obs.subaru.filterFraction
-
 class analyzePrepareConfig(pexConfig.Config):
     "config"
     rootDir     = pexConfig.Field(
         dtype=str, 
-        default="cgc-control-1gal-nonoise/fwhm4_var4/", 
+        default="cgc-control-2gal/fwhm4_var4/", 
         doc="Root Diectory"
     )
     def setDefaults(self):
@@ -57,19 +55,28 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         
     @pipeBase.timeMethod
     def run(self,index):
-        inputDir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
+        catPreName  =   os.path.join('catPre','control_cat.csv')
+        assert os.path.exists(catPreName),'cannt find the preCat'
+        cat         =   ascii.read(catPreName)[index]
+        inputDir    =   os.path.join(self.config.rootDir,'outcomeFPFS')
         if not os.path.exists(inputDir):
             self.log.info('cannot find the input directory')
             return
-        nrot    =   4
-        nshear  =   8
+        #Get the C
         cFname  =   'CBase.npy'
-        cRatio  =   0. 
+        cRatio  =   4. 
         const   =   (np.load(cFname))*cRatio
+        if min(cat['flux1'],cat['flux2'])/cat['varNoi']<500.:
+            nrot    =   8
+        else:
+            nrot    =   4
+        nshear  =   8
         rows    =   []
         for ig in range(nshear):
-            srcAll  =   []
-            minNum  =   2500
+            srcAll1 =   []
+            minN1   =   2500
+            srcAll2 =   []
+            minN2   =   2500
             for irot in range(nrot):
                 prepend =   '-id%d-g%d-r%d' %(index,ig,irot)
                 self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
@@ -77,35 +84,49 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
                 inFname =   os.path.join(inputDir,inFname)
                 if not os.path.exists(inFname):
                     self.log.info('cannot find the input file%s' %prepend)
-                    continue
+                    return
                 src     =   astTab.Table.read(inFname)
-                self.log.info('%s' %src['fpfs_moments'][0,0])
-                self.log.info('%s' %len(src))
-                #src     =   self.getNeibourInfo(src)
-                #src     =   self.keepUnique(src)
-                maskG       =   np.all(~np.isnan(src['fpfs_moments']),axis=1)
-                src         =   src[maskG]
-                num     =   len(src)
-                self.log.info('%s' %num)
-                if num< minNum:
-                    minNum=num
-                srcAll.append(src)
-            srcAll2 =   []
+                #src    =   self.getNeibourInfo(src)
+                src1,src2   =   self.keepUnique(src)
+                num1    =   len(src1)
+                if num1< minN1:
+                    minN1=num1
+                srcAll1.append(src1)
+                num2    =   len(src2)
+                if num2< minN2:
+                    minN2=num2
+                srcAll2.append(src2)
+                self.log.info('%s,%s' %(minN1,minN2))
+            srcF1 =   []
+            srcF2 =   []
             for irot in range(nrot):
-                srcAll2.append(srcAll[irot][:minNum])
-            srcAll  =   astTab.vstack(srcAll2)
+                srcF1.append(srcAll1[irot][:minN1])
+                srcF2.append(srcAll2[irot][:minN2])
+            #for the first galaxy
+            del srcAll1
+            srcF1  =   astTab.vstack(srcF1)
+            row1   =   self.measureShear(srcF1,const)
+            rows1.append(row1)
+            #for the second galaxy
             del srcAll2
+            srcF2  =   astTab.vstack(srcF2)
+            row2   =   self.measureShear(srcF2,const)
+            rows2.append(row2)
             #srcAll.write('src-%s-%s.fits' %(index,ig))
-            row     =   self.measureShear(srcAll,const)
-            rows.append(row)
+        return self.getMC(rows1)+self.getMC(rows2)
+
+
+    def getMC(self,rows):
         names   =   ['g1e','g1err','g2e','g2err']
         tableO  =   astTab.Table(rows=rows,names=names)
         g1List  =   np.array([-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005])
         g2List  =   np.array([-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010])
         tableO['g1']=g1List
         tableO['g2']=g2List
-        w1  =   1./tableO['g1err']
-        w2  =   1./tableO['g2err']
+        tableO.write('index%s.csv' %index)
+        #Determine biases
+        w1      =   1./tableO['g1err']
+        w2      =   1./tableO['g2err']
         [m1,c1],cov1=np.polyfit(tableO['g1'],tableO['g1e'],1,w=w1,cov=True)
         [m2,c2],cov2=np.polyfit(tableO['g2'],tableO['g2e'],1,w=w2,cov=True)
         erm1=np.sqrt(cov1[0,0]);erc1=np.sqrt(cov1[1,1])
@@ -113,8 +134,47 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         m1-=1;m2-=1
         print(m1,m2,c1,c2)
         print(erm1,erm2,erc1,erc2)
-        tableO.write('index%s.csv' %index)
-        return
+        return m1,m2,c1,c2,erm1,erm2,erc1,erc2
+
+
+    def getPositions(self,cat,irot,ngrid,nx):
+        #Get the input positions of galaxy1 and galaxy2
+        dist        =   cat['dist']/2.
+        angle       =   np.pi/4.*irot #a little bit wierd
+        xg1         =   np.cos(angle)*dist
+        yg1         =   np.sin(angle)*dist
+        xg2         =   -np.cos(angle)*dist
+        yg2         =   -np.sin(angle)*dist
+        return xg1,yg1,xg2,yg2
+
+
+    def keepUnique(self,src,cat,irot):
+        ngrid       =   80
+        nx          =   50
+        xg1,yg1,xg2,yg2 =   self.getPositions(cat,irot,ngrid,nx)
+        minDist     =   min(cat['dist']/2./0.168,5.)
+        src['ipos'] =   (src['base_SdssCentroid_y']//ngrid)*nx +(src['base_SdssCentroid_x']//ngrid).astype(np.int)
+        src['xTcent']=  src['base_SdssCentroid_x']%ngrid-ngrid/2.+0.5
+        src['yTcent']=  src['base_SdssCentroid_y']%ngrid-ngrid/2.+0.5
+        # First, keep only detections that are the closest to galaxy1 
+        src['disG1'] =  np.sqrt((src['xTcent']-xg1)**2.+(src['yTcent']-yg1)**2.)
+        # Get sorted index by grid index and grid distance
+        # Get the galaxies which is the closest to galaxy1 in the postage stamp
+        inds        =   np.lexsort([src['disG1'],src['ipos']])
+        inds_unique =   np.unique(src['ipos'][inds],return_index=True)[1]
+        srcG1       =   src[inds[inds_unique]]
+        srcG1       =   srcG1[(srcG1['disG1']<minDist)]
+        srcG1       =   srcG1[np.all(~np.isnan(srcG1['fpfs_moments']),axis=1)]
+        # Second, keep only detections that are the closest to galaxy2
+        src['disG2'] =  np.sqrt((src['xTcent']-xg2)**2.+(src['yTcent']-yg2)**2.)
+        # Get sorted index by grid index and grid distance
+        # Get the galaxies which is the closest to galaxy1 in the postage stamp
+        inds        =   np.lexsort([src['disG2'],src['ipos']])
+        inds_unique =   np.unique(src['ipos'][inds],return_index=True)[1]
+        srcG2       =   src[inds[inds_unique]]
+        srcG2       =   srcG2[(srcG2['disG2']<minDist)]
+        srcG2       =   srcG1[np.all(~np.isnan(srcG2['fpfs_moments']),axis=1)]
+        return srcG1,srcG2
 
     def getNeibourInfo(self,src):
         x   =   src['base_SdssShape_x']
@@ -132,22 +192,6 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         for name in namesU:
             nameA=  name+'_neibor'
             src[id1][nameA]=src[id2][name]
-        return src
-        
-
-    def keepUnique(self,src):
-        src['ipos']     =   (src['base_SdssCentroid_y']//64)*100 +(src['base_SdssCentroid_x']//64)
-        src['ipos']     =   src['ipos'].astype(np.int)
-        src['centDist'] =   ((src['base_SdssCentroid_y']%64-32)**2. +
-                                (src['base_SdssCentroid_x']%64-32)**2.)
-        src['centDist'] =   np.sqrt(src['centDist'])
-        # First, keep only detections that are the closest to the grid point
-        # Get sorted index by grid index and grid distance
-        inds        =   np.lexsort([src['centDist'], src['ipos']])
-        inds_unique =   np.unique(src['ipos'][inds], return_index=True)[1]
-        src         =   src[inds[inds_unique]]
-        src         =   src[(src['centDist']<5.)]
-        #we also mask out galaxies without measurement
         return src
 
     def measureShear(self,src,const):
@@ -229,7 +273,11 @@ class analyzePrepareDriverTask(BatchPoolTask):
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
         fieldList=  range(1)
-        pool.map(self.process,fieldList)
+        outs    =   pool.map(self.process,fieldList)
+        names   =   ('g1_m1','g1_m2','g1_c1','g1_c2','g1_erm1','g1_erm2','g1_erc1','g1_erc2')
+        names   +=  ('g2_m1','g2_m2','g2_c1','g2_c2','g2_erm1','g2_erm2','g2_erc1','g2_erc2')
+        tableO  =   astTab.Table(rows=outs,names=names)
+        tableO.write('outcome.csv')
         return
         
     def process(self,cache,ifield):

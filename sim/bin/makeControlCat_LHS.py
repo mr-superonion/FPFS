@@ -9,11 +9,11 @@ if __name__=='__main__':
         os.mkdir(catDir)
     outFname=   os.path.join(catDir,'control_cat.csv')
     nGroup  =   1000
-    nser1   =   np.linspace(1.,4.,nGroup)+3./nGroup
+    nser1   =   np.linspace(1.,4.,nGroup)+3./nGroup/2.
     nser2   =   np.linspace(1.,4.,nGroup)
-    rgal1   =   np.linspace(.2,.8,nGroup)+.6/nGroup
+    rgal1   =   np.linspace(.2,.8,nGroup)+.6/nGroup/2.
     rgal2   =   np.linspace(.2,.8,nGroup)
-    flux1   =   15.*2.**(np.linspace(0.,4.,nGroup)+4./nGroup)
+    flux1   =   15.*2.**(np.linspace(0.,4.,nGroup)+4./nGroup/2.)
     flux2   =   15.*2.**(np.linspace(0.,4.,nGroup))
     e1gal1  =   np.linspace(-0.6,0.6,nGroup)
     e2gal1  =   np.linspace(-0.6,0.6,nGroup)
