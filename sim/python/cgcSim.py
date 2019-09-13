@@ -61,20 +61,15 @@ class cgcSimTask(pipeBase.CmdLineTask):
             ngrid       =   64
         elif '2gal' in sample:
             ngrid       =   80
-        nx          =   2 
+        nx          =   50 
         ny          =   nx
         ndata       =   nx*ny
-        nrot        =   4
         scale       =   0.168
         ngridTot    =   ngrid*nx
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         corFname    =   'corPre/correlation.fits'
-        catPrename  =   'catPre/control_cat.csv'
-        cat         =   astTab.Table.read(catPrename)[index]
         g1List      =   [-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005]
         g2List      =   [-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010]
-        
-        nrot        =   4
         nshear      =   8
         # galaxy simulation
         if 'real' in sample:
@@ -92,7 +87,8 @@ class cgcSimTask(pipeBase.CmdLineTask):
             ang         =   ud()*2.*np.pi * galsim.radians
             gal0        =   gal0.rotate(ang)
         elif 'control' in sample:
-            cat['dist']=5
+            catPrename  =   'catPre/control_cat.csv'
+            cat         =   astTab.Table.read(catPrename)[index]
             gal1        =   galsim.Sersic(n=cat['nser1'],half_light_radius=cat['rgal1'],flux=cat['flux1'])
             gal1        =   gal1.shear(e1=cat['e1gal1'],e2=cat['e2gal1'])        
             gal1        =   gal1.shift(-cat['dist']/2.,0.)
@@ -102,6 +98,10 @@ class cgcSimTask(pipeBase.CmdLineTask):
             gal0        =   gal1+gal2
             # Get the psf and nosie information 
             # Get the PSF image
+            if min(cat['flux1'],cat['flux2'])/cat['varNoi']<500.:
+                nrot    =   8
+            else:
+                nrot    =   4
             psf         =   galsim.Moffat(beta=cat['beta'],fwhm=cat['fwhm'],trunc=4*cat['fwhm'])
             psf         =   psf.shear(e1=cat['e1psf'],e2=cat['e2psf'])        
             variance    =   cat['varNoi']
@@ -190,7 +190,7 @@ class cgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class cgcSimBatchConfig(pexConfig.Config):
-    perGroup=   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
+    perGroup=   pexConfig.Field(dtype=int, default=40, doc = 'data per field')
     cgcSim  =   pexConfig.ConfigurableField(
         target = cgcSimTask,
         doc = "cgcSim task to run on multiple cores"
@@ -253,7 +253,6 @@ class cgcSimBatchTask(BatchPoolTask):
         pool.storeSet(sample=self.config.sample)
         pool.storeSet(conpend=self.config.conpend)
         fieldList=  range(fMin,fMax)
-        fieldList=  range(2)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
