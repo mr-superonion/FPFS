@@ -57,14 +57,14 @@ class processSimConfig(pexConfig.Config):
     )
     rootDir     = pexConfig.Field(
         dtype=str, 
-        default="cgc-control-1gal-nonoise/fwhm4_var4/", 
+        default="cgc-control-2gal/", 
         doc="Root Diectory"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.readDataSim.rootDir=   self.rootDir
         self.readDataSim.doWrite=   False
-        self.readDataSim.doDeblend= False
+        self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
         self.fpfsBase.doTest    =   False
         self.fpfsBase.doDebug   =   False

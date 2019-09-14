@@ -52,9 +52,8 @@ class cgcSimTask(pipeBase.CmdLineTask):
 
     
     @pipeBase.timeMethod
-    def run(self,index,sample,conpend):
+    def run(self,index,sample):
         rootDir     =   'cgc-%s' %sample
-        rootDir2    =   os.path.join(rootDir,conpend)
         self.log.info('simulating index %s' %(index))
         # Basic parameters
         if '1gal' in sample:
@@ -111,7 +110,7 @@ class cgcSimTask(pipeBase.CmdLineTask):
             galR        =   gal0.rotate(angR)
             for ig in range(nshear):
                 prepend =   '-id%d-g%d-r%d'%(index,ig,irot)
-                outFname=   os.path.join(rootDir2,'expSim','image%s.fits' %prepend)
+                outFname=   os.path.join(rootDir,'expSim','image%s.fits' %prepend)
                 g1  =   g1List[ig]
                 g2  =   g2List[ig]
                 # Shear the galaxy
@@ -198,9 +197,6 @@ class cgcSimBatchConfig(pexConfig.Config):
     sample  =   pexConfig.Field(dtype=str, 
                 default='control-2gal', doc = 'root directory'
     )
-    conpend =   pexConfig.Field(dtype=str,
-                default='fwhm4_var4', doc = 'prepend for one configuration'
-    )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     
@@ -209,10 +205,7 @@ class cgcSimBatchConfig(pexConfig.Config):
         rootDir =   'cgc-%s' %self.sample
         if not os.path.exists(rootDir):
             os.mkdir(rootDir)
-        rootDir2=   os.path.join(rootDir,self.conpend)
-        if not os.path.exists(rootDir2):
-            os.mkdir(rootDir2)
-        expDir  =   os.path.join(rootDir2,'expSim')
+        expDir  =   os.path.join(rootDir,'expSim')
         if not os.path.exists(expDir):
             os.mkdir(expDir)
     
@@ -251,14 +244,13 @@ class cgcSimBatchTask(BatchPoolTask):
         pool    =   Pool("cgcSim")
         pool.cacheClear()
         pool.storeSet(sample=self.config.sample)
-        pool.storeSet(conpend=self.config.conpend)
         fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
         
     def process(self,cache,index):
-        self.cgcSim.run(index,cache.sample,cache.conpend)
+        self.cgcSim.run(index,cache.sample)
         self.log.info('finish index %04d' %(index))
         return 
 

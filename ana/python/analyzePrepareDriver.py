@@ -40,7 +40,7 @@ class analyzePrepareConfig(pexConfig.Config):
     "config"
     rootDir     = pexConfig.Field(
         dtype=str, 
-        default="cgc-control-2gal/fwhm4_var4/", 
+        default="cgc-control-2gal/", 
         doc="Root Diectory"
     )
     def setDefaults(self):
@@ -272,7 +272,6 @@ class analyzePrepareDriverTask(BatchPoolTask):
         pool    =   Pool("analyzePrepare")
         pool.cacheClear()
         fieldList=  range(fMin,fMax)
-        fieldList=  range(1)
         outs    =   pool.map(self.process,fieldList)
         names   =   ('g1_m1','g1_m2','g1_c1','g1_c2','g1_erm1','g1_erm2','g1_erc1','g1_erc2')
         names   +=  ('g2_m1','g2_m2','g2_c1','g2_c2','g2_erm1','g2_erm2','g2_erc1','g2_erc2')
