@@ -132,7 +132,7 @@ class processSimTask(pipeBase.CmdLineTask):
         
 
 class processSimDriverConfig(pexConfig.Config):
-    perGroup=   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
+    perGroup=   pexConfig.Field(dtype=int, default=40, doc = 'data per field')
     processSim = pexConfig.ConfigurableField(
         target = processSimTask,
         doc = "processSim task to run on multiple cores"
@@ -173,8 +173,7 @@ class processSimDriverTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        #fieldList=  range(fMin,fMax)
-        fieldList=  range(0,1)
+        fieldList=  range(fMin,fMax)
         pool.map(self.process,fieldList)
         return
         
