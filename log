@@ -1,0 +1,5 @@
+2019_09_16:
+#BUG:   find a bug. gal2 is mistaken to gal1 in cgcSim. Need to redo simulations
+#       Be careful when copy and paste
+#Plan:  must add peak to sources since undetection rate is too large.
+#       Maybe we need to discuss with Ryoma and Surhud about undetected sources.. 

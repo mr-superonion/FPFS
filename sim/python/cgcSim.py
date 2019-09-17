@@ -41,6 +41,7 @@ import lsst.meas.algorithms as meaAlg
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
+import anaUtil
 
 
 
@@ -89,10 +90,10 @@ class cgcSimTask(pipeBase.CmdLineTask):
             catPrename  =   'catPre/control_cat.csv'
             cat         =   astTab.Table.read(catPrename)[index]
             gal1        =   galsim.Sersic(n=cat['nser1'],half_light_radius=cat['rgal1'],flux=cat['flux1'])
-            gal1        =   gal1.shear(e1=cat['e1gal1'],e2=cat['e2gal1'])        
+            gal1        =   gal1.shear(e1=cat['e1gal1'],e2=cat['e2gal1'])
             gal1        =   gal1.shift(-cat['dist']/2.,0.)
             gal2        =   galsim.Sersic(n=cat['nser2'],half_light_radius=cat['rgal2'],flux=cat['flux2'])
-            gal2        =   gal1.shear(e1=cat['e1gal2'],e2=cat['e2gal2'])        
+            gal2        =   gal2.shear(e1=cat['e1gal2'],e2=cat['e2gal2'])
             gal2        =   gal2.shift(cat['dist']/2.,0.)
             gal0        =   gal1+gal2
             # Get the psf and nosie information 
@@ -102,26 +103,41 @@ class cgcSimTask(pipeBase.CmdLineTask):
             else:
                 nrot    =   4
             psf         =   galsim.Moffat(beta=cat['beta'],fwhm=cat['fwhm'],trunc=4*cat['fwhm'])
-            psf         =   psf.shear(e1=cat['e1psf'],e2=cat['e2psf'])        
+            psf         =   psf.shear(e1=cat['e1psf'],e2=cat['e2psf'])
             variance    =   cat['varNoi']
         psfImg          =   psf.drawImage(nx=45,ny=45,scale=scale,method='no_pixel')
         for irot in range(nrot):
-            angR        =   np.pi/4.*irot*galsim.radians
-            galR        =   gal0.rotate(angR)
+            angR        =   np.pi/4.*irot
+            galR        =   gal0.rotate(angR*galsim.radians)
             for ig in range(nshear):
                 prepend =   '-id%d-g%d-r%d'%(index,ig,irot)
                 outFname=   os.path.join(rootDir,'expSim','image%s.fits' %prepend)
                 g1  =   g1List[ig]
                 g2  =   g2List[ig]
                 # Shear the galaxy
-                gal     =   galR.shear(g1=g1,g2=g2)
+                gal =   galR.shear(g1=g1,g2=g2)
+                """
+                x1,y1,x2,y2=anaUtil.getPositions(cat['dist'],angR,g1,g2)
+                gal1R   =   gal1.rotate(angR*galsim.radians)
+                gal1F   =   gal1R.shear(g1=g1,g2=g2)
+                self.log.info('%s' %gal1)
+                self.log.info('%s' %gal1R.centroid)
+                self.log.info('%s' %gal1F.centroid)
+                self.log.info('%s,%s' %(x1,y1))
+                gal2R   =   gal2.rotate(angR*galsim.radians)
+                gal2F   =   gal2R.shear(g1=g1,g2=g2)
+                self.log.info('%s' %gal2)
+                self.log.info('%s' %gal2R.centroid)
+                self.log.info('%s' %gal2F.centroid)
+                self.log.info('%s,%s' %(x2,y2))
+                """
                 final   =   galsim.Convolve([psf,gal],gsparams=bigfft)
                 # setup the galaxy image and the noise image
                 gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
                 gal_image.setOrigin(0,0)
                 var_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
                 var_image.setOrigin(0,0)
-                i           =   0
+                i    =   0
                 while i <ndata:
                     # Prepare the subimage
                     ix      =   i%nx
@@ -189,7 +205,7 @@ class cgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class cgcSimBatchConfig(pexConfig.Config):
-    perGroup=   pexConfig.Field(dtype=int, default=40, doc = 'data per field')
+    perGroup=   pexConfig.Field(dtype=int, default=60, doc = 'data per field')
     cgcSim  =   pexConfig.ConfigurableField(
         target = cgcSimTask,
         doc = "cgcSim task to run on multiple cores"
