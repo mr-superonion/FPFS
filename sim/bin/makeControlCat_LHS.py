@@ -19,7 +19,7 @@ if __name__=='__main__':
     e2gal1  =   np.linspace(-0.6,0.6,nGroup)
     e1gal2  =   np.linspace(-0.6,0.6,nGroup)
     e2gal2  =   np.linspace(-0.6,0.6,nGroup)
-    dist    =   0.5*2**np.linspace(0,3.0,nGroup)#arcsec
+    dist    =   2.0*2**np.linspace(0,.7,nGroup) #arcsec
     fwhm    =   np.linspace(0.39,0.81,nGroup)   #arcsec
     beta    =   np.linspace(3.0,4.0,nGroup)     #arcsec
     e1psf   =   np.linspace(-0.14,0.14,nGroup)  

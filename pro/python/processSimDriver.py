@@ -43,7 +43,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 import lsst.obs.subaru.filterFraction
 from fpfsBase import fpfsBaseTask
-from readDataSim import readDataSimTask
+from readDataUC import readDataSimTask
 
 class processSimConfig(pexConfig.Config):
     "config"
@@ -65,7 +65,7 @@ class processSimConfig(pexConfig.Config):
         self.readDataSim.rootDir=   self.rootDir
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
-        self.readDataSim.doAddFP=   False
+        self.readDataSim.doAddFP=   True
         self.fpfsBase.doTest    =   False
         self.fpfsBase.doDebug   =   False
         self.fpfsBase.doFitNoiPow=  False

@@ -112,6 +112,8 @@ class cgcSimTask(pipeBase.CmdLineTask):
             for ig in range(nshear):
                 prepend =   '-id%d-g%d-r%d'%(index,ig,irot)
                 outFname=   os.path.join(rootDir,'expSim','image%s.fits' %prepend)
+                if os.path.exists(outFname):
+                    continue
                 g1  =   g1List[ig]
                 g2  =   g2List[ig]
                 # Shear the galaxy

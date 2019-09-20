@@ -16,7 +16,6 @@ def getPositions(dist,angle,gamma1,gamma2):
     ys2     =   gamma2*xg2+(1-gamma1)*yg2
     return xs1,ys1,xs2,ys2
 
-
 def magFromFlux(flux):
     dataCalib = afwImg.Calib()
     dataCalib.setFluxMag0(63095734448.0194)
