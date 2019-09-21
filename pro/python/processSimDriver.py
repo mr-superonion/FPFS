@@ -22,9 +22,8 @@
 #
 # python lib
 import os
-import galsim
 import numpy as np
-import astropy.io.fits as pyfits
+import astropy.table as astTab
 
 # lsst Tasks
 import lsst.daf.base as dafBase
@@ -83,33 +82,30 @@ class processSimTask(pipeBase.CmdLineTask):
         
         
     @pipeBase.timeMethod
-    def run(self,index):
+    def run(self,prepend):
+        self.log.info('running for %s' %prepend)
         rootDir     =   self.config.rootDir
         inputdir    =   os.path.join(self.config.rootDir,'expSim')
         outputdir   =   os.path.join(self.config.rootDir,'outcomeFPFS')
         if not os.path.exists(outputdir):
-            os.mkdir(outputdir)
-        nrot    =   4
-        nshear  =   8
-        for ig in range(nshear):
-            for irot in range(nrot):
-                prepend     =   '-id%d-g%d-r%d' %(index,ig,irot)
-                self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
-                inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
-                if not os.path.exists(inFname):
-                    self.log.info('Cannot find the input exposure')
-                    continue
-                outFname    =   'src%s.fits' %(prepend)
-                outFname    =   os.path.join(outputdir,outFname)
-                if os.path.exists(outFname):
-                    self.log.info('Already have the output file%s' %prepend)
-                    continue
-                dataStruct  =   self.readDataSim.readData(prepend)
-                if dataStruct is None:
-                    self.log.info('failed to read data')
-                    continue
-                self.fpfsBase.run(dataStruct)
-                dataStruct.sources.writeFits(outFname,flags=afwTable.SOURCE_IO_NO_FOOTPRINTS)
+            self.log.info('cannot find the output directory')
+            return
+        inFname     =   os.path.join(inputdir,'image%s.fits' %(prepend))
+        if not os.path.exists(inFname):
+            self.log.info('Cannot find the input exposure')
+            return
+        outFname    =   'src%s.fits' %(prepend)
+        outFname    =   os.path.join(outputdir,outFname)
+        if os.path.exists(outFname):
+            self.log.info('Already have the output file%s' %prepend)
+            return
+        dataStruct  =   self.readDataSim.readData(prepend)
+        if dataStruct is None:
+            self.log.info('failed to read data')
+            return
+        self.fpfsBase.run(dataStruct)
+        wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
+        dataStruct.sources.writeFits(outFname,flags=wFlag)
         return
     
     @classmethod
@@ -132,7 +128,6 @@ class processSimTask(pipeBase.CmdLineTask):
         
 
 class processSimDriverConfig(pexConfig.Config):
-    perGroup=   pexConfig.Field(dtype=int, default=40, doc = 'data per field')
     processSim = pexConfig.ConfigurableField(
         target = processSimTask,
         doc = "processSim task to run on multiple cores"
@@ -143,9 +138,9 @@ class processSimDriverConfig(pexConfig.Config):
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        minGroup    =  parsedCmd.minGroup 
-        maxGroup    =  parsedCmd.maxGroup 
-        return [(ref, kwargs) for ref in range(minGroup,maxGroup)] 
+        minIndex    =  parsedCmd.minIndex 
+        maxIndex    =  parsedCmd.maxIndex 
+        return [(ref, kwargs) for ref in range(minIndex,maxIndex)] 
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -166,32 +161,39 @@ class processSimDriverTask(BatchPoolTask):
         self.makeSubtask("processSim")
     
     @abortOnError
-    def run(self,Id):
-        perGroup=   self.config.perGroup
-        fMin    =   perGroup*Id
-        fMax    =   perGroup*(Id+1)
+    def run(self,index):
+        catPrename  =   'catPre/control_cat.csv'
+        cat         =   astTab.Table.read(catPrename)[index]
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=  range(fMin,fMax)
+        fieldList=  []
+        if min(cat['flux1'],cat['flux2'])/cat['varNoi']<500.:
+            nrot=   8
+        else:
+            nrot=   4
+        nshear  =   8
+        for ig in range(nshear):
+            for irot in range(nrot):
+                fieldList.append('-id%d-g%d-r%d' %(index,ig,irot))
         pool.map(self.process,fieldList)
         return
         
-    def process(self,cache,ifield):
-        self.processSim.run(ifield)
-        self.log.info('finish field %03d' %(ifield))
+    def process(self,cache,prepend):
+        self.processSim.run(prepend)
+        self.log.info('finish %s' %(prepend))
         return
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minGroup', type= int, 
+        parser.add_argument('--minIndex', type= int, 
                         default=0,
-                        help='minimum group number')
-        parser.add_argument('--maxGroup', type= int, 
+                        help='minimum Index number')
+        parser.add_argument('--maxIndex', type= int, 
                         default=1,
-                        help='maximum group number')
+                        help='maximum Index number')
         return parser
     
     @classmethod

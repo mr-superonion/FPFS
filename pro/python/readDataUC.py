@@ -139,8 +139,6 @@ class readDataSimTask(pipeBase.CmdLineTask):
         g2      =   g2List[ig]
         self.xT1,self.yT1,self.xT2,self.yT2=anaUtil.getPositions(dist,ang,g1,g2)
         self.xT1/=0.168;self.yT1/=0.168;self.xT2/=0.168;self.yT2/=0.168
-        self.log.info('true: %s,%s' %(self.xT1,self.yT1))
-        self.log.info('true: %s,%s' %(self.xT2,self.yT2))
         #Read galaxy exposure
         expDir  =   os.path.join(self.config.rootDir,self.config.expPrefix)
         expfname=   'image%s.fits' %(prepend)

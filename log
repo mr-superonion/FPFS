@@ -9,3 +9,10 @@
 #       For the case the distances between two galaxies are below 2 arcsec, we need to use COSMOS HST 
 #       data to constrain what is the density of such galaxy pairs. 
 #       I think they turn out to be the undetected blending bias if the galaxies in one pair are from different redshifts.
+2019_09_21:
+#BUG1:  too much tasks for one processor (mpi4py)?
+#       change to only 1 task on processor from (old) 32 tasks per processor
+#BUG2:  nrot for faint galaxies should be more 
+#BUG3:  peak outside of footprint. Need to reset the Spans in the future.
+#(Have not done)
+

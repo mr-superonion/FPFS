@@ -24,6 +24,7 @@
 import os
 import k3match
 import catStat
+import anaUtil
 import numpy as np
 
 import astropy.table as astTab
@@ -51,6 +52,8 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
     ConfigClass = analyzePrepareConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
+        self.g1List  =   np.array([-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005])
+        self.g2List  =   np.array([-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010])
         
         
     @pipeBase.timeMethod
@@ -70,13 +73,11 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
             nrot    =   8
         else:
             nrot    =   4
-        nshear  =   8
-        rows    =   []
+        nshear      =   8
+        rows1       =   []
+        rows2       =   []
         for ig in range(nshear):
-            srcAll1 =   []
-            minN1   =   2500
-            srcAll2 =   []
-            minN2   =   2500
+            srcAll  =   []
             for irot in range(nrot):
                 prepend =   '-id%d-g%d-r%d' %(index,ig,irot)
                 self.log.info('index: %d, shear: %d, rot: %d' %(index,ig,irot))
@@ -87,30 +88,16 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
                     return
                 src     =   astTab.Table.read(inFname)
                 #src    =   self.getNeibourInfo(src)
-                src1,src2   =   self.keepUnique(src)
-                num1    =   len(src1)
-                if num1< minN1:
-                    minN1=num1
-                srcAll1.append(src1)
-                num2    =   len(src2)
-                if num2< minN2:
-                    minN2=num2
-                srcAll2.append(src2)
-                self.log.info('%s,%s' %(minN1,minN2))
-            srcF1 =   []
-            srcF2 =   []
-            for irot in range(nrot):
-                srcF1.append(srcAll1[irot][:minN1])
-                srcF2.append(srcAll2[irot][:minN2])
+                src     =   self.keepUnique(src,cat,irot,ig)
+                srcAll.append(src)
+            srcAll  =   astTab.vstack(srcAll)
             #for the first galaxy
-            del srcAll1
-            srcF1  =   astTab.vstack(srcF1)
-            row1   =   self.measureShear(srcF1,const)
+            srcF1   =   srcAll[::2] 
+            row1    =   self.measureShear(srcF1,const)
             rows1.append(row1)
             #for the second galaxy
-            del srcAll2
-            srcF2  =   astTab.vstack(srcF2)
-            row2   =   self.measureShear(srcF2,const)
+            srcF2   =   srcAll[1::2] 
+            row2    =   self.measureShear(srcF2,const)
             rows2.append(row2)
             #srcAll.write('src-%s-%s.fits' %(index,ig))
         return self.getMC(rows1)+self.getMC(rows2)
@@ -119,10 +106,8 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
     def getMC(self,rows):
         names   =   ['g1e','g1err','g2e','g2err']
         tableO  =   astTab.Table(rows=rows,names=names)
-        g1List  =   np.array([-0.02 ,-0.025,0.03 ,0.01,-0.008,-0.015, 0.022,0.005])
-        g2List  =   np.array([-0.015, 0.028,0.007,0.00, 0.020,-0.020,-0.005,0.010])
-        tableO['g1']=g1List
-        tableO['g2']=g2List
+        tableO['g1']=self.g1List
+        tableO['g2']=self.g2List
         tableO.write('index%s.csv' %index)
         #Determine biases
         w1      =   1./tableO['g1err']
@@ -137,44 +122,25 @@ class analyzePrepareTask(pipeBase.CmdLineTask):
         return m1,m2,c1,c2,erm1,erm2,erc1,erc2
 
 
-    def getPositions(self,cat,irot,ngrid,nx):
-        #Get the input positions of galaxy1 and galaxy2
-        dist        =   cat['dist']/2.
-        angle       =   np.pi/4.*irot #a little bit wierd
-        xg1         =   np.cos(angle)*dist
-        yg1         =   np.sin(angle)*dist
-        xg2         =   -np.cos(angle)*dist
-        yg2         =   -np.sin(angle)*dist
-        return xg1,yg1,xg2,yg2
 
-
-    def keepUnique(self,src,cat,irot):
+    def keepUnique(self,src,cat,irot,ig):
+        g1  =   self.g1List[ig]
+        g2  =   self.g2List[ig]
+        src         =   src[src['parent']!=0]
+        assert len(src)%2==0, 'Even number of galaxies'
         ngrid       =   80
         nx          =   50
-        xg1,yg1,xg2,yg2 =   self.getPositions(cat,irot,ngrid,nx)
-        minDist     =   min(cat['dist']/2./0.168,5.)
+        angle       =   irot*np.pi/4.
+        xg1,yg1,xg2,yg2 =   anaUtil.getPositions(cat['dist'],angle,g1,g2)
         src['ipos'] =   (src['base_SdssCentroid_y']//ngrid)*nx +(src['base_SdssCentroid_x']//ngrid).astype(np.int)
         src['xTcent']=  src['base_SdssCentroid_x']%ngrid-ngrid/2.+0.5
         src['yTcent']=  src['base_SdssCentroid_y']%ngrid-ngrid/2.+0.5
-        # First, keep only detections that are the closest to galaxy1 
+        # Get sorted index by grid index and grid distance
+        # Get the galaxies which is the closest to galaxy1 in the postage stamp
         src['disG1'] =  np.sqrt((src['xTcent']-xg1)**2.+(src['yTcent']-yg1)**2.)
-        # Get sorted index by grid index and grid distance
-        # Get the galaxies which is the closest to galaxy1 in the postage stamp
         inds        =   np.lexsort([src['disG1'],src['ipos']])
-        inds_unique =   np.unique(src['ipos'][inds],return_index=True)[1]
-        srcG1       =   src[inds[inds_unique]]
-        srcG1       =   srcG1[(srcG1['disG1']<minDist)]
-        srcG1       =   srcG1[np.all(~np.isnan(srcG1['fpfs_moments']),axis=1)]
-        # Second, keep only detections that are the closest to galaxy2
-        src['disG2'] =  np.sqrt((src['xTcent']-xg2)**2.+(src['yTcent']-yg2)**2.)
-        # Get sorted index by grid index and grid distance
-        # Get the galaxies which is the closest to galaxy1 in the postage stamp
-        inds        =   np.lexsort([src['disG2'],src['ipos']])
-        inds_unique =   np.unique(src['ipos'][inds],return_index=True)[1]
-        srcG2       =   src[inds[inds_unique]]
-        srcG2       =   srcG2[(srcG2['disG2']<minDist)]
-        srcG2       =   srcG1[np.all(~np.isnan(srcG2['fpfs_moments']),axis=1)]
-        return srcG1,srcG2
+        src         =   src[inds]
+        return src
 
     def getNeibourInfo(self,src):
         x   =   src['base_SdssShape_x']
