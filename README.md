@@ -4,7 +4,7 @@
 # Goal
 ----
 1.Develop second generation of FPFS shear estimator to reduce the noise bias below 0.1%
-2.Do follow up test of Metadetection(Erin 2019) to test whether that paper's conclusion
-"The influence of neighbouring object is small and deblending is not needed" applys to FPFS2
+2.Test whether  conclusion of https://arxiv.org/abs/1911.02505
+(The influence of neighbouring object is small and deblending is not needed if the detection bias is corrected) applies to FPFS2.
 
 # Plan
