@@ -1,0 +1,88 @@
+\documentclass[a4paper,fleqn,usenatbib]{mnras}
+\emergencystretch=1.em
+\pdfminorversion=5
+\newcommand \bibPath{./}
+\newcommand \figPath{./}
+\newcommand \redColor{}
+\newcommand \blueColor{}
+\renewcommand\labelenumi{(\roman{enumi})}
+\renewcommand\theenumi\labelenumi
+
+
+\usepackage{newtxtext,newtxmath}
+\usepackage[T1]{fontenc}
+\usepackage{ae,aecompl}
+%\usepackage{xcolor}
+
+\usepackage{graphicx}	% Including figure files
+\usepackage{subfigure}
+\usepackage{amsmath}	% Advanced maths commands
+\usepackage{amssymb}	% Extra maths symbols
+
+
+\usepackage{pdflscape}	% Landscape pages
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{multicol}  % Multi-column entries in tables
+%\usepackage{color}
+
+\usepackage{textcomp}
+\usepackage{epstopdf}
+\usepackage{natbib}
+\bibliographystyle{mnras}
+%\usepackage[breaklinks]{hyperref}
+\urlstyle{same}
+\usepackage{breakurl}
+\hypersetup{breaklinks}
+
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\@combinedblfloats{\box\@outputbox}{\unvbox\@outputbox}{}{%
+   \errmessage{\noexpand\@combinedblfloats could not be patched}%
+}%
+ \makeatother
+
+
+\title[FPFS2}
+\author[]{}
+
+\begin{document}
+\label{firstpage}
+\pagerange{\pageref{firstpage}--\pageref{lastpage}}
+\maketitle
+
+\begin{abstract}
+\end{abstract}
+
+
+\begin{keywords}
+cosmology: observations -- gravitational lensing: weak
+\end{keywords}
+
+\section{Introduction}
+\label{sec:Intro}
+
+
+\section{Method}
+\label{sec:Method}
+
+\section{Test and Calibration}
+\label{sec:Test}
+
+
+\section{Summary and Outlook}
+\label{sec:End}
+
+
+\section*{Acknowledgements}
+
+\bibliography{}
+
+\appendix
+
+\bsp	% typesetting comment
+\label{lastpage}
+\end{document}
+
+\end{document}
+
