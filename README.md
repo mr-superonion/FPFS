@@ -1,23 +1,10 @@
-# uniCalib_Private
-
+# FPFS2
 
 
 # Goal
 ----
-Whether we can apply the calibration from i band to gr(i)zy band image of HSC survey? \\
+1.Develop second generation of FPFS shear estimator to reduce the noise bias below 0.1%
+2.Test whether  conclusion of https://arxiv.org/abs/1911.02505
+(The influence of neighbouring object is small and deblending is not needed if the detection bias is corrected) applies to FPFS2.
 
-# plan
-----
-#sim
-    make different galaxy image simulations 
-    rgc: COSMOS image 
-    cgc: Sersic model galaxy image
-        oneShear: two blended galaxies have the same shear (same redshift plan)
-        twoShear: two blended galaxies have the different shear (different redshift plan)
-#proc
-    process the simulation with lsst pipeline and FPFS estimator
-
-#ana 
-    use machine learning (Gaussian Process..) to study the galaxy bias (multiplicative bias and fractional additive bias)
-
-
+# Plan
