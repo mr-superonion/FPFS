@@ -1,8 +1,6 @@
 \documentclass[a4paper,fleqn,usenatbib]{mnras}
 \emergencystretch=1.em
 \pdfminorversion=5
-\newcommand \bibPath{./}
-\newcommand \figPath{./}
 \newcommand \redColor{}
 \newcommand \blueColor{}
 \renewcommand\labelenumi{(\roman{enumi})}
@@ -43,7 +41,7 @@
  \makeatother
 
 
-\title[FPFS2}
+\title[FPFS2: Second generation of Fourier Power Function Shapelets}
 \author[]{}
 
 \begin{document}
@@ -66,12 +64,172 @@ cosmology: observations -- gravitational lensing: weak
 \section{Method}
 \label{sec:Method}
 
-\section{Test and Calibration}
+\subsection{High order shapelets}
+\label{sec:Method-shapelets}
+
+In order to reduce the uncertainty caused by pixel noise, FPFS algorithm
+defines the boundary of each galaxy using a circular top-hap aperture around
+the centroid of the galaxy \citep{Li17Auto} and sets the pixels outside the
+boundary to zero. The ratio between the aperture radius and the galaxy's
+half-light radius is set to a constant and denoted as $\alpha$. The half-light
+radius of each galaxy is calculated from the second order adaptive moment
+matrix measured by the re-Gaussianization algorithm \citep{reGaussianization}
+and the centroid is set to the center of the galaxy footprint. The Fourier
+power function of the galaxy is calculated as
+\begin{equation} \label{eq:FourPowDef}
+\begin{split}
+\tilde{f}_o(\vec{k})&=\int f_o(\vec{x}_o) e^{-i\vec{k} \cdot \vec{x}_o} d^2x_o,\\
+\tilde{F}_o(\vec{k})&=|\tilde{f}_o(\vec{k})|^2.
+\end{split}
+\end{equation}
+
+
+The Fourier power function defined in equation (\ref{eq:FourPowDef}) is
+contaminated by the Fourier power function of noise. The Fourier power function
+of noise depends on the correlation function of noise which is the weighted
+inverse Fourier transform of the noise Fourier power function \citep{Li18FPFS}.
+Although noise on CCD images (single exposures) does not correlate across
+pixels \citep{Z15}, noise on coadd exposures correlates across pixels since an
+ad hoc warping kernel is used to convolve CCD images before re-pixelazation on
+common coordinates in the coadding procedure. The noise correlations on coadd
+exposures are mainly determined by the shape of the warping kernels.
+The PSF Fourier power function, denoted as $\tilde{G}(\vec{k})$, is
+subsequently deconvolved from the observed galaxy's Fourier power function to
+remove the influence of PSF
+
+\begin{equation}\label{PSF deconvolution_fourier}
+\tilde{F}(\vec{k})=\frac{\tilde{F}_r(\vec{k})}{\tilde{G}(\vec{k})}.
+\end{equation}
+
+Next, the deconvolved galaxy Fourier power function is projected onto the polar
+Shapelet basis vectors \citep{polar_Shapelets} as
+\begin{align}\label{Shapelets_decompose}
+M_{nm}=\int \chi_{nm}^{*} \tilde{F}(\rho,\phi) \rho d\rho d\phi.
+\end{align}
+
+The polar Shapelet basis vectors are defined as
+\begin{align*}
+\chi_{nm}(\rho,\phi)&=\frac{(-1)^{(n-|m|)/2}}{\sigma^{|m|+1}}\left\lbrace
+    \frac{[(n-|m|)/2]!}{\pi[(n+|m|)/2]!}\right\rbrace^\frac{1}{2}\\
+    &\times
+    \rho^{|m|}L^{|m|}_{\frac{n-|m|}{2}}\left(\frac{r^2}{\sigma^2}\right)e^{-\rho^2/2\sigma^2}
+    e^{-im\phi},
+\end{align*}
+where $L^{p}_{q}$ are the Laguerre Polynomials, $n$ is the radial number and
+$m$ is the spin number, and $\sigma$ determines the scale of Shapelet
+functions. We denote the ratio between $\sigma$ and the scale radius of PSF
+Fourier power function ($r_{\text{pp}}$) as \citep{Li18FPFS}
+\begin{equation}
+\beta=\frac{\sigma}{r_{\text{pp}}}.
+\end{equation}
+
+Note that $\alpha$ determines the effective scale in configuration space
+whereas $\beta$ determines the effective scale in Fourier space.
+\citet{Li18FPFS} proposed to set $\alpha=4$, $\beta=0.85$ and showed that the
+systematic bias for such setup is below one percent of the shear signal.
+
+
+The transformation formulas of the shapelet modes under the influence of shear
+have been given by \citet{polar_Shapelets}, which are
+\begin{equation}\label{Shapelets_Moments_shear_Transform}
+\begin{split}
+M_{22c}&=\bar{M}_{22c}-\frac{\sqrt{2}}{2}g_1(\bar{M}_{00}-\bar{M}_{40})\\
+&+\sqrt{3}g_1 \bar{M}_{44c}+\sqrt{3} g_2 \bar{M}_{44s},\\
+M_{22s}&=\bar{M}_{22s}-\frac{\sqrt{2}}{2}g_2(\bar{M}_{00}-\bar{M}_{40})\\
+&-\sqrt{3}g_2 \bar{M}_{44c}+\sqrt{3} g_1 \bar{M}_{44s},\\
+M_{00} &=\bar{M}_{00}+\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s}),\\
+M_{40} &=\bar{M}_{40}-\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s})\\
+&+2\sqrt{3}(g_1\bar{M}_{62c}+g_2\bar{M}_{62s}),
+\end{split}
+\end{equation}
+where $\bar{M}_{nm}$ represent the intrinsic shapelet modes and $M_{nm}$
+represent the sheared shapelet modes.
+
+
+Finally, using these shapelet modes, we define the dimensionless FPFS
+ellipticity and the corresponding shear response as
+\begin{align}\label{ellipticity_define}
+e_1=\frac{M_{22c}}{M_{00}+C},\qquad
+e_2=\frac{M_{22s}}{M_{00}+C},\\
+R_{1,2}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{00}+C}+\sqrt{2}e_{1,2}^2,
+\end{align}
+$M_{nmc}$ and $M_{nms}$ are used to denote the real and imaginary part of
+$M_{nm}$ when $m>0$. The constant $C$ the weighting parameter which adjusts
+weight between galaxies with different luminosity and reduces noise bias
+\citep{Li18FPFS}. According to \citet{Li18FPFS}, we quantify the spread of
+$M_{00}$ with $\Delta$ which is the value of $M_{00}$ at which its histogram
+drops below $1/8$ of its maximum on the side of higher $M_{00}$ and normalize
+$C$ with $\Delta$ as $\nu = C/\Delta$. We conservatively set $\nu=4$ and the
+weight for galaxies with different S/N can be found from the left panel of
+Figure 7 in \citet{Li18FPFS}.
+
+With the definition of average response $R= (R_1+R_2)/2$, the final shear
+estimator is \begin{equation} \gamma_{1,2} =-\frac{\left\langle e_{1,2}
+\right\rangle}{\left\langle R \right\rangle}.  \end{equation} There exists a
+minus sign in the final shear estimator since the ellipticity are defined in
+Fourier space.
+
+\subsection{Image boundary}
+\label{sec:Method-boundary}
+
+\subsubsection{periodic boundary}
+
+
+
+\subsubsection{top-hat}
+
+
+\subsubsection{Fourier Lanczos}
+
+
+
+\subsection{Selection Bias}
+
+
+\section{Test}
 \label{sec:Test}
 
+\subsection{Setups}
+\label{sec:Test-setup}
+
+The HSC-like Bulge+Disk+Knot (BDK) simulation is an HSC version of the BDK
+simulation \citep{metacal2}. The simulation is generated by Galsim which is an
+open-source image simulation package \citep{GalSim}. We use Sersic models
+\citep{Sersic1963} which are fitted to the $25.2$ magnitude limited galaxy
+sample from the COSMOS data
+\footnote{\url{great3.jb.man.ac.uk/leaderboard/data/public/COSMOS_25.2_training_sample.tar.gz}}
+to simulate the bulge and disk of galaxies. The fluxes of these galaxies are
+scaled by a factor of $2.587$ to match the fluxes in HSC observation. In order
+to avoid repeating the exact parameters, we interpolate the joint radius-flux
+distribution by randomly rescaling the radius and flux of the original Sersic
+model. To simulate the knots of star formation, we distribute $N$ random points
+which statistically obey the Gaussian distribution around the center of the
+galaxies, where $N$ is a random number evenly distributed between $50$ and
+$100$. The ellipticity of the Gaussian distribution follows the ellipticity of
+Sersic model and the half light radius of the Gaussian distribution is fixed to
+$2.4$ pixels. The pixel scale of the simulation is set to the HSC pixel scale,
+namely $0.168''$. The fraction of the flux of the knots is a random number
+evenly distributed between $0\%$ and $10\%$. The galaxies are rotated to random
+directions and subsequently sheared by the same shear signal
+($g_1=0.02,g2=0.00$). For the HSC-like BDK simulation, we use $g_1$ to
+determine the multiplicative bias and use $g_2$ to determine the additive bias.
+The galaxy images are convolved with a Moffat PSF \citep{Moffat1969}
+\begin{equation}\label{Moffat PSF}
+g_{m}(\vec{x})=[1+c(|\vec{x}|/r_p)^2]^{-\beta_m},  \end{equation} where
+$c=2^{\frac{1}{\beta_m-1}}-1$ is a constant parameter. The profile of the
+Moffat PSF is determined by $\beta_m$, where $\beta_{m}=3.5$. The scale of the
+Moffat PSF is determined by its Full Width Half Maximum (FWHM), where
+$\rm{FWHM}=0.6$.  The ellipticity of the Moffat PSF is set to
+$(e_1=0,e_2=0.025)$. Each convolved galaxy is placed around the center of a
+$64\times 64$ stamp. The HSC-like BDK simulation generate $4\times 10^8$
+galaxies.
+
+
+\subsection{Results}
+\label{sec:Test-res}
 
 \section{Summary and Outlook}
-\label{sec:End}
+\label{sec:Summary}
 
 
 \section*{Acknowledgements}
