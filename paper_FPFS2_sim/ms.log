@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020/Arch Linux) (preloaded format=pdflatex 2020.11.11)  21 NOV 2020 21:15
+This is pdfTeX, Version 3.14159265-2.6-1.40.21 (TeX Live 2020/Arch Linux) (preloaded format=pdflatex 2020.11.11)  22 NOV 2020 22:40
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -740,12 +740,6 @@ Type  H <return>  for immediate help.
                                                   
 l.261 ...ol{\Bbbk}           {\mathord}{AMSb}{"7C}
                                                   
-? ^^[
-Type <return> to proceed, S to scroll future error messages,
-R to run without stopping, Q to run quietly,
-I to insert something, E to edit your file,
-1 or ... or 9 to ignore the next 1 to 9 tokens of input,
-H for help, X to quit.
 ? 
 LaTeX Font Info:    Redeclaring math symbol \hslash on input line 262.
 LaTeX Font Info:    Redeclaring math symbol \backepsilon on input line 265.
@@ -1115,145 +1109,145 @@ Underfull \hbox (badness 10000) in paragraph at lines 52--53
 
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
 (Font)              scaled to size 10.0pt on input line 56.
-
-Package natbib Warning: Citation `Li17Auto' on page 1 undefined on input line 7
-2.
-
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 9.0pt on input line 74.
+(Font)              scaled to size 9.0pt on input line 71.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 7.3pt on input line 74.
+(Font)              scaled to size 7.3pt on input line 71.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 5.5pt on input line 74.
+(Font)              scaled to size 5.5pt on input line 71.
 
 LaTeX Font Warning: Font shape `OML/cmm/b/it' in size <5.5> not available
-(Font)              size <5> substituted on input line 74.
+(Font)              size <5> substituted on input line 71.
 
 
-Package natbib Warning: Citation `reGaussianization' on page 1 undefined on inp
-ut line 76.
+Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 8
+2.
 
 
-Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 9
-0.
-
-
-Package natbib Warning: Citation `Z15' on page 1 undefined on input line 92.
+Package natbib Warning: Citation `Z15' on page 1 undefined on input line 84.
 
 
 Package natbib Warning: Citation `polar_Shapelets' on page 1 undefined on input
- line 105.
+ line 97.
+
+LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
+(Font)              scaled to size 7.3pt on input line 113.
+LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
+(Font)              scaled to size 5.5pt on input line 113.
+
+Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
+13.
+
+
+Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
+20.
+
+
+Package natbib Warning: Citation `polar_Shapelets' on page 1 undefined on input
+ line 125.
+
+
+Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
+55.
 
 
 Underfull \vbox (badness 10000) has occurred while \output is active []
 
-LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
-(Font)              scaled to size 7.3pt on input line 121.
-LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
-(Font)              scaled to size 5.5pt on input line 121.
-
-
-Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
-21.
-
-
-Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
-28.
-
-
-Package natbib Warning: Citation `polar_Shapelets' on page 1 undefined on input
- line 133.
-
-
-Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
-59.
-
-
-Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
-59.
-
-
-Package natbib Warning: Citation `Li18FPFS' on page 1 undefined on input line 1
-64.
-
 LaTeX Font Info:    Font shape `T1/ntxtlf/b/n' will be
-(Font)              scaled to size 8.0pt on input line 165.
+(Font)              scaled to size 8.0pt on input line 170.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 8.0pt on input line 165.
+(Font)              scaled to size 8.0pt on input line 170.
 LaTeX Font Info:    Font shape `OT1/ntxtlf/m/n' will be
-(Font)              scaled to size 6.2pt on input line 165.
+(Font)              scaled to size 6.2pt on input line 170.
 LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
-(Font)              scaled to size 6.2pt on input line 165.
+(Font)              scaled to size 6.2pt on input line 170.
 LaTeX Font Info:    Trying to load font information for TS1+ntxtlf on input lin
-e 165.
+e 170.
+
 (/usr/share/texmf-dist/tex/latex/newtx/ts1ntxtlf.fd
 File: ts1ntxtlf.fd 2015/01/18 v1.0 fd file for TS1/ntxtlf
 )
 LaTeX Font Info:    Font shape `TS1/ntxtlf/m/n' will be
-(Font)              scaled to size 8.0pt on input line 165.
+(Font)              scaled to size 8.0pt on input line 170.
  [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}
 
 
 ]
+
+LaTeX Warning: Reference `fig_selectHist' on page 2 undefined on input line 172
+.
+
+
+LaTeX Warning: Reference `fig_selectHist' on page 2 undefined on input line 176
+.
+
 LaTeX Font Info:    Font shape `T1/ntxtlf/m/it' will be
-(Font)              scaled to size 9.0pt on input line 175.
+(Font)              scaled to size 9.0pt on input line 196.
+
+Package natbib Warning: Citation `metacal2' on page 2 undefined on input line 2
+15.
 
 
-Package natbib Warning: Citation `metacal2' on page 2 undefined on input line 1
-96.
-
-
-Package natbib Warning: Citation `GalSim' on page 2 undefined on input line 197
+Package natbib Warning: Citation `GalSim' on page 2 undefined on input line 216
 .
 
 
 Package natbib Warning: Citation `Sersic1963' on page 2 undefined on input line
- 198.
+ 217.
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 200--200
+Underfull \hbox (badness 10000) in paragraph at lines 219--219
 $[]$ [][][][]$\T1/ntxtlf/m/n/8 great3 . jb . man . ac . uk / leaderboard / data
  / public / COSMOS _ 25 . 2 _ training _
  []
 
 
 Package natbib Warning: Citation `Moffat1969' on page 2 undefined on input line
- 216.
+ 235.
 
 No file ms.bbl.
 
 Package natbib Warning: There were undefined citations.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 243.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 262.
 LaTeX Font Info:    Font shape `T1/ntxtlf/m/n' will be
-(Font)              scaled to size 12.0pt on input line 243.
+(Font)              scaled to size 12.0pt on input line 262.
 LaTeX Font Info:    Font shape `T1/ntxtlf/m/it' will be
-(Font)              scaled to size 12.0pt on input line 243.
+(Font)              scaled to size 12.0pt on input line 262.
 [2]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 243.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 262.
  (./ms.aux)
-Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 243.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 243.
-Package rerunfilecheck Info: File `ms.out' has not changed.
-(rerunfilecheck)             Checksum: 82857031968990E76990EAE361500B93;487.
+Package atveryend Info: Empty hook `AtVeryEndDocument' on input line 262.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 262.
 
+
+Package rerunfilecheck Warning: File `ms.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `ms.out':
+(rerunfilecheck)             Before: D7B3E002BFEEEBDB547E3C31A4B01166;487
+(rerunfilecheck)             After:  5BAC5A32D77B764EB8C8632C27735EC6;482.
 
 LaTeX Font Warning: Size substitutions with differences
 (Font)              up to 0.5pt have occurred.
 
 
+LaTeX Warning: There were undefined references.
+
+
 LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 243.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 262.
  ) 
 Here is how much of TeX's memory you used:
- 11846 strings out of 480478
- 163126 string characters out of 5905958
- 439415 words of memory out of 5000000
- 27564 multiletter control sequences out of 15000+600000
+ 11854 strings out of 480478
+ 163238 string characters out of 5905958
+ 441585 words of memory out of 5000000
+ 27568 multiletter control sequences out of 15000+600000
  620485 words of font info for 152 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 42i,11n,40p,933b,347s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 42i,11n,40p,933b,358s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texmf-dist/fonts/enc/dvips/newtx/ntx-ec-tlf.enc}{/usr/share/texmf
 -dist/fonts/enc/dvips/tex-gyre/q-ts1.enc}{/usr/share/texmf-dist/fonts/enc/dvips
 /newtx/ntx-ot1-tlf.enc}</usr/share/texmf-dist/fonts/type1/public/newtx/NewTXMI.
@@ -1264,10 +1258,10 @@ xs.pfb></usr/share/texmf-dist/fonts/type1/public/newtx/txmiaX.pfb></usr/share/t
 exmf-dist/fonts/type1/public/newtx/txsys.pfb></usr/share/texmf-dist/fonts/type1
 /public/newtx/ztmb.pfb></usr/share/texmf-dist/fonts/type1/public/newtx/ztmr.pfb
 ></usr/share/texmf-dist/fonts/type1/public/newtx/ztmri.pfb>
-Output written on ms.pdf (2 pages, 208215 bytes).
+Output written on ms.pdf (2 pages, 208744 bytes).
 PDF statistics:
- 126 PDF objects out of 1000 (max. 8388607)
- 110 compressed objects within 2 object streams
- 25 named destinations out of 1000 (max. 500000)
+ 130 PDF objects out of 1000 (max. 8388607)
+ 114 compressed objects within 2 object streams
+ 29 named destinations out of 1000 (max. 500000)
  73 words of extra memory for PDF output out of 10000 (max. 10000000)
 

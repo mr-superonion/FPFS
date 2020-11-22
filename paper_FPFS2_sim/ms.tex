@@ -64,18 +64,10 @@ cosmology: observations -- gravitational lensing: weak
 \section{Method}
 \label{sec:Method}
 
-\subsection{High order shapelets}
+\subsection{Shear estimator}
 \label{sec:Method-shapelets}
 
-In order to reduce the uncertainty caused by pixel noise, FPFS algorithm
-defines the boundary of each galaxy using a circular top-hap aperture around
-the centroid of the galaxy \citep{Li17Auto} and sets the pixels outside the
-boundary to zero. The ratio between the aperture radius and the galaxy's
-half-light radius is set to a constant and denoted as $\alpha$. The half-light
-radius of each galaxy is calculated from the second order adaptive moment
-matrix measured by the re-Gaussianization algorithm \citep{reGaussianization}
-and the centroid is set to the center of the galaxy footprint. The Fourier
-power function of the galaxy is calculated as
+The Fourier power function of the galaxy is calculated as
 \begin{equation} \label{eq:FourPowDef}
 \begin{split}
 \tilde{f}_o(\vec{k})&=\int f_o(\vec{x}_o) e^{-i\vec{k} \cdot \vec{x}_o} d^2x_o,\\
@@ -138,6 +130,7 @@ M_{22c}&=\bar{M}_{22c}-\frac{\sqrt{2}}{2}g_1(\bar{M}_{00}-\bar{M}_{40})\\
 M_{22s}&=\bar{M}_{22s}-\frac{\sqrt{2}}{2}g_2(\bar{M}_{00}-\bar{M}_{40})\\
 &-\sqrt{3}g_2 \bar{M}_{44c}+\sqrt{3} g_1 \bar{M}_{44s},\\
 M_{00} &=\bar{M}_{00}+\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s}),\\
+M_{20} &=\bar{M}_{20}+\sqrt{6}(g_1\bar{M}_{42c}+g_2\bar{M}_{42s}),\\
 M_{40} &=\bar{M}_{40}-\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s})\\
 &+2\sqrt{3}(g_1\bar{M}_{62c}+g_2\bar{M}_{62s}),
 \end{split}
@@ -149,25 +142,53 @@ represent the sheared shapelet modes.
 Finally, using these shapelet modes, we define the dimensionless FPFS
 ellipticity and the corresponding shear response as
 \begin{align}\label{ellipticity_define}
-e_1=\frac{M_{22c}}{M_{00}+C},\qquad
-e_2=\frac{M_{22s}}{M_{00}+C},\\
-R_{1,2}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{00}+C}+\sqrt{2}e_{1,2}^2,
+e_1=\frac{M_{22c}}{M_{20}+C},\qquad
+e_2=\frac{M_{22s}}{M_{20}+C},\\
+R_{1}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{20}+C}
+    +\sqrt{6}\frac{M_{22c}}{M_{20}+C}\frac{M_{42c}}{M_{20}+C},\\
+R_{2}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{20}+C}
+    +\sqrt{6}\frac{M_{22s}}{M_{20}+C}\frac{M_{42s}}{M_{20}+C},
 \end{align}
 $M_{nmc}$ and $M_{nms}$ are used to denote the real and imaginary part of
 $M_{nm}$ when $m>0$. The constant $C$ the weighting parameter which adjusts
 weight between galaxies with different luminosity and reduces noise bias
-\citep{Li18FPFS}. According to \citet{Li18FPFS}, we quantify the spread of
-$M_{00}$ with $\Delta$ which is the value of $M_{00}$ at which its histogram
-drops below $1/8$ of its maximum on the side of higher $M_{00}$ and normalize
-$C$ with $\Delta$ as $\nu = C/\Delta$. We conservatively set $\nu=4$ and the
-weight for galaxies with different S/N can be found from the left panel of
-Figure 7 in \citet{Li18FPFS}.
+\citep{Li18FPFS}.
 
 With the definition of average response $R= (R_1+R_2)/2$, the final shear
-estimator is \begin{equation} \gamma_{1,2} =-\frac{\left\langle e_{1,2}
-\right\rangle}{\left\langle R \right\rangle}.  \end{equation} There exists a
-minus sign in the final shear estimator since the ellipticity are defined in
-Fourier space.
+estimator is
+\begin{equation}
+\gamma_{1,2} =-\frac{\left\langle e_{1,2}
+\right\rangle}{\left\langle R \right\rangle}.
+\end{equation}
+
+\subsection{Selection Bias}
+\label{sec:Method-select}
+
+We define the FPFS flux ratio as
+\begin{align}\label{select_define}
+s = \frac{M_{00}}{M_{20}+C},
+\end{align}
+and use the FPFS flux ratio as the selection function.
+The left panel of Fig. \ref{fig_selectHist} shows the histograms of $s$ with
+different setups of $\nu$. In addition, the detection of galaxies is also a
+selection process which could cause bias to the shear measurement so we show
+the histogram of $s$ ($\nu=4$) for the undetected galaxies on the right panel
+of Fig. \ref{fig_selectHist}.
+
+The FPFS flux ratio is also influenced by the shear and the relationship
+between the sheared FPFS flux ratio ($s$) and the intrinsic FPFS flux ratio
+($\bar{s}$) is
+\begin{align}\label{select_transform}
+s-\bar{s} &=g_1 (\sqrt{2}\frac{M_{22c}}{M_{20}+C}
+    -\sqrt{6}s\frac{M_{42c}}{M_{20}+C}) \\
+    &+g_2 (\sqrt{2}\frac{M_{22s}}{M_{20}+C}
+    -\sqrt{6}s\frac{M_{42s}}{M_{20}+C}).
+\end{align}
+$\bar{s}$ is isotropic (spin-0) on the intrinsic plane but $s$ is not.
+Therefore, the selection using $s$ as the selection function is not an
+isotropic selection on the intrinsic plane. Such selection does not align with
+the premise that the intrinsic galaxies have isotropic orientations
+statistically and causes selection bias.
 
 \subsection{Image boundary}
 \label{sec:Method-boundary}
@@ -182,8 +203,6 @@ Fourier space.
 \subsubsection{Fourier Lanczos}
 
 
-
-\subsection{Selection Bias}
 
 
 \section{Test}
