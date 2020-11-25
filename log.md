@@ -1,5 +1,12 @@
 # log
 
+## 20201125
++ update notebook/high_order_shapelets_estiamtor/1_first_try.ipyn
+    - the new estimator works well for the noiseless case
+    - move on to the noisy simulation
++ update paper_FPFS2_sim/ms.tex
+    - method/ shear estimator
+
 ## 20201122
 + update ms
     - define $\frac{M_{22c}}{M_{20}}$ as ellipticity

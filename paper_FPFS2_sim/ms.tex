@@ -6,26 +6,10 @@
 \renewcommand\labelenumi{(\roman{enumi})}
 \renewcommand\theenumi\labelenumi
 
-
-\usepackage{newtxtext,newtxmath}
-\usepackage[T1]{fontenc}
-\usepackage{ae,aecompl}
-%\usepackage{xcolor}
-
-\usepackage{graphicx}	% Including figure files
-\usepackage{subfigure}
-\usepackage{amsmath}	% Advanced maths commands
-\usepackage{amssymb}	% Extra maths symbols
-
-
-\usepackage{pdflscape}	% Landscape pages
-\usepackage{listings}
-\usepackage{multirow}
-\usepackage{multicol}  % Multi-column entries in tables
-%\usepackage{color}
-
-\usepackage{textcomp}
+\usepackage{graphicx,subfigure}	% Including figure files
 \usepackage{epstopdf}
+\usepackage{amsmath,amssymb}	% Advanced maths commands
+
 \usepackage{natbib}
 \bibliographystyle{mnras}
 %\usepackage[breaklinks]{hyperref}
@@ -33,15 +17,8 @@
 \usepackage{breakurl}
 \hypersetup{breaklinks}
 
-\usepackage{etoolbox}
-\makeatletter
-\patchcmd\@combinedblfloats{\box\@outputbox}{\unvbox\@outputbox}{}{%
-   \errmessage{\noexpand\@combinedblfloats could not be patched}%
-}%
- \makeatother
 
-
-\title[FPFS2: Second generation of Fourier Power Function Shapelets}
+\title{FPFS2: Second generation of Fourier Power Function Shapelets}
 \author[]{}
 
 \begin{document}
@@ -64,10 +41,16 @@ cosmology: observations -- gravitational lensing: weak
 \section{Method}
 \label{sec:Method}
 
-\subsection{Shear estimator}
+We first introduce the second generation of FPFS shear estimator in Section
+\ref{sec:Method-shapelets} and the revision of selection bias in Section
+\ref{sec:Method-select}. Then, we summarize the difference between the updated
+FPFS algorithm with its first generation.
+
+\subsection{FPFS2 Shear estimator}
 \label{sec:Method-shapelets}
 
-The Fourier power function of the galaxy is calculated as
+\citet{Z08} first proposed to measure shear from the Fourier power function of
+galaxy images. The Fourier power function of a galaxy is defined as
 \begin{equation} \label{eq:FourPowDef}
 \begin{split}
 \tilde{f}_o(\vec{k})&=\int f_o(\vec{x}_o) e^{-i\vec{k} \cdot \vec{x}_o} d^2x_o,\\
@@ -77,24 +60,24 @@ The Fourier power function of the galaxy is calculated as
 
 
 The Fourier power function defined in equation (\ref{eq:FourPowDef}) is
-contaminated by the Fourier power function of noise. The Fourier power function
-of noise depends on the correlation function of noise which is the weighted
-inverse Fourier transform of the noise Fourier power function \citep{Li18FPFS}.
-Although noise on CCD images (single exposures) does not correlate across
-pixels \citep{Z15}, noise on coadd exposures correlates across pixels since an
-ad hoc warping kernel is used to convolve CCD images before re-pixelazation on
-common coordinates in the coadding procedure. The noise correlations on coadd
-exposures are mainly determined by the shape of the warping kernels.
-The PSF Fourier power function, denoted as $\tilde{G}(\vec{k})$, is
-subsequently deconvolved from the observed galaxy's Fourier power function to
-remove the influence of PSF
+contaminated by the Fourier power function of noise. Although noise on CCD
+images (single exposures) does not correlate across pixels \citep{Z15}, noise
+on coadd exposures correlates across pixels as an ad hoc warping kernel is used
+to convolve CCD images before re-pixelazing onto common coordinates in the
+coadding procedure. In this paper, we assume the noise's Fourier power function
+is fully known, which is denoted as $\tilde{F}_n$. The noise's Fourier power function is subtracted from the galaxy's Fourier power function
+\begin{equation}
+\tilde{F}_r(\vec{k})=\tilde{F}_o(\vec{k})-\tilde{F}_n
+\end{equation}
 
+Subsequently, the PSF's Fourier power function, which is denoted as
+$\tilde{G}(\vec{k})$, is deconvolved to revise for the smearing from PSF
 \begin{equation}\label{PSF deconvolution_fourier}
 \tilde{F}(\vec{k})=\frac{\tilde{F}_r(\vec{k})}{\tilde{G}(\vec{k})}.
 \end{equation}
 
-Next, the deconvolved galaxy Fourier power function is projected onto the polar
-Shapelet basis vectors \citep{polar_Shapelets} as
+Next, the deconvolved galaxy's Fourier power function is projected onto the
+polar Shapelet basis vectors \citep{polar_Shapelets} as
 \begin{align}\label{Shapelets_decompose}
 M_{nm}=\int \chi_{nm}^{*} \tilde{F}(\rho,\phi) \rho d\rho d\phi.
 \end{align}
@@ -110,19 +93,15 @@ The polar Shapelet basis vectors are defined as
 where $L^{p}_{q}$ are the Laguerre Polynomials, $n$ is the radial number and
 $m$ is the spin number, and $\sigma$ determines the scale of Shapelet
 functions. We denote the ratio between $\sigma$ and the scale radius of PSF
-Fourier power function ($r_{\text{pp}}$) as \citep{Li18FPFS}
+Fourier power function ($r_{\text{pp}}$) as \citep{FPFS-Li2018}
 \begin{equation}
 \beta=\frac{\sigma}{r_{\text{pp}}}.
 \end{equation}
-
-Note that $\alpha$ determines the effective scale in configuration space
-whereas $\beta$ determines the effective scale in Fourier space.
-\citet{Li18FPFS} proposed to set $\alpha=4$, $\beta=0.85$ and showed that the
-systematic bias for such setup is below one percent of the shear signal.
+Note $\beta$ determines the effective scale in Fourier space.
+\citet{FPFS-Li2018} proposed to set $\beta=0.85$.
 
 
-The transformation formulas of the shapelet modes under the influence of shear
-have been given by \citet{polar_Shapelets}, which are
+The transformations (\citep{polar_Shapelets}) of many useful shapelet modes under the influence of shear are laid out as follows
 \begin{equation}\label{Shapelets_Moments_shear_Transform}
 \begin{split}
 M_{22c}&=\bar{M}_{22c}-\frac{\sqrt{2}}{2}g_1(\bar{M}_{00}-\bar{M}_{40})\\
@@ -138,9 +117,8 @@ M_{40} &=\bar{M}_{40}-\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s})\\
 where $\bar{M}_{nm}$ represent the intrinsic shapelet modes and $M_{nm}$
 represent the sheared shapelet modes.
 
-
-Finally, using these shapelet modes, we define the dimensionless FPFS
-ellipticity and the corresponding shear response as
+We define the dimensionless FPFS ellipticity and the corresponding shear
+response with these shapelet modes as
 \begin{align}\label{ellipticity_define}
 e_1=\frac{M_{22c}}{M_{20}+C},\qquad
 e_2=\frac{M_{22s}}{M_{20}+C},\\
@@ -150,9 +128,9 @@ R_{2}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{20}+C}
     +\sqrt{6}\frac{M_{22s}}{M_{20}+C}\frac{M_{42s}}{M_{20}+C},
 \end{align}
 $M_{nmc}$ and $M_{nms}$ are used to denote the real and imaginary part of
-$M_{nm}$ when $m>0$. The constant $C$ the weighting parameter which adjusts
-weight between galaxies with different luminosity and reduces noise bias
-\citep{Li18FPFS}.
+$M_{nm}$ when $m>0$. The constant $C=\nu \sigma(M_{20})$ the weighting
+parameter which adjusts weight between galaxies with different luminosity and
+reduces noise bias, and $\nu$ is termed weighting ratio \citep{FPFS-Li2018}.
 
 With the definition of average response $R= (R_1+R_2)/2$, the final shear
 estimator is
@@ -161,7 +139,7 @@ estimator is
 \right\rangle}{\left\langle R \right\rangle}.
 \end{equation}
 
-\subsection{Selection Bias}
+\subsection{Selection function}
 \label{sec:Method-select}
 
 We define the FPFS flux ratio as
@@ -190,26 +168,10 @@ isotropic selection on the intrinsic plane. Such selection does not align with
 the premise that the intrinsic galaxies have isotropic orientations
 statistically and causes selection bias.
 
-\subsection{Image boundary}
-\label{sec:Method-boundary}
+\subsection{Algorithm updates}
 
-\subsubsection{periodic boundary}
-
-
-
-\subsubsection{top-hat}
-
-
-\subsubsection{Fourier Lanczos}
-
-
-
-
-\section{Test}
-\label{sec:Test}
-
-\subsection{Setups}
-\label{sec:Test-setup}
+\section{Image Simulation}
+\label{sec:sim}
 
 The HSC-like Bulge+Disk+Knot (BDK) simulation is an HSC version of the BDK
 simulation \citep{metacal2}. The simulation is generated by Galsim which is an
@@ -243,9 +205,18 @@ $(e_1=0,e_2=0.025)$. Each convolved galaxy is placed around the center of a
 $64\times 64$ stamp. The HSC-like BDK simulation generate $4\times 10^8$
 galaxies.
 
+\section{Image boundary}
+\label{sec:Boundary}
 
-\subsection{Results}
-\label{sec:Test-res}
+\subsection{periodic boundary}
+
+
+
+\subsection{top-hat}
+
+
+\subsection{Fourier Lanczos}
+
 
 \section{Summary and Outlook}
 \label{sec:Summary}
@@ -253,7 +224,7 @@ galaxies.
 
 \section*{Acknowledgements}
 
-\bibliography{}
+\bibliography{citation}
 
 \appendix
 

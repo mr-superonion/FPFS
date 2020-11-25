@@ -1,0 +1,53 @@
+This is BibTeX, Version 0.99d (TeX Live 2020/Arch Linux)
+Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
+The top-level auxiliary file: ms.aux
+The style file: mnras.bst
+Database file #1: citation.bib
+Warning--I didn't find a database entry for "metacal2"
+Warning--I didn't find a database entry for "GalSim"
+Warning--I didn't find a database entry for "Sersic1963"
+Warning--I didn't find a database entry for "Moffat1969"
+Reallocated singl_function (elt_size=8) to 100 items from 50.
+Reallocated singl_function (elt_size=8) to 100 items from 50.
+You've used 4 entries,
+            2881 wiz_defined-function locations,
+            766 strings with 6872 characters,
+and the built_in function-call counts, 1939 in all, are:
+= -- 156
+> -- 138
+< -- 12
++ -- 60
+- -- 20
+* -- 236
+:= -- 313
+add.period$ -- 0
+call.type$ -- 4
+change.case$ -- 8
+chr.to.int$ -- 4
+cite$ -- 4
+duplicate$ -- 90
+empty$ -- 89
+format.name$ -- 32
+if$ -- 325
+int.to.chr$ -- 1
+int.to.str$ -- 0
+missing$ -- 4
+newline$ -- 25
+num.names$ -- 30
+pop$ -- 16
+preamble$ -- 1
+purify$ -- 16
+quote$ -- 0
+skip$ -- 57
+stack$ -- 0
+substring$ -- 108
+swap$ -- 54
+text.length$ -- 16
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 36
+warning$ -- 0
+while$ -- 32
+width$ -- 0
+write$ -- 52
+(There were 4 warnings)

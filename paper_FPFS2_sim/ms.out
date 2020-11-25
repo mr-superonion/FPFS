@@ -1,9 +1,11 @@
 \BOOKMARK [1][-]{section.1}{Introduction}{}% 1
 \BOOKMARK [1][-]{section.2}{Method}{}% 2
-\BOOKMARK [2][-]{subsection.2.1}{Shear estimator}{section.2}% 3
-\BOOKMARK [2][-]{subsection.2.2}{Selection Bias}{section.2}% 4
-\BOOKMARK [2][-]{subsection.2.3}{Image boundary}{section.2}% 5
-\BOOKMARK [1][-]{section.3}{Test}{}% 6
-\BOOKMARK [2][-]{subsection.3.1}{Setups}{section.3}% 7
-\BOOKMARK [2][-]{subsection.3.2}{Results}{section.3}% 8
-\BOOKMARK [1][-]{section.4}{Summary and Outlook}{}% 9
+\BOOKMARK [2][-]{subsection.2.1}{FPFS2 Shear estimator}{section.2}% 3
+\BOOKMARK [2][-]{subsection.2.2}{Selection function}{section.2}% 4
+\BOOKMARK [2][-]{subsection.2.3}{Algorithm updates}{section.2}% 5
+\BOOKMARK [1][-]{section.3}{Image Simulation}{}% 6
+\BOOKMARK [1][-]{section.4}{Image boundary}{}% 7
+\BOOKMARK [2][-]{subsection.4.1}{periodic boundary}{section.4}% 8
+\BOOKMARK [2][-]{subsection.4.2}{top-hat}{section.4}% 9
+\BOOKMARK [2][-]{subsection.4.3}{Fourier Lanczos}{section.4}% 10
+\BOOKMARK [1][-]{section.5}{Summary and Outlook}{}% 11
