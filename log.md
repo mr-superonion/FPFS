@@ -1,7 +1,11 @@
 # log
 
 ## 20201125
-+ update notebook/high_order_shapelets_estiamtor/1_first_try.ipyn
++ update notebook/high_order_shapelets_estiamtor/1_shear_estimate.ipynb
+    - improve the speed of the code by 3 times
+
+## 20201125
++ update notebook/high_order_shapelets_estiamtor/1_first_try.ipynb
     - the new estimator works well for the noiseless case
     - move on to the noisy simulation
 + update paper_FPFS2_sim/ms.tex
