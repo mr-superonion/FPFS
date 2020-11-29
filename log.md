@@ -1,5 +1,9 @@
 # log
 
+## 20201126
++ update notebook/high_order_shapelets_estiamtor/1_shear_estimate.ipynb
+    - improve the speed of the code by 10 times
+
 ## 20201125
 + update notebook/high_order_shapelets_estiamtor/1_shear_estimate.ipynb
     - improve the speed of the code by 3 times
