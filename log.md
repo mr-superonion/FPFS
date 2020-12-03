@@ -1,5 +1,13 @@
 # log
 
+
+# version-0.0
+
+## 20201203
++ prepare to study noise
+    - from correlation to power function
+    - make sure noise residuals do not correlate in Fourier space
+
 ## 20201126
 + update notebook/high_order_shapelets_estiamtor/1_shear_estimate.ipynb
     - improve the speed of the code by 10 times
