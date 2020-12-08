@@ -42,12 +42,12 @@ cosmology: observations -- gravitational lensing: weak
 \label{sec:Method}
 
 We first introduce the second generation of FPFS shear estimator in Section
-\ref{sec:Method-shapelets} and the revision of selection bias in Section
-\ref{sec:Method-select}. Then, we summarize the difference between the updated
+\ref{sec_Method_shapelets} and the revision of selection bias in Section
+\ref{sec_Method_select}. Then, we summarize the difference between the updated
 FPFS algorithm with its first generation.
 
 \subsection{FPFS2 Shear estimator}
-\label{sec:Method-shapelets}
+\label{sec_Method_shapelets}
 
 \citet{Z08} first proposed to measure shear from the Fourier power function of
 galaxy images. The Fourier power function of a galaxy is defined as
@@ -58,14 +58,14 @@ galaxy images. The Fourier power function of a galaxy is defined as
 \end{split}
 \end{equation}
 
-
 The Fourier power function defined in equation (\ref{eq:FourPowDef}) is
 contaminated by the Fourier power function of noise. Although noise on CCD
 images (single exposures) does not correlate across pixels \citep{Z15}, noise
 on coadd exposures correlates across pixels as an ad hoc warping kernel is used
 to convolve CCD images before re-pixelazing onto common coordinates in the
 coadding procedure. In this paper, we assume the noise's Fourier power function
-is fully known, which is denoted as $\tilde{F}_n$. The noise's Fourier power function is subtracted from the galaxy's Fourier power function
+is fully known, which is denoted as $\tilde{F}_n$. The noise's Fourier power
+function is subtracted from the galaxy's Fourier power function
 \begin{equation}
 \tilde{F}_r(\vec{k})=\tilde{F}_o(\vec{k})-\tilde{F}_n
 \end{equation}
@@ -99,7 +99,6 @@ Fourier power function ($r_{\text{pp}}$) as \citep{FPFS-Li2018}
 \end{equation}
 Note $\beta$ determines the effective scale in Fourier space.
 \citet{FPFS-Li2018} proposed to set $\beta=0.85$.
-
 
 The transformations (\citep{polar_Shapelets}) of many useful shapelet modes under the influence of shear are laid out as follows
 \begin{equation}\label{Shapelets_Moments_shear_Transform}
@@ -139,8 +138,34 @@ estimator is
 \right\rangle}{\left\langle R \right\rangle}.
 \end{equation}
 
+\subsection{Noise bias}
+\label{sec_Method_noise}
+
+The Gaussian noise field is denoted as $n(\vec{x})$ and its Fourier transform
+is denoted as $\tilde{n}(\vec{k})$. Accord to the Isserlis' theorem, we have
+\begin{equation}\label{eq_IsserlisTheorem}
+\begin{split}
+    \left\langle\tilde{n}(\vec{k})\tilde{n}(-\vec{k})\right\rangle
+    &=\mathcal{P}(\vec{k})\\
+    \left\langle\tilde{n}^2(\vec{k})\tilde{n}^2(-\vec{k})\right\rangle
+    &=<\tilde{n}^2(\vec{k})><\tilde{n}^2(-\vec{k})>+2\mathcal{P}^2(\vec{k})\\
+    &=2\mathcal{P}^2(\vec{k})
+\end{split}
+\end{equation}
+
+The residual of noise power function is defined as
+\begin{equation}
+    \tilde{\epsilon}(\vec{k})=\tilde{n}(\vec{k})\tilde{n}(-\vec{k})
+    -\mathcal{P}(\vec{k}),
+\end{equation}
+and the uncertainty of the residual can be calculated by combining with eq.
+(\ref{eq_IsserlisTheorem}):
+\begin{equation}
+    \sigma_{\tilde{\epsilon}}(\vec{k})=\mathcal{P}(\vec{k})
+\end{equation}
+
 \subsection{Selection function}
-\label{sec:Method-select}
+\label{sec_Method_select}
 
 We define the FPFS flux ratio as
 \begin{align}\label{select_define}
