@@ -6,12 +6,11 @@ Database file #1: citation.bib
 Warning--I didn't find a database entry for "metacal2"
 Warning--I didn't find a database entry for "GalSim"
 Warning--I didn't find a database entry for "Sersic1963"
-Warning--I didn't find a database entry for "Moffat1969"
 Reallocated singl_function (elt_size=8) to 100 items from 50.
 Reallocated singl_function (elt_size=8) to 100 items from 50.
 You've used 4 entries,
             2881 wiz_defined-function locations,
-            766 strings with 6872 characters,
+            764 strings with 6852 characters,
 and the built_in function-call counts, 1939 in all, are:
 = -- 156
 > -- 138
@@ -50,4 +49,4 @@ warning$ -- 0
 while$ -- 32
 width$ -- 0
 write$ -- 52
-(There were 4 warnings)
+(There were 3 warnings)

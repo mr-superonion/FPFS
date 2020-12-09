@@ -29,7 +29,6 @@
 \begin{abstract}
 \end{abstract}
 
-
 \begin{keywords}
 cosmology: observations -- gravitational lensing: weak
 \end{keywords}
@@ -40,212 +39,20 @@ cosmology: observations -- gravitational lensing: weak
 
 \section{Method}
 \label{sec:Method}
-
-We first introduce the second generation of FPFS shear estimator in Section
-\ref{sec_Method_shapelets} and the revision of selection bias in Section
-\ref{sec_Method_select}. Then, we summarize the difference between the updated
-FPFS algorithm with its first generation.
-
-\subsection{FPFS2 Shear estimator}
-\label{sec_Method_shapelets}
-
-\citet{Z08} first proposed to measure shear from the Fourier power function of
-galaxy images. The Fourier power function of a galaxy is defined as
-\begin{equation} \label{eq:FourPowDef}
-\begin{split}
-\tilde{f}_o(\vec{k})&=\int f_o(\vec{x}_o) e^{-i\vec{k} \cdot \vec{x}_o} d^2x_o,\\
-\tilde{F}_o(\vec{k})&=|\tilde{f}_o(\vec{k})|^2.
-\end{split}
-\end{equation}
-
-The Fourier power function defined in equation (\ref{eq:FourPowDef}) is
-contaminated by the Fourier power function of noise. Although noise on CCD
-images (single exposures) does not correlate across pixels \citep{Z15}, noise
-on coadd exposures correlates across pixels as an ad hoc warping kernel is used
-to convolve CCD images before re-pixelazing onto common coordinates in the
-coadding procedure. In this paper, we assume the noise's Fourier power function
-is fully known, which is denoted as $\tilde{F}_n$. The noise's Fourier power
-function is subtracted from the galaxy's Fourier power function
-\begin{equation}
-\tilde{F}_r(\vec{k})=\tilde{F}_o(\vec{k})-\tilde{F}_n
-\end{equation}
-
-Subsequently, the PSF's Fourier power function, which is denoted as
-$\tilde{G}(\vec{k})$, is deconvolved to revise for the smearing from PSF
-\begin{equation}\label{PSF deconvolution_fourier}
-\tilde{F}(\vec{k})=\frac{\tilde{F}_r(\vec{k})}{\tilde{G}(\vec{k})}.
-\end{equation}
-
-Next, the deconvolved galaxy's Fourier power function is projected onto the
-polar Shapelet basis vectors \citep{polar_Shapelets} as
-\begin{align}\label{Shapelets_decompose}
-M_{nm}=\int \chi_{nm}^{*} \tilde{F}(\rho,\phi) \rho d\rho d\phi.
-\end{align}
-
-The polar Shapelet basis vectors are defined as
-\begin{align*}
-\chi_{nm}(\rho,\phi)&=\frac{(-1)^{(n-|m|)/2}}{\sigma^{|m|+1}}\left\lbrace
-    \frac{[(n-|m|)/2]!}{\pi[(n+|m|)/2]!}\right\rbrace^\frac{1}{2}\\
-    &\times
-    \rho^{|m|}L^{|m|}_{\frac{n-|m|}{2}}\left(\frac{r^2}{\sigma^2}\right)e^{-\rho^2/2\sigma^2}
-    e^{-im\phi},
-\end{align*}
-where $L^{p}_{q}$ are the Laguerre Polynomials, $n$ is the radial number and
-$m$ is the spin number, and $\sigma$ determines the scale of Shapelet
-functions. We denote the ratio between $\sigma$ and the scale radius of PSF
-Fourier power function ($r_{\text{pp}}$) as \citep{FPFS-Li2018}
-\begin{equation}
-\beta=\frac{\sigma}{r_{\text{pp}}}.
-\end{equation}
-Note $\beta$ determines the effective scale in Fourier space.
-\citet{FPFS-Li2018} proposed to set $\beta=0.85$.
-
-The transformations (\citep{polar_Shapelets}) of many useful shapelet modes under the influence of shear are laid out as follows
-\begin{equation}\label{Shapelets_Moments_shear_Transform}
-\begin{split}
-M_{22c}&=\bar{M}_{22c}-\frac{\sqrt{2}}{2}g_1(\bar{M}_{00}-\bar{M}_{40})\\
-&+\sqrt{3}g_1 \bar{M}_{44c}+\sqrt{3} g_2 \bar{M}_{44s},\\
-M_{22s}&=\bar{M}_{22s}-\frac{\sqrt{2}}{2}g_2(\bar{M}_{00}-\bar{M}_{40})\\
-&-\sqrt{3}g_2 \bar{M}_{44c}+\sqrt{3} g_1 \bar{M}_{44s},\\
-M_{00} &=\bar{M}_{00}+\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s}),\\
-M_{20} &=\bar{M}_{20}+\sqrt{6}(g_1\bar{M}_{42c}+g_2\bar{M}_{42s}),\\
-M_{40} &=\bar{M}_{40}-\sqrt{2}(g_1\bar{M}_{22c}+g_2\bar{M}_{22s})\\
-&+2\sqrt{3}(g_1\bar{M}_{62c}+g_2\bar{M}_{62s}),
-\end{split}
-\end{equation}
-where $\bar{M}_{nm}$ represent the intrinsic shapelet modes and $M_{nm}$
-represent the sheared shapelet modes.
-
-We define the dimensionless FPFS ellipticity and the corresponding shear
-response with these shapelet modes as
-\begin{align}\label{ellipticity_define}
-e_1=\frac{M_{22c}}{M_{20}+C},\qquad
-e_2=\frac{M_{22s}}{M_{20}+C},\\
-R_{1}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{20}+C}
-    +\sqrt{6}\frac{M_{22c}}{M_{20}+C}\frac{M_{42c}}{M_{20}+C},\\
-R_{2}=\frac{\sqrt{2}}{2}\frac{M_{00}-M_{40}}{M_{20}+C}
-    +\sqrt{6}\frac{M_{22s}}{M_{20}+C}\frac{M_{42s}}{M_{20}+C},
-\end{align}
-$M_{nmc}$ and $M_{nms}$ are used to denote the real and imaginary part of
-$M_{nm}$ when $m>0$. The constant $C=\nu \sigma(M_{20})$ the weighting
-parameter which adjusts weight between galaxies with different luminosity and
-reduces noise bias, and $\nu$ is termed weighting ratio \citep{FPFS-Li2018}.
-
-With the definition of average response $R= (R_1+R_2)/2$, the final shear
-estimator is
-\begin{equation}
-\gamma_{1,2} =-\frac{\left\langle e_{1,2}
-\right\rangle}{\left\langle R \right\rangle}.
-\end{equation}
-
-\subsection{Noise bias}
-\label{sec_Method_noise}
-
-The Gaussian noise field is denoted as $n(\vec{x})$ and its Fourier transform
-is denoted as $\tilde{n}(\vec{k})$. Accord to the Isserlis' theorem, we have
-\begin{equation}\label{eq_IsserlisTheorem}
-\begin{split}
-    \left\langle\tilde{n}(\vec{k})\tilde{n}(-\vec{k})\right\rangle
-    &=\mathcal{P}(\vec{k})\\
-    \left\langle\tilde{n}^2(\vec{k})\tilde{n}^2(-\vec{k})\right\rangle
-    &=<\tilde{n}^2(\vec{k})><\tilde{n}^2(-\vec{k})>+2\mathcal{P}^2(\vec{k})\\
-    &=2\mathcal{P}^2(\vec{k})
-\end{split}
-\end{equation}
-
-The residual of noise power function is defined as
-\begin{equation}
-    \tilde{\epsilon}(\vec{k})=\tilde{n}(\vec{k})\tilde{n}(-\vec{k})
-    -\mathcal{P}(\vec{k}),
-\end{equation}
-and the uncertainty of the residual can be calculated by combining with eq.
-(\ref{eq_IsserlisTheorem}):
-\begin{equation}
-    \sigma_{\tilde{\epsilon}}(\vec{k})=\mathcal{P}(\vec{k})
-\end{equation}
-
-\subsection{Selection function}
-\label{sec_Method_select}
-
-We define the FPFS flux ratio as
-\begin{align}\label{select_define}
-s = \frac{M_{00}}{M_{20}+C},
-\end{align}
-and use the FPFS flux ratio as the selection function.
-The left panel of Fig. \ref{fig_selectHist} shows the histograms of $s$ with
-different setups of $\nu$. In addition, the detection of galaxies is also a
-selection process which could cause bias to the shear measurement so we show
-the histogram of $s$ ($\nu=4$) for the undetected galaxies on the right panel
-of Fig. \ref{fig_selectHist}.
-
-The FPFS flux ratio is also influenced by the shear and the relationship
-between the sheared FPFS flux ratio ($s$) and the intrinsic FPFS flux ratio
-($\bar{s}$) is
-\begin{align}\label{select_transform}
-s-\bar{s} &=g_1 (\sqrt{2}\frac{M_{22c}}{M_{20}+C}
-    -\sqrt{6}s\frac{M_{42c}}{M_{20}+C}) \\
-    &+g_2 (\sqrt{2}\frac{M_{22s}}{M_{20}+C}
-    -\sqrt{6}s\frac{M_{42s}}{M_{20}+C}).
-\end{align}
-$\bar{s}$ is isotropic (spin-0) on the intrinsic plane but $s$ is not.
-Therefore, the selection using $s$ as the selection function is not an
-isotropic selection on the intrinsic plane. Such selection does not align with
-the premise that the intrinsic galaxies have isotropic orientations
-statistically and causes selection bias.
-
-\subsection{Algorithm updates}
+\input{method.tex}
 
 \section{Image Simulation}
 \label{sec:sim}
+\input{simulation.tex}
 
-The HSC-like Bulge+Disk+Knot (BDK) simulation is an HSC version of the BDK
-simulation \citep{metacal2}. The simulation is generated by Galsim which is an
-open-source image simulation package \citep{GalSim}. We use Sersic models
-\citep{Sersic1963} which are fitted to the $25.2$ magnitude limited galaxy
-sample from the COSMOS data
-\footnote{\url{great3.jb.man.ac.uk/leaderboard/data/public/COSMOS_25.2_training_sample.tar.gz}}
-to simulate the bulge and disk of galaxies. The fluxes of these galaxies are
-scaled by a factor of $2.587$ to match the fluxes in HSC observation. In order
-to avoid repeating the exact parameters, we interpolate the joint radius-flux
-distribution by randomly rescaling the radius and flux of the original Sersic
-model. To simulate the knots of star formation, we distribute $N$ random points
-which statistically obey the Gaussian distribution around the center of the
-galaxies, where $N$ is a random number evenly distributed between $50$ and
-$100$. The ellipticity of the Gaussian distribution follows the ellipticity of
-Sersic model and the half light radius of the Gaussian distribution is fixed to
-$2.4$ pixels. The pixel scale of the simulation is set to the HSC pixel scale,
-namely $0.168''$. The fraction of the flux of the knots is a random number
-evenly distributed between $0\%$ and $10\%$. The galaxies are rotated to random
-directions and subsequently sheared by the same shear signal
-($g_1=0.02,g2=0.00$). For the HSC-like BDK simulation, we use $g_1$ to
-determine the multiplicative bias and use $g_2$ to determine the additive bias.
-The galaxy images are convolved with a Moffat PSF \citep{Moffat1969}
-\begin{equation}\label{Moffat PSF}
-g_{m}(\vec{x})=[1+c(|\vec{x}|/r_p)^2]^{-\beta_m},  \end{equation} where
-$c=2^{\frac{1}{\beta_m-1}}-1$ is a constant parameter. The profile of the
-Moffat PSF is determined by $\beta_m$, where $\beta_{m}=3.5$. The scale of the
-Moffat PSF is determined by its Full Width Half Maximum (FWHM), where
-$\rm{FWHM}=0.6$.  The ellipticity of the Moffat PSF is set to
-$(e_1=0,e_2=0.025)$. Each convolved galaxy is placed around the center of a
-$64\times 64$ stamp. The HSC-like BDK simulation generate $4\times 10^8$
-galaxies.
-
-\section{Image boundary}
-\label{sec:Boundary}
-
-\subsection{periodic boundary}
-
-
-
-\subsection{top-hat}
-
-
-\subsection{Fourier Lanczos}
-
+% \section{Image boundary}
+% \label{sec:Boundary}
+% \subsection{periodic boundary}
+% \subsection{top-hat}
+% \subsection{Fourier Lanczos}
 
 \section{Summary and Outlook}
 \label{sec:Summary}
-
 
 \section*{Acknowledgements}
 

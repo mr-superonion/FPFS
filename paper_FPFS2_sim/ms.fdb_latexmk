@@ -1,12 +1,12 @@
 # Fdb version 3
-["bibtex ms"] 1607437353 "ms.aux" "ms.bbl" "ms" 1607437406
+["bibtex ms"] 1607524612 "ms.aux" "ms.bbl" "ms" 1607524615
   "./mnras.bst" 1605949214 43377 4db2f843e4986670b152898ac35c448e ""
   "citation.bib" 1606301209 2218 70d7d55e0da76b22e4ba68f00058924c ""
-  "ms.aux" 1607437406 3919 13ecde6d73965269502d6d509f5dad34 "pdflatex"
+  "ms.aux" 1607524615 3611 06d1f0fd8a388073d4532dd4dd6a6768 "pdflatex"
   (generated)
-  "ms.bbl"
   "ms.blg"
-["pdflatex"] 1607437406 "ms.tex" "ms.pdf" "ms" 1607437406
+  "ms.bbl"
+["pdflatex"] 1607524615 "ms.tex" "ms.pdf" "ms" 1607524615
   "/usr/share/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1591545468 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/share/texmf-dist/fonts/map/fontname/texfonts.map" 1591545468 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texmf-dist/fonts/tfm/jknappen/ec/tcrm0800.tfm" 1591545468 1536 05df9db6aeccc4eea94fec15c9024f79 ""
@@ -46,6 +46,7 @@
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmsy8.tfm" 1591545468 1120 8b7d695260f3cff42e636090a8002094 ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmsy9.tfm" 1591545468 1116 25a7bf822c58caf309a702ef79f4afbb ""
   "/usr/share/texmf-dist/fonts/tfm/public/cm/cmti12.tfm" 1591545468 1484 ed72f8f5cf654cda15ecc8e32bfcbee5 ""
+  "/usr/share/texmf-dist/fonts/tfm/public/cm/cmti9.tfm" 1591545468 1476 cccc6cc4935c18ec3d5623b77ecb8b74 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb" 1591545468 34811 78b52f49e893bcba91bd7581cdc144c0 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx12.pfb" 1591545468 32080 340ef9bf63678554ee606688e7b5339d ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb" 1591545468 32166 b0c356b15f19587482a9217ce1d8fa67 ""
@@ -62,6 +63,8 @@
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5.pfb" 1591545468 32915 7bf7720c61a5b3a7ff25b0964421c9b6 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb" 1591545468 32587 1788b0c1c5b39540c96f5e42ccd6dae8 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb" 1591545468 32442 c975af247b6702f7ca0c299af3616b80 ""
+  "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmti12.pfb" 1591545468 36118 fad905eba93cff5bce1e185fe980a177 ""
+  "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cm/cmti9.pfb" 1591545468 36310 f5ddc6715cc60deb16d9db5ded6a9391 ""
   "/usr/share/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmex9.pfb" 1591545468 30212 b6aafa449db0097a6b9b890f66741063 ""
   "/usr/share/texmf-dist/fonts/type1/public/cm-super/sfrm0800.pfb" 1591545468 164227 3df942b4ff2124425d8fb1b6d3e01c7a ""
   "/usr/share/texmf-dist/tex/context/base/mkii/supp-pdf.mkii" 1591545468 71627 94eb9990bed73c364d7f53f960cc8c5b ""
@@ -127,13 +130,15 @@
   "/usr/share/texmf-dist/web2c/texmf.cnf" 1591545468 33301 a3134070eacafb10b1f371612ce2650d ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1605058470 4855604 a2b69e422d881628e3d9a5db2035053f ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1605058454 2514048 4b47fa28698b36c07572bdfba4a085f2 ""
+  "method.tex" 1607524431 9070 ed45661dc8afc690851d2fd73104bcee ""
   "mnras.cls" 1605949214 62178 771897fe06ecb20a6e140bd3b990ffc5 ""
-  "ms.aux" 1607437406 3919 13ecde6d73965269502d6d509f5dad34 "pdflatex"
-  "ms.bbl" 1607437353 1887 aead1bb0dae433b8dc6e402066eb3149 "bibtex ms"
-  "ms.out" 1607437406 693 bf55a8510e6cce74a5a7d8aac8293140 "pdflatex"
-  "ms.tex" 1607437406 10256 5621ea3d0baa2bd6df5afd3ccca0cdb2 ""
+  "ms.aux" 1607524615 3611 06d1f0fd8a388073d4532dd4dd6a6768 "pdflatex"
+  "ms.bbl" 1607524612 1887 aead1bb0dae433b8dc6e402066eb3149 "bibtex ms"
+  "ms.out" 1607524615 389 de455da34c2ddc7fbe9b15896f4b5d7b "pdflatex"
+  "ms.tex" 1607524614 1293 76aa2bda734534c5efbb97dcae4ec18e ""
+  "simulation.tex" 1607524576 2301 7c9a1235dad1d13ac104b85b522a3c64 ""
   (generated)
-  "ms.pdf"
   "ms.aux"
-  "ms.out"
   "ms.log"
+  "ms.pdf"
+  "ms.out"
