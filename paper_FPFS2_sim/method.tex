@@ -170,7 +170,7 @@ the power function of galaxy after removing the noise power function is
 \end{equation}
 With eq. (\ref{eq_IsserlisTheorem}), the variance of the residual is calculated
 as
-\begin{equation}
+\begin{equation}\label{eq_var_res_noisyGal}
     \sigma^2_{\tilde{\epsilon}}(\vec{k})=\mathcal{P}^2+2\tilde{F}\mathcal{P}
 \end{equation}
 
@@ -199,12 +199,12 @@ The observed FPFS ellipticity is revise as
     %     + O(\delta^4)\\
     % The shot noise realization is independent of galaxy shape noise
     % realization
-    &=\left\langle
-        e_1\left(1+
-        \frac{\left\langle\mathcal{E}_{20}\mathcal{E}_{20}\right\rangle}
-        {(M_{20}+C)^2}\right)
-        \right\rangle\\
-    &-\left\langle
+    &=\left\langle e_1\right\rangle+
+        \left\langle
+        \frac{M_{22c}\left\langle\mathcal{E}_{20}\mathcal{E}_{20}\right\rangle}
+        {(M_{20}+C)^3}
+        \right\rangle
+    -\left\langle
     \frac{\left\langle\mathcal{E}_{20}\mathcal{E}_{22c}\right\rangle}
         {(M_{20}+C)^2}
     \right\rangle
@@ -215,9 +215,10 @@ The observed FPFS ellipticity is revise as
     \begin{split}
     \left\langle \frac{M^o_{00}-M^o_{40}}{M^o_{20}+C}\right\rangle
     &=\left\langle
-        \frac{M_{00}-M_{40}}{M_{20}+C}\left(1+
-        \frac{\left\langle\mathcal{E}_{20}\mathcal{E}_{20}\right\rangle}
-        {(M_{20}+C)^2}\right)
+        \frac{M_{00}-M_{40}}{M_{20}+C}\right\rangle+\left\langle
+        \frac{\left(M_{00}-M_{40}\right)
+            \left\langle\mathcal{E}_{20}\mathcal{E}_{20}\right\rangle}
+        {(M_{20}+C)^3}
         \right\rangle\\
     &-\left\langle
     \frac{\langle\mathcal{E}_{20}
@@ -230,12 +231,12 @@ The observed FPFS ellipticity is revise as
 \begin{equation}
 \begin{split}
     \left\langle \frac{M^o_{22c}M^o_{42c}}{(M^o_{20}+C)^2}\right\rangle
-    &= \left\langle \frac{M_{22c}M_{42c}}{(M_{20}+C)^2}
-        \left(1+3\frac{\left\langle\mathcal{E}_{20}\mathcal{E}_{20}\right\rangle}
-                    {(M_{20}+C)^2}
-        \right)
-        \right\rangle\\
-    &+ \left\langle
+    &= \left\langle \frac{M_{22c}M_{42c}}{(M_{20}+C)^2}\right\rangle\\
+    &+3\left\langle\frac{M_{22c}M_{42c}
+        \left\langle\mathcal{E}_{20}\mathcal{E}_{20}\right\rangle}
+                    {(M_{20}+C)^4}
+    \right\rangle
+    + \left\langle
         \frac{\langle\mathcal{E}_{22c}\mathcal{E}_{42c}\rangle}{(M_{20}+C)^2}
         \right\rangle\\
     &- 2\left\langle\frac{M_{42c}\langle\mathcal{E}_{22c}\mathcal{E}_{20}\rangle}
