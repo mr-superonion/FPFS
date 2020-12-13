@@ -28,15 +28,14 @@ function is subtracted from the galaxy's Fourier power function
 \end{equation}
 
 Subsequently, the PSF's Fourier power function, which is denoted as
-$\tilde{G}(\vec{k})$, is deconvolved to revise for the smearing from PSF,
-and the deconvolved galaxy's Fourier power function is projected onto the
-polar Shapelet basis vectors \citep{polar_Shapelets} as
+$\tilde{G}(\vec{k})$, is deconvolved to revise for the smearing from PSF, and
+the deconvolved galaxy's Fourier power function is projected onto the polar
+Shapelet basis vectors \citep{polar_Shapelets} as
 \begin{align}\label{Shapelets_decompose}
 M_{nm}=\int \chi_{nm}^\dagger \frac{\tilde{F}_r}{\tilde{G}}\rho d\rho d\phi,
 \end{align}
 where $\rho$ and $\phi$ are the radius and position angle in the polar
-coordinates.
-The polar Shapelet basis vectors are defined as
+coordinates. The polar Shapelet basis vectors are defined as
 \begin{align*}
 \chi_{nm}(\rho,\phi)&=\frac{(-1)^{(n-|m|)/2}}{\sigma^{|m|+1}}\left\lbrace
     \frac{[(n-|m|)/2]!}{\pi[(n+|m|)/2]!}\right\rbrace^\frac{1}{2}\\
@@ -54,7 +53,8 @@ Fourier power function ($r_{\text{pp}}$) as \citep{FPFS-Li2018}
 Note $\beta$ determines the effective scale in Fourier space.
 \citet{FPFS-Li2018} proposed to set $\beta=0.85$.
 
-The transformations (\citep{polar_Shapelets}) of many useful shapelet modes under the influence of shear are laid out as follows
+The transformations (\citep{polar_Shapelets}) of many useful shapelet modes
+under the influence of shear are laid out as follows
 \begin{equation}\label{Shapelets_Moments_shear_Transform}
 \begin{split}
 M_{22c}&=\bar{M}_{22c}-\frac{\sqrt{2}}{2}g_1(\bar{M}_{00}-\bar{M}_{40})\\
@@ -94,6 +94,57 @@ estimator is
 
 \subsection{Selection function}
 \label{sec_Method_select}
+Selection bias refers to the multiplicative bias or additive bias caused by
+selection. Such bias emerges if the observable used for selection correlates
+with the shear signal (multiplicative bias) or the ellipticities of PSF
+(additive bias).
+We denote the observable used for selection as $X$ and the correlation with the
+shear or PSF ellipticities has the form
+\begin{equation}
+X=\bar{X}+g_1Y_1+e_{\rm{PSF,1}}Z_1+....
+\end{equation}
+Here $\bar{X}$ refers to the intrinsic property before the shear distortion and
+PSF smearing, $Y$ refers to the response of the property $\bar{X}$ to the shear
+which is a spin-$2$ property, and $Z$ quantifies the correlation between the
+observed property $X$ and the shape of PSF which is caused by the imperfect PSF
+revision in the observation of $X$. We follow \citet{HSC1-GREAT3Sim} and give
+out the changes in the first component of ellipticities due to the selection
+\begin{equation}
+\begin{split}
+\Delta \left\langle e_1\right \rangle  &= g_1\int \frac{dn}{Nd\Omega } |_{X=X_{\rm{edge}}} Y_1 e_1 d\Omega \\
+        &+ e_{\rm{PSF,1}} \int \frac{dn}{Nd\Omega}|_{X=X_{\rm{edge}}} Z_1 e_1 d\Omega.
+\end{split}
+\end{equation}
+Then with the assumption that
+\begin{equation}
+\begin{split}
+ \frac{dn}{Nd\Omega}&=p_a(X)p_b(\Omega')\\
+\end{split}
+\end{equation}
+we have
+\begin{equation}
+\begin{split}
+\Delta \left\langle e_1\right \rangle  &= g_1p_a(X_{\rm{edge}})\int p_b Y_1 e_1
+d\Omega'|_{X=X_{\rm{edge}}} \\ &+ e_{\rm{PSF,1}} p_a(X_{\rm{edge}}) \int p_b
+Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} .
+\end{split}
+\end{equation}
+The multiplicative selection bias and additive selection bias is defined as
+\begin{equation}
+\begin{split}
+m_{\rm{sel}}&=p_a(X_{\rm{edge}})\int p_b Y_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+            &=p_a(X_{\rm{edge}}) A_m,\\
+\end{split}
+\end{equation}
+
+\begin{equation}
+\begin{split}
+a_{\rm{sel}}&=p_a(X_{\rm{edge}}) \int p_b Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+            &=p_a(X_{\rm{edge}}) A_a,
+\end{split}
+\end{equation}
+respectively. We denote the ratio between the multiplicative (additive) bias and partial density function
+at $X_{\rm{edge}}$ as $A_{m}$ ($A_{a}$).
 
 We define the FPFS flux ratio as
 \begin{align}\label{select_define}
