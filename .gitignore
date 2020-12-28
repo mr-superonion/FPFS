@@ -4,3 +4,4 @@ __*
 *.swp
 wrkDir
 datDir
+notebook/*/.ipynb_checkpoints/*
