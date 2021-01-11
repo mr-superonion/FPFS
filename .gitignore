@@ -5,3 +5,12 @@ __*
 wrkDir
 datDir
 notebook/*/.ipynb_checkpoints/*
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.pdf
+*.synctex.gz

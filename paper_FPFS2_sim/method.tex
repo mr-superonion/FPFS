@@ -92,100 +92,23 @@ estimator is
 \right\rangle}{\left\langle R \right\rangle}.
 \end{equation}
 
-\subsection{Selection function}
-\label{sec_Method_select}
-Selection bias refers to the multiplicative bias or additive bias caused by
-selection. Such bias emerges if the observable used for selection correlates
-with the shear signal (multiplicative bias) or the ellipticities of PSF
-(additive bias).
-We denote the observable used for selection as $X$ and the correlation with the
-shear or PSF ellipticities has the form
-\begin{equation}
-X=\bar{X}+g_1Y_1+e_{\rm{PSF,1}}Z_1+....
-\end{equation}
-Here $\bar{X}$ refers to the intrinsic property before the shear distortion and
-PSF smearing, $Y$ refers to the response of the property $\bar{X}$ to the shear
-which is a spin-$2$ property, and $Z$ quantifies the correlation between the
-observed property $X$ and the shape of PSF which is caused by the imperfect PSF
-revision in the observation of $X$. We follow \citet{HSC1-GREAT3Sim} and give
-out the changes in the first component of ellipticities due to the selection
-\begin{equation}
-\begin{split}
-\Delta \left\langle e_1\right \rangle  &= g_1\int \frac{dn}{Nd\Omega } |_{X=X_{\rm{edge}}} Y_1 e_1 d\Omega \\
-        &+ e_{\rm{PSF,1}} \int \frac{dn}{Nd\Omega}|_{X=X_{\rm{edge}}} Z_1 e_1 d\Omega.
-\end{split}
-\end{equation}
-Then with the assumption that
-\begin{equation}
-\begin{split}
- \frac{dn}{Nd\Omega}&=p_a(X)p_b(\Omega')\\
-\end{split}
-\end{equation}
-we have
-\begin{equation}
-\begin{split}
-\Delta \left\langle e_1\right \rangle  &= g_1p_a(X_{\rm{edge}})\int p_b Y_1 e_1
-d\Omega'|_{X=X_{\rm{edge}}} \\ &+ e_{\rm{PSF,1}} p_a(X_{\rm{edge}}) \int p_b
-Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} .
-\end{split}
-\end{equation}
-The multiplicative selection bias and additive selection bias is defined as
-\begin{equation}
-\begin{split}
-m_{\rm{sel}}&=p_a(X_{\rm{edge}})\int p_b Y_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
-            &=p_a(X_{\rm{edge}}) A_m,\\
-\end{split}
-\end{equation}
-
-\begin{equation}
-\begin{split}
-a_{\rm{sel}}&=p_a(X_{\rm{edge}}) \int p_b Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
-            &=p_a(X_{\rm{edge}}) A_a,
-\end{split}
-\end{equation}
-respectively. We denote the ratio between the multiplicative (additive) bias and partial density function
-at $X_{\rm{edge}}$ as $A_{m}$ ($A_{a}$).
-
-We define the FPFS flux ratio as
-\begin{align}\label{select_define}
-s = \frac{M_{00}}{M_{20}+C},
-\end{align}
-and use the FPFS flux ratio as the selection function.
-The left panel of Fig. \ref{fig_selectHist} shows the histograms of $s$ with
-different setups of $\nu$. In addition, the detection of galaxies is also a
-selection process which could cause bias to the shear measurement so we show
-the histogram of $s$ ($\nu=4$) for the undetected galaxies on the right panel
-of Fig. \ref{fig_selectHist}.
-
-The FPFS flux ratio is also influenced by the shear and the relationship
-between the sheared FPFS flux ratio ($s$) and the intrinsic FPFS flux ratio
-($\bar{s}$) is
-\begin{align}\label{select_transform}
-s-\bar{s} &=g_1 (\sqrt{2}\frac{M_{22c}}{M_{20}+C}
-    -\sqrt{6}s\frac{M_{42c}}{M_{20}+C}) \\
-    &+g_2 (\sqrt{2}\frac{M_{22s}}{M_{20}+C}
-    -\sqrt{6}s\frac{M_{42s}}{M_{20}+C}).
-\end{align}
-$\bar{s}$ is isotropic (spin-0) on the intrinsic plane but $s$ is not.
-Therefore, the selection using $s$ as the selection function is not an
-isotropic selection on the intrinsic plane. Such selection does not align with
-the premise that the intrinsic galaxies have isotropic orientations
-statistically and causes selection bias.
-
-
 \subsection{Noise bias}
 \label{sec_Method_noise}
 
 \subsubsection{pure noise}
 
 The Gaussian noise field is denoted as $n(\vec{x})$ and its Fourier transform
-is denoted as $\tilde{n}(\vec{k})$. Accord to the Isserlis' theorem, we have
+is denoted as $\tilde{n}(\vec{k})$. According to the Isserlis' theorem, we have
 \begin{equation}\label{eq_IsserlisTheorem}
 \begin{split}
-    \left\langle\tilde{n}\tilde{n}^{\dagger}\right\rangle
+    \tilde{n}_2(\vec{k})=\left\langle\tilde{n}\tilde{n}^{\dagger}\right\rangle
     &=\mathcal{P}(\vec{k}),\\
-    \left\langle\tilde{n}\tilde{n}\tilde{n}^\dagger\tilde{n}^\dagger\right\rangle
-    &=2\mathcal{P}^2(\vec{k}).
+    \tilde{n}_4(\vec{k})=\left\langle\tilde{n}\tilde{n}\tilde{n}^\dagger\tilde{n}^\dagger\right\rangle
+    &=
+    \begin{cases}
+    3\mathcal{P}^2(\vec{k}) &\mbox{if } \vec{k}=0,\\
+    2\mathcal{P}^2(\vec{k}) &\mbox{else}.\\
+    \end{cases}
 \end{split}
 \end{equation}
 The residual of noise power function is defined as
@@ -196,7 +119,7 @@ The residual of noise power function is defined as
 and the standard deviation of the residual can be calculated by combining
 eq.(\ref{eq_ps_res}) with eq.  (\ref{eq_IsserlisTheorem}):
 \begin{equation}
-\sigma^2_{\tilde{\epsilon}}(\vec{k})=\mathcal{P}^2(\vec{k})
+    \sigma^2_{\tilde{\epsilon}}(\vec{k})=\tilde{n}_4(\vec{k})-\mathcal{P}^2(\vec{k})
 \end{equation}
 
 \subsubsection{noisy galaxy}
@@ -222,7 +145,11 @@ the power function of galaxy after removing the noise power function is
 With eq. (\ref{eq_IsserlisTheorem}), the variance of the residual is calculated
 as
 \begin{equation}\label{eq_var_res_noisyGal}
-    \sigma^2_{\tilde{\epsilon}}(\vec{k})=\mathcal{P}^2+2\tilde{F}\mathcal{P}
+    \sigma^2_{\tilde{\epsilon}}(\vec{k})=
+    \begin{cases}
+        2\mathcal{P}^2+4\tilde{F}\mathcal{P} &\mbox{if } \vec{k}=0,\\
+        \mathcal{P}^2+2\tilde{F}\mathcal{P} &\mbox{else}.
+    \end{cases}
 \end{equation}
 
 \subsubsection{Shapelet modes revision}
@@ -296,3 +223,80 @@ The observed FPFS ellipticity is revise as
         {(M_{20}+C)^3}\right\rangle\\
 \end{split}
 \end{equation}
+
+\subsection{Selection Bias}
+\label{sec_Method_select}
+Selection bias refers to the multiplicative bias or additive bias caused by
+selection. Such bias emerges if the observable used for selection correlates
+with the shear signal (multiplicative bias) or the ellipticities of PSF
+(additive bias).
+We denote the observable used for selection as $X$ and the correlation with the
+shear or PSF ellipticities has the form
+\begin{equation}
+X=\bar{X}+g_1Y_1+e_{\rm{PSF,1}}Z_1+....
+\end{equation}
+Here $\bar{X}$ refers to the intrinsic property before the shear distortion and
+PSF smearing, $Y$ refers to the response of the property $\bar{X}$ to the shear
+which is a spin-$2$ property, and $Z$ quantifies the correlation between the
+observed property $X$ and the shape of PSF which is caused by the imperfect PSF
+revision in the observation of $X$. We follow \citet{HSC1-GREAT3Sim} and give
+out the changes in the first component of ellipticities due to the selection
+\begin{equation}
+\begin{split}
+\Delta \left\langle e_1\right \rangle  &= g_1\int \frac{dn}{Nd\Omega } |_{X=X_{\rm{edge}}} Y_1 e_1 d\Omega \\
+        &+ e_{\rm{PSF,1}} \int \frac{dn}{Nd\Omega}|_{X=X_{\rm{edge}}} Z_1 e_1 d\Omega.
+\end{split}
+\end{equation}
+Then with the assumption that
+\begin{equation}
+\begin{split}
+ \frac{dn}{Nd\Omega}&=p_a(X)p_b(\Omega')\\
+\end{split}
+\end{equation}
+we have
+\begin{equation}
+\begin{split}
+\Delta \left\langle e_1\right \rangle  &= g_1p_a(X_{\rm{edge}})\int p_b Y_1 e_1
+d\Omega'|_{X=X_{\rm{edge}}} \\ &+ e_{\rm{PSF,1}} p_a(X_{\rm{edge}}) \int p_b
+Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} .
+\end{split}
+\end{equation}
+The multiplicative selection bias and additive selection bias is defined as
+\begin{equation}
+\begin{split}
+m_{\rm{sel}}&=p_a(X_{\rm{edge}})\int p_b Y_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+            &=p_a(X_{\rm{edge}}) A_m,\\
+\end{split}
+\end{equation}
+
+\begin{equation}
+\begin{split}
+a_{\rm{sel}}&=p_a(X_{\rm{edge}}) \int p_b Z_1 e_1 d\Omega'|_{X=X_{\rm{edge}}} \\
+            &=p_a(X_{\rm{edge}}) A_a,
+\end{split}
+\end{equation}
+respectively. We denote the ratio between the multiplicative (additive) bias and partial density function
+at $X_{\rm{edge}}$ as $A_{m}$ ($A_{a}$).
+
+We define the FPFS flux ratio as
+\begin{align}\label{select_define}
+s = \frac{M_{00}}{M_{20}+C},
+\end{align}
+and use the FPFS flux ratio as the selection function.
+
+The FPFS flux ratio is also influenced by the shear and the relationship
+between the sheared FPFS flux ratio ($s$) and the intrinsic FPFS flux ratio
+($\bar{s}$) is
+\begin{align}\label{select_transform}
+s-\bar{s} &=g_1 (\sqrt{2}\frac{M_{22c}}{M_{20}+C}
+    -\sqrt{6}s\frac{M_{42c}}{M_{20}+C}) \\
+    &+g_2 (\sqrt{2}\frac{M_{22s}}{M_{20}+C}
+    -\sqrt{6}s\frac{M_{42s}}{M_{20}+C}).
+\end{align}
+$\bar{s}$ is isotropic (spin-0) on the intrinsic plane but $s$ is not.
+Therefore, the selection using $s$ as the selection function is not an
+isotropic selection on the intrinsic plane. Such selection does not align with
+the premise that the intrinsic galaxies have isotropic orientations
+statistically and causes selection bias.
+
+
