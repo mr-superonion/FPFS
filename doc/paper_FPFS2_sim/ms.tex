@@ -12,29 +12,38 @@
 
 \begin{document}
 \title{FPFS: Revision for noise bias and selection bias}
-\author{Xiangchong Li
-\and Yin Li}
+\author{Xiangchong Li \inst{1} \inst{2} \thanks{xiangchong.li@ipmu.jp}
+\and Yin Li \inst{2}\inst{3}}
 \institute{Department of Physics, University of Tokyo, Tokyo 113-0033, Japan
-Kavli Institute for the Physics and Mathematics of the Universe (WPI)
 \and
-Kavli Institute for the Physics and Mathematics of the Universe (WPI)
+Kavli Institute for the Physics and Mathematics of the Universe (WPI)\\
+University of Tokyo, Kashiwa 277-8583, Japan
+\and
+Center for Computational Astrophysics & Center for Computational Mathematics,\\
+Flatiron Institute, 162 5th Avenue, 10010, New York, NY, USA
 }
 
 \abstract
 {}
 {
+The Fourier Power Function Shapelets shear estimator has been proposed for
+accurate shear estimator. However, there is a remaining noise bias of 0.6\%,
+and our revision to the selection bias is relying on an iterative process which
+is hard to apply in reality.
+This paper focuses on revising the noise bias below 0.1\% and derive the
+correction for selection bias
+without relying on any iteration process.
+}
+{
 
 }
 {
+
 }
 {
-}
-{
+
 }
 
-\begin{keywords}
-cosmology: observations -- gravitational lensing: weak
-\end{keywords}
 \maketitle
 
 \section{Introduction}
@@ -49,23 +58,13 @@ cosmology: observations -- gravitational lensing: weak
 \label{sec:sim}
 \input{simulation.tex}
 
-% \section{Image boundary}
-% \label{sec:Boundary}
-% \subsection{periodic boundary}
-% \subsection{top-hat}
-% \subsection{Fourier Lanczos}
-
 \section{Summary and Outlook}
 \label{sec:Summary}
 
-\section*{Acknowledgements}
+\begin{acknowledgements}
+
+\end{acknowledgements}
 
 \bibliographystyle{aa}
 \bibliography{citation}
-
-\appendix
-
 \end{document}
-
-\end{document}
-
