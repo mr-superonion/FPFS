@@ -1,37 +1,41 @@
-\documentclass[usenatbib]{mnras}
-\emergencystretch=1.em
-\pdfminorversion=5
+\documentclass{aa}
 \newcommand \redColor{}
 \newcommand \blueColor{}
-\renewcommand\labelenumi{(\roman{enumi})}
-\renewcommand\theenumi\labelenumi
 
+\usepackage[breaklinks=true]{hyperref}
 \usepackage{graphicx,subfigure}	% Including figure files
 \usepackage{epstopdf}
 \usepackage{amsmath,amssymb}	% Advanced maths commands
 
 \usepackage{natbib}
-\bibliographystyle{mnras}
-%\usepackage[breaklinks]{hyperref}
-\urlstyle{same}
-\usepackage{breakurl}
-\hypersetup{breaklinks}
-
-
-\title{FPFS: Revision for noise bias and selection bias}
-\author[]{}
+\bibpunct{(}{)}{;}{a}{}{,} % to follow the A&A style
 
 \begin{document}
-\label{firstpage}
-\pagerange{\pageref{firstpage}--\pageref{lastpage}}
-\maketitle
+\title{FPFS: Revision for noise bias and selection bias}
+\author{Xiangchong Li
+\and Yin Li}
+\institute{Department of Physics, University of Tokyo, Tokyo 113-0033, Japan
+Kavli Institute for the Physics and Mathematics of the Universe (WPI)
+\and
+Kavli Institute for the Physics and Mathematics of the Universe (WPI)
+}
 
-\begin{abstract}
-\end{abstract}
+\abstract
+{}
+{
+
+}
+{
+}
+{
+}
+{
+}
 
 \begin{keywords}
 cosmology: observations -- gravitational lensing: weak
 \end{keywords}
+\maketitle
 
 \section{Introduction}
 \label{sec:Intro}
@@ -56,12 +60,11 @@ cosmology: observations -- gravitational lensing: weak
 
 \section*{Acknowledgements}
 
+\bibliographystyle{aa}
 \bibliography{citation}
 
 \appendix
 
-\bsp	% typesetting comment
-\label{lastpage}
 \end{document}
 
 \end{document}
