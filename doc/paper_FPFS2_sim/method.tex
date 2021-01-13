@@ -109,35 +109,37 @@ have
     2\mathcal{P}^2(\vec{k})+\delta(\vec{k})\mathcal{P}^2(\vec{k})
 \end{split}
 \end{equation}
-The residual of noise power function is defined as
+The residual of noise power function ($\tilde{n}_k\tilde{n}_k^{\dagger}$) for
+one noise realization is defined as
 \begin{equation}\label{eq_ps_res}
     \tilde{\epsilon}(\vec{k})=\tilde{n}_k\tilde{n}_k^\dagger
-    -\mathcal{P}(\vec{k}),
+    -\mathcal{P}(\vec{k}).
 \end{equation}
-and the standard deviation of the residual is calculated by combining
-eq.(\ref{eq_ps_res}) with eq.  (\ref{eq_IsserlisTheorem}):
+The residual has zero mean, and the standard deviation of the residual is
+calculated by combining eq.(\ref{eq_ps_res}) with eq.
+(\ref{eq_IsserlisTheorem}):
 \begin{equation}
     \sigma^2_{\tilde{\epsilon}}(\vec{k})=
     \mathcal{P}^2(\vec{k})+\delta(\vec{k})\mathcal{P}^2(\vec{k}).
 \end{equation}
 
 \subsubsection{noisy galaxy}
-However, when we have a galaxy in the noise field, the combined field is
+When we have a galaxy in the noise field, and the combined field is
 \begin{equation}
-    \tilde{f}_o(\vec{k})=\tilde{f}(\vec{k})+\tilde{n}(\vec{k}),
+    \tilde{f}_o(\vec{k})=\tilde{f}(\vec{k})+\tilde{n}(\vec{k}).
 \end{equation}
-and the total power function is
+The power function of the noisy galaxy is
 \begin{equation}
-    \tilde{F}_o(\vec{k})= \tilde{F}+\tilde{n}\tilde{n}^\dagger
-    +\tilde{f}\tilde{n}^{\dagger}+\tilde{f}^{\dagger}\tilde{n},
+    \tilde{F}_o(\vec{k})= \tilde{F}+\tilde{n}_k\tilde{n}_k^\dagger
+    +\tilde{f}\tilde{n}_k^{\dagger}+\tilde{f}^{\dagger}\tilde{n}_k.
 \end{equation}
-with the definition of residuals on the power function:
+With the definition of residuals on the power function:
 \begin{equation}\label{eq_ps_res_gal}
-    \tilde{\epsilon}(\vec{k})=\tilde{n}\tilde{n}^\dagger
-    +\tilde{f}\tilde{n}^{\dagger}+\tilde{f}^{\dagger}\tilde{n}
+    \tilde{\epsilon}(\vec{k})=\tilde{n}_k\tilde{n}_k^\dagger
+    +\tilde{f}\tilde{n}_k^{\dagger}+\tilde{f}^{\dagger}\tilde{n}_k
     -\mathcal{P}(\vec{k}),
 \end{equation}
-the power function of galaxy after removing the noise power function is
+the power function of galaxy after removing the noise power spectrum is
 \begin{equation}
     \tilde{F}_r(\vec{k})=\tilde{F}(\vec{k})+\tilde{\epsilon}(\vec{k}).
 \end{equation}
@@ -145,24 +147,17 @@ With eq. (\ref{eq_IsserlisTheorem}), the variance of the residual is calculated
 as
 \begin{equation}\label{eq_var_res_noisyGal}
     \sigma^2_{\tilde{\epsilon}}(\vec{k})=
-    \begin{cases}
-        2\mathcal{P}^2+4\tilde{F}\mathcal{P} &\mbox{if } \vec{k}=0,\\
-        \mathcal{P}^2+2\tilde{F}\mathcal{P} &\mbox{else}.
-    \end{cases}
+    \left(1+\delta({\vec{k})\right)(\mathcal{P}^2+2\tilde{F}\mathcal{P})
 \end{equation}
 
-\subsubsection{Shapelet modes revision}
+\subsubsection{noise bias revision}
 We define the shapelet modes of residuals as $\mathcal{E}_{nm}$, and the
 expectation of these residual shapelet modes equal zero. The second-order
 statistical properties of these modes are
 \begin{equation}
-    \begin{split}
     \left\langle \mathcal{E}_{nm}\mathcal{E}^{\dagger}_{n'm'} \right\rangle
-    &=\int \frac{\chi^\dagger_{nm}\chi_{n'm'}}{\tilde{G}^2(\vec{k})}
+    =\int \frac{\chi^\dagger_{nm}\chi_{n'm'}}{\tilde{G}^2(\vec{k})}
     \sigma^2_{\tilde{\epsilon}}(\vec{k})d^2k\\
-    &=\int \frac{\chi^\dagger_{nm}\chi_{n'm'}}{\tilde{G}^2(\vec{k})}
-    \left(\mathcal{P}^2+2\tilde{F}\mathcal{P}\right)
-    \end{split}
 \end{equation}
 The observed FPFS ellipticity is revise as
 \begin{equation}
