@@ -97,29 +97,28 @@ estimator is
 
 \subsubsection{pure noise}
 
-The Gaussian noise field is denoted as $n(\vec{x})$ and its Fourier transform
-is denoted as $\tilde{n}(\vec{k})$. According to the Isserlis' theorem, we have
+The Gaussian noise field in configuration space is denoted as $n(\vec{x})$ and
+$\tilde{n}(\vec{k})$ in Fourier space. According to the Isserlis' theorem, we
+have
 \begin{equation}\label{eq_IsserlisTheorem}
 \begin{split}
-    \tilde{n}_2(\vec{k})=\left\langle\tilde{n}\tilde{n}^{\dagger}\right\rangle
+    \left\langle\tilde{n}_k\tilde{n}_k^{\dagger}\right\rangle
     &=\mathcal{P}(\vec{k}),\\
-    \tilde{n}_4(\vec{k})=\left\langle\tilde{n}\tilde{n}\tilde{n}^\dagger\tilde{n}^\dagger\right\rangle
+    \left\langle\tilde{n}_k\tilde{n}_k\tilde{n}_k^\dagger\tilde{n}_k^\dagger\right\rangle
     &=
-    \begin{cases}
-    3\mathcal{P}^2(\vec{k}) &\mbox{if } \vec{k}=0,\\
-    2\mathcal{P}^2(\vec{k}) &\mbox{else}.\\
-    \end{cases}
+    2\mathcal{P}^2(\vec{k})+\delta(\vec{k})\mathcal{P}^2(\vec{k})
 \end{split}
 \end{equation}
 The residual of noise power function is defined as
 \begin{equation}\label{eq_ps_res}
-    \tilde{\epsilon}(\vec{k})=\tilde{n}\tilde{n}^\dagger
+    \tilde{\epsilon}(\vec{k})=\tilde{n}_k\tilde{n}_k^\dagger
     -\mathcal{P}(\vec{k}),
 \end{equation}
-and the standard deviation of the residual can be calculated by combining
+and the standard deviation of the residual is calculated by combining
 eq.(\ref{eq_ps_res}) with eq.  (\ref{eq_IsserlisTheorem}):
 \begin{equation}
-    \sigma^2_{\tilde{\epsilon}}(\vec{k})=\tilde{n}_4(\vec{k})-\mathcal{P}^2(\vec{k})
+    \sigma^2_{\tilde{\epsilon}}(\vec{k})=
+    \mathcal{P}^2(\vec{k})+\delta(\vec{k})\mathcal{P}^2(\vec{k}).
 \end{equation}
 
 \subsubsection{noisy galaxy}

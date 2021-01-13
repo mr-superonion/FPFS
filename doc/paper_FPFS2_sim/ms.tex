@@ -19,20 +19,25 @@
 Kavli Institute for the Physics and Mathematics of the Universe (WPI)\\
 University of Tokyo, Kashiwa 277-8583, Japan
 \and
-Center for Computational Astrophysics & Center for Computational Mathematics,\\
+Center for Computational Astrophysics \& Center for Computational Mathematics,\\
 Flatiron Institute, 162 5th Avenue, 10010, New York, NY, USA
 }
 
 \abstract
 {}
 {
-The Fourier Power Function Shapelets shear estimator has been proposed for
+The Fourier Power Function Shapelets (FPFS) shear estimator has been proposed for
 accurate shear estimator. However, there is a remaining noise bias of 0.6\%,
 and our revision to the selection bias is relying on an iterative process which
-is hard to apply in reality.
-This paper focuses on revising the noise bias below 0.1\% and derive the
-correction for selection bias
-without relying on any iteration process.
+is hard to apply in reality.  This paper focuses on revising the noise bias
+to 0.1\% and derive the correction for selection bias without relying on any
+iteration process.
+}
+{
+With the assumption that the noise field is Gaussian random field, we derive
+the scatter on the noise power function with the power spectrum of the Gaussian
+random field. Subsequently, the covariance between Shapelet modes is
+calculated and used to correct the noise bias on FPFS observables.
 }
 {
 
@@ -40,10 +45,6 @@ without relying on any iteration process.
 {
 
 }
-{
-
-}
-
 \maketitle
 
 \section{Introduction}
