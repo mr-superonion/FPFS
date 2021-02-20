@@ -88,8 +88,7 @@ def shapelets2D(ngrid,nord,sigma):
             chi[nn,mm,:,:]=pow(-1.,d1)/sigma*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]*pow(rfunc,abs(mm))*gaufunc*eulfunc**mm
     return chi
 
-def removeNoiPow(ngrid,galPow,noiModel,rlim):
-    #TODO: finish it
+def fitNoiPow(ngrid,galPow,noiModel,rlim):
     """
     # fit the noise power and remove it
 
@@ -104,25 +103,13 @@ def removeNoiPow(ngrid,galPow,noiModel,rlim):
     noiSub:     subtracted noise power
     """
 
-    rlim2       =   max(ngrid*0.4,rlim)
-    noiList     =   []
-    valList     =   []
-    for j in range(ngrid):
-        for i in range(ngrid):
-            ii=i-ngrid/2.
-            jj=j-ngrid/2.
-            r   =   np.sqrt(ii**2.+jj**2.)
-            if r>rlim2:
-                valList.append(galPow[j,i])
-                noiList.append(noiModel[:,j,i])
-    vl  =   np.array(valList)
-    nl  =   np.array(noiList)
-    nl  =   np.hstack([nl,np.ones((nl.shape[0],1))])
-    par =   np.linalg.lstsq(nl,vl)[0]
-    noiSub   =   np.zeros((ngrid,ngrid))
-    npar=   len(par)
-    for ipc in range(npar-1):
-        noiSub+=(par[ipc]*noiModel[ipc])
-    noiSub  +=  par[-1]
-    minPow  =   galPow-noiSub
-    return minPow,noiSub
+    rlim2=   max(ngrid*0.4,rlim)
+    indX=   np.arange(ngrid//2-rlim2,ngrid//2+rlim2+1)
+    indY=   indX[:,None]
+    mask=   np.ones((ngrid,ngrid),dtype=bool)
+    mask[indY,indX]=False
+    vl  =   galPow[mask]
+    nl  =   noiModel[:,mask]
+    par =   np.linalg.lstsq(nl.T,vl,rcond=None)[0]
+    noiSub=np.sum(par[:,None,None]*noiModel,axis=0)
+    return noiSub

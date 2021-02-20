@@ -23,7 +23,7 @@ class fpfsTask():
         # the shaplet Gaussian kerenl
         """
         thres   =   1.e-4
-        for dist in range(12,30):
+        for dist in range(self.ngrid//5,self.int(ngrid*0.45)):
             ave =  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2+dist,self.ngrid//2])
             ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2,self.ngrid//2+dist])
             ave =   ave/2.
@@ -100,9 +100,9 @@ class fpfsTask():
 
         galPow  =   imgutil.getFouPow(arrayIn)
         if self.noiModel is not None:
-            minPow,noiFit   =   imgutil.removeNoiPow(self.ngrid,galData,self.noiModel,self.rlim)
-        else:
-            minPow          =   galPow
+            noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+            galPow  =   galPow-noiFit
+
         decPow  =   self.deconvolvePow(minPow)
         mm      =   self.itransform(decPow)
         return mm
