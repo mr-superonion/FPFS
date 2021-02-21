@@ -21,9 +21,10 @@ class fpfsTask():
         """
         # Get rlim, the area outside rlim is supressed by
         # the shaplet Gaussian kerenl
+        # (part of __init__)
         """
         thres   =   1.e-4
-        for dist in range(self.ngrid//5,self.int(ngrid*0.45)):
+        for dist in range(self.ngrid//5,int(self.ngrid*0.45)):
             ave =  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2+dist,self.ngrid//2])
             ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2,self.ngrid//2+dist])
             ave =   ave/2.
@@ -40,12 +41,15 @@ class fpfsTask():
         # Deconvolve the galaxy power with the PSF power
         Parameters:
         -------------
-        arrayIn:    galaxy power, centerred at middle
+        arrayIn :   galaxy power, centerred at middle
 
+        Returns :
+        -------------
+        out     :   Deconvolved galaxy power (truncated at rlim)
         """
-        arrayDec  =   np.zeros(arrayIn.shape,dtype=np.float64)
-        arrayDec[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]
-        return arrayDec
+        out  =   np.zeros(arrayIn.shape,dtype=np.float64)
+        out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]
+        return out
 
     def itransform(self,data):
         """
@@ -53,6 +57,10 @@ class fpfsTask():
         Parameters:
         -------------
         data:   data to transfer
+
+        Returns:
+        -------------
+        out :   projection in shapelet space
         """
 
         # Moments
@@ -72,6 +80,10 @@ class fpfsTask():
         Parameters:
         -----------
         galData:    galaxy image
+
+        Returns:
+        -------------
+        out :   FPFS moments
         """
         if len(galData.shape)==2:
             # single galaxy
@@ -103,6 +115,60 @@ class fpfsTask():
             noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
             galPow  =   galPow-noiFit
 
-        decPow  =   self.deconvolvePow(minPow)
+        decPow  =   self.deconvolvePow(galPow)
         mm      =   self.itransform(decPow)
         return mm
+
+def fpfsM2E(moments,const=1.,mcalib=0.,ver=1):
+    """
+    # Estimate FPFS ellipticities from fpfs moments
+
+    Parameters:
+    -----------
+    moments:    input FPFS moments
+    const:      the weighting Constant
+    mcalib:     multiplicative biases
+
+    Returns:
+    -------------
+    out :       FPFS ellipticities
+    """
+    if ver==1:
+        #Get weight
+        weight  =   moments['fpfs_M00']+const
+        #FPFS flux
+        flux    =   moments['fpfs_M00']/weight
+        #Ellipticity
+        e1      =   -moments['fpfs_M22c']/weight
+        e2      =   -moments['fpfs_M22s']/weight
+        #Response factor
+        R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e1*e1)
+        R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e2*e2)
+        RA      =   (R1+R2)/2.
+        types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RA','>f8'),('fpfs_flux','>f8')]
+        ellDat  =   np.array(np.zeros(len(e1)),dtype=types)
+        ellDat['fpfs_e1']=e1.transpose()
+        ellDat['fpfs_e2']=e2.transpose()
+        ellDat['fpfs_RA']=RA.transpose()
+        ellDat['fpfs_flux']=flux.transpose()
+    elif ver==2:
+        #Get weight
+        weight  =   moments['fpfs_M20']+const
+        #FPFS flux
+        flux    =   moments['fpfs_M00']/weight
+        #Ellipticity
+        e1      =   -moments['fpfs_M22c']/weight
+        e2      =   -moments['fpfs_M22s']/weight
+        e41     =   -moments['fpfs_M42c']/weight
+        e42     =   -moments['fpfs_M42s']/weight
+        #Response factor
+        R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e1*e41)
+        R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
+        RA      =   (R1+R2)/2.
+        types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RA','>f8'),('fpfs_flux','>f8')]
+        ellDat  =   np.array(np.zeros(len(e1)),dtype=types)
+        ellDat['fpfs_e1']=e1.transpose()
+        ellDat['fpfs_e2']=e2.transpose()
+        ellDat['fpfs_RA']=RA.transpose()
+        ellDat['fpfs_flux']=flux.transpose()
+    return ellDat

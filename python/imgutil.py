@@ -103,7 +103,7 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
     noiSub:     subtracted noise power
     """
 
-    rlim2=   max(ngrid*0.4,rlim)
+    rlim2=  int(max(ngrid*0.4,rlim))
     indX=   np.arange(ngrid//2-rlim2,ngrid//2+rlim2+1)
     indY=   indX[:,None]
     mask=   np.ones((ngrid,ngrid),dtype=bool)
