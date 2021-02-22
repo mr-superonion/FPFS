@@ -1,5 +1,5 @@
-import numpy as np
 import imgutil
+import numpy as np
 
 class fpfsTask():
     _DefaultName = "fpfsBase"
@@ -10,14 +10,15 @@ class fpfsTask():
         self.beta   =   0.85
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
         self.sigma  =   max(min(sigmaPsf*self.beta,4.),1.)
-        self._prepareRlim()
-        # Preparing shapelets
-        self.chi    =   imgutil.shapelets2D(self.ngrid,4,self.sigma)
+        self.__prepareRlim()
+        # Preparing shapelets (reshaped)
+        self.chi    =   imgutil.shapelets2D(self.ngrid,4,self.sigma).reshape((25,self.ngrid,self.ngrid))
+        self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
         self.noiModel=  noiModel
         return
 
-    def _prepareRlim(self):
+    def __prepareRlim(self):
         """
         # Get rlim, the area outside rlim is supressed by
         # the shaplet Gaussian kerenl
@@ -36,7 +37,7 @@ class fpfsTask():
         self._ind2D=np.ix_(self._indX,self._indX)
         return
 
-    def deconvolvePow(self,arrayIn):
+    def deconvolvePow(self,arrayIn,order=1.):
         """
         # Deconvolve the galaxy power with the PSF power
         Parameters:
@@ -48,12 +49,12 @@ class fpfsTask():
         out     :   Deconvolved galaxy power (truncated at rlim)
         """
         out  =   np.zeros(arrayIn.shape,dtype=np.float64)
-        out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]
+        out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]**order
         return out
 
     def itransform(self,data):
         """
-        # Deconvolve the galaxy power with the PSF power
+        # project data onto shapelet basis
         Parameters:
         -------------
         data:   data to transfer
@@ -64,13 +65,52 @@ class fpfsTask():
         """
 
         # Moments
-        M       =   np.sum(data[None,None,self._indY,self._indX]*self.chi[::2,:4:2,self._indY,self._indX],axis=(2,3))
+        _chiU   =   self.chi[self._indC,self._indY,self._indX]
+        chiUList=   []
+        chiUList.append(_chiU.real[0]*_chiU.real[0])
+        chiUList.append(_chiU.real[1]*_chiU.real[1])
+        chiUList.append(_chiU.imag[1]*_chiU.imag[1])
+        chiUList.append(_chiU.real[2]*_chiU.real[2])
+        chiUList.append(_chiU.real[0]*_chiU.real[1])
+        chiUList.append(_chiU.real[0]*_chiU.imag[1])
+        chiUList.append(_chiU.real[0]*_chiU.real[2])
+        chiUList=   np.stack(chiUList)
+        dataU   =   data[None,self._indY,self._indX]
+
+        N       =   np.sum(chiUList*dataU,axis=(1,2))
+        types   =   [('fpfs_N00N00','>f8'),\
+                    ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
+                    ('fpfs_N40N40','>f8'),\
+                    ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
+                    ('fpfs_N00N40','>f8')\
+                    ]
+        out     =   np.array(tuple(N),dtype=types)
+        return out
+
+    def itransformCov(self,data):
+        """
+        # Project the (PP+PD)/P^2 to get the covariance
+        Parameters:
+        -------------
+        data:   data to transfer
+
+        Returns:
+        -------------
+        out :   projection in shapelet space
+        """
+
+        # Moments
+        M       =   np.sum(data[None,self._indY,self._indX]*self.chi[self.cInd,self._indY,self._indX],axis=(1,2))
         types   =   [('fpfs_M00','>f8'),\
-                     ('fpfs_M20','>f8') ,('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-                    ('fpfs_M40','>f8'),('fpfs_M42c','>f8'),('fpfs_M42s','>f8')]
-        out     =   np.array((M.real[0,0],\
-                              M.real[1,0],M.real[1,1],M.imag[1,1],\
-                              M.real[2,0],M.real[2,1],M.imag[2,1]),dtype=types)
+                    ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
+                    ('fpfs_M40','>f8')\
+                    ]
+        # types =   [('fpfs_M00','>f8'),\
+        #           ('fpfs_M20','>f8') ,('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
+        #           ('fpfs_M40','>f8'),('fpfs_M42c','>f8'),('fpfs_M42s','>f8')]
+        out     =   np.array((M.real[0],\
+                        M.real[1],M.imag[1],\
+                        M.real[2]),dtype=types)
         return out
 
     def measure(self,galData):
@@ -87,21 +127,21 @@ class fpfsTask():
         """
         if len(galData.shape)==2:
             # single galaxy
-            out =   self._measure(galData)
+            out =   self.__measure(galData)
             return out
 
         elif len(galData.shape)==3:
             # list of galaxies
             results=[]
             for gal in galData:
-                _g=self._measure(gal)
+                _g=self.__measure(gal)
                 results.append(_g)
             out =   np.vstack(results)
             return out
         else:
             pass
 
-    def _measure(self,arrayIn):
+    def __measure(self,arrayIn):
         """
         # measure the FPFS moments
 
@@ -114,9 +154,11 @@ class fpfsTask():
         if self.noiModel is not None:
             noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
             galPow  =   galPow-noiFit
+            epcor   =   noiFit*noiFit+noiFit*galPow
+            decEP   =   self.deconvolvePow(epcor,order=2.)
 
-        decPow  =   self.deconvolvePow(galPow)
-        mm      =   self.itransform(decPow)
+        decPow      =   self.deconvolvePow(galPow,order=1.)
+        mm          =   self.itransform(decPow)
         return mm
 
 def fpfsM2E(moments,const=1.,mcalib=0.,ver=1):
