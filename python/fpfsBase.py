@@ -1,9 +1,12 @@
 import imgutil
 import numpy as np
+import numpy.lib.recfunctions as rfn
 
 class fpfsTask():
     _DefaultName = "fpfsBase"
-    def __init__(self,psfData,noiModel=None):
+    def __init__(self,psfData,noiModel=None,noiSub=None):
+        if noiSub is not None:
+            print('testing')
         self.ngrid  =   psfData.shape[0]
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF model
@@ -52,7 +55,7 @@ class fpfsTask():
         out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]**order
         return out
 
-    def itransform(self,data):
+    def itransformCov(self,data):
         """
         # project data onto shapelet basis
         Parameters:
@@ -77,7 +80,7 @@ class fpfsTask():
         chiUList=   np.stack(chiUList)
         dataU   =   data[None,self._indY,self._indX]
 
-        N       =   np.sum(chiUList*dataU,axis=(1,2))
+        N       =   2.*np.sum(chiUList*dataU,axis=(1,2))
         types   =   [('fpfs_N00N00','>f8'),\
                     ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
                     ('fpfs_N40N40','>f8'),\
@@ -87,7 +90,7 @@ class fpfsTask():
         out     =   np.array(tuple(N),dtype=types)
         return out
 
-    def itransformCov(self,data):
+    def itransform(self,data):
         """
         # Project the (PP+PD)/P^2 to get the covariance
         Parameters:
@@ -100,7 +103,7 @@ class fpfsTask():
         """
 
         # Moments
-        M       =   np.sum(data[None,self._indY,self._indX]*self.chi[self.cInd,self._indY,self._indX],axis=(1,2))
+        M       =   np.sum(data[None,self._indY,self._indX]*self.chi[self._indC,self._indY,self._indX],axis=(1,2))
         types   =   [('fpfs_M00','>f8'),\
                     ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
                     ('fpfs_M40','>f8')\
@@ -154,11 +157,14 @@ class fpfsTask():
         if self.noiModel is not None:
             noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
             galPow  =   galPow-noiFit
-            epcor   =   noiFit*noiFit+noiFit*galPow
+            epcor   =   noiFit*noiFit+2*noiFit*galPow
             decEP   =   self.deconvolvePow(epcor,order=2.)
+            nn      =   self.itransformCov(decEP)
 
         decPow      =   self.deconvolvePow(galPow,order=1.)
         mm          =   self.itransform(decPow)
+        if self.noiModel is not None:
+            mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
         return mm
 
 def fpfsM2E(moments,const=1.,mcalib=0.,ver=1):
