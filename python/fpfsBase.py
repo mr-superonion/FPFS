@@ -173,7 +173,7 @@ class fpfsTask():
             mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
         return mm
 
-def fpfsM2E(moments,const=1.,mcalib=0.,ver=1):
+def fpfsM2E(moments,const=1.,mcalib=0.):
     """
     # Estimate FPFS ellipticities from fpfs moments
 
@@ -185,44 +185,63 @@ def fpfsM2E(moments,const=1.,mcalib=0.,ver=1):
 
     Returns:
     -------------
-    out :       FPFS ellipticities
+    out :       an array of FPFS ellipticities,
+                FPFS ellipticity response,
+                FPFS flux ratio, and FPFS selection response
     """
-    if ver==1:
-        #Get weight
-        weight  =   moments['fpfs_M00']+const
-        #FPFS flux
-        flux    =   moments['fpfs_M00']/weight
-        #Ellipticity
-        e1      =   -moments['fpfs_M22c']/weight
-        e2      =   -moments['fpfs_M22s']/weight
-        #Response factor
-        R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e1*e1)
-        R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e2*e2)
-        RA      =   (R1+R2)/2.
-        types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RA','>f8'),('fpfs_flux','>f8')]
-        ellDat  =   np.array(np.zeros(len(e1)),dtype=types)
-        ellDat['fpfs_e1']=e1.transpose()
-        ellDat['fpfs_e2']=e2.transpose()
-        ellDat['fpfs_RA']=RA.transpose()
-        ellDat['fpfs_flux']=flux.transpose()
-    elif ver==2:
-        #Get weight
-        weight  =   moments['fpfs_M20']+const
-        #FPFS flux
-        flux    =   moments['fpfs_M00']/weight
-        #Ellipticity
-        e1      =   -moments['fpfs_M22c']/weight
-        e2      =   -moments['fpfs_M22s']/weight
-        e41     =   -moments['fpfs_M42c']/weight
-        e42     =   -moments['fpfs_M42s']/weight
-        #Response factor
-        R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e1*e41)
-        R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
-        RA      =   (R1+R2)/2.
-        types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RA','>f8'),('fpfs_flux','>f8')]
-        ellDat  =   np.array(np.zeros(len(e1)),dtype=types)
-        ellDat['fpfs_e1']=e1.transpose()
-        ellDat['fpfs_e2']=e2.transpose()
-        ellDat['fpfs_RA']=RA.transpose()
-        ellDat['fpfs_flux']=flux.transpose()
+    #Get weight
+    weight  =   moments['fpfs_M00']+const
+    #FPFS flux
+    flux    =   moments['fpfs_M00']/weight
+    #Ellipticity
+    e1      =   moments['fpfs_M22c']/weight
+    e2      =   moments['fpfs_M22s']/weight
+    #Response factor
+    R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e1*e1)
+    R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e2*e2)
+    RE      =   (R1+R2)/2.
+    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
+    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
+    ellDat['fpfs_e1']=e1.transpose()
+    ellDat['fpfs_e2']=e2.transpose()
+    ellDat['fpfs_RE']=RE.transpose()
+    ellDat['fpfs_flux']=flux.transpose()
+    return ellDat
+
+def fpfsM2E_v2(moments,const=1.,mcalib=0.):
+    """
+    # Estimate FPFS ellipticities from fpfs moments
+
+    Parameters:
+    -----------
+    moments:    input FPFS moments
+    const:      the weighting Constant
+    mcalib:     multiplicative biases
+
+    Returns:
+    -------------
+    out :       an array of FPFS ellipticities,
+                FPFS ellipticity response,
+                FPFS flux ratio
+
+    """
+    #Get weight
+    weight  =   moments['fpfs_M20']+const
+    #FPFS flux
+    flux    =   moments['fpfs_M00']/weight
+    #Ellipticity
+    e1      =   moments['fpfs_M22c']/weight
+    e2      =   moments['fpfs_M22s']/weight
+    e41     =   moments['fpfs_M42c']/weight
+    e42     =   moments['fpfs_M42s']/weight
+    #Response factor
+    R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e1*e41)
+    R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
+    RE      =   (R1+R2)/2.
+    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
+    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
+    ellDat['fpfs_e1']=e1.transpose()
+    ellDat['fpfs_e2']=e2.transpose()
+    ellDat['fpfs_RE']=RE.transpose()
+    ellDat['fpfs_flux']=flux.transpose()
     return ellDat
