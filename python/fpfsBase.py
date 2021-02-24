@@ -4,9 +4,7 @@ import numpy.lib.recfunctions as rfn
 
 class fpfsTask():
     _DefaultName = "fpfsBase"
-    def __init__(self,psfData,noiModel=None,noiSub=None):
-        if noiSub is not None:
-            print('testing')
+    def __init__(self,psfData,noiModel=None,noiFit=None):
         self.ngrid  =   psfData.shape[0]
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF model
@@ -19,6 +17,9 @@ class fpfsTask():
         self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
         self.noiModel=  noiModel
+        self.noiFit=noiFit
+        if noiFit is not None:
+            print('testing')
         return
 
     def __prepareRlim(self):
@@ -154,16 +155,21 @@ class fpfsTask():
         """
 
         galPow  =   imgutil.getFouPow(arrayIn)
-        if self.noiModel is not None:
-            noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
-            galPow  =   galPow-noiFit
-            epcor   =   noiFit*noiFit+2*noiFit*galPow
+
+        if (self.noiFit is not None) or (self.noiModel is not None):
+            if self.noiModel is not None:
+                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+            galPow  =   galPow-self.noiFit
+            epcor   =   self.noiFit*self.noiFit+2*self.noiFit*galPow
             decEP   =   self.deconvolvePow(epcor,order=2.)
             nn      =   self.itransformCov(decEP)
+            noiRev  =   True
+        else:
+            noiRev  =   False
 
         decPow      =   self.deconvolvePow(galPow,order=1.)
         mm          =   self.itransform(decPow)
-        if self.noiModel is not None:
+        if noiRev:
             mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
         return mm
 
