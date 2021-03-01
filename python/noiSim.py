@@ -36,7 +36,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class noiSimConfig(pexConfig.Config):
-    outDir      =   pexConfig.Field(dtype=str, default='sim20210301', doc = 'directory to store exposures')
+    outDir      =   pexConfig.Field(dtype=str, default='sim20210301/noise/', doc = 'directory to store exposures')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
