@@ -87,8 +87,8 @@ class cgcSimTask(pipeBase.CmdLineTask):
             psfInt=psfInt.shear(e1=0.,e2=0.02)
             psfImg   =   psfInt.drawImage(nx=45,ny=45,scale=scale)
 
-        outFname1   =   os.path.join(self.config.outDir,'gal%04d-0.fits' %(ifield))
-        outFname2   =   os.path.join(self.config.outDir,'gal%04d-1.fits' %(ifield))
+        outFname1   =   os.path.join(self.config.outDir,'gal%04d-00.fits' %(ifield))
+        outFname2   =   os.path.join(self.config.outDir,'gal%04d-10.fits' %(ifield))
         gal_image1  =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         gal_image1.setOrigin(0,0)
         gal_image2  =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
