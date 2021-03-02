@@ -22,6 +22,7 @@
 #
 # python lib
 import os
+import gc
 import galsim
 import numpy as np
 import astropy.io.fits as pyfits
@@ -33,7 +34,6 @@ import lsst.pipe.base as pipeBase
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
-
 
 class cgcSimConfig(pexConfig.Config):
     outDir      =   pexConfig.Field(dtype=str, default='sim20210301/galaxy/', doc = 'directory to store outputs')
@@ -50,22 +50,21 @@ class cgcSimTask(pipeBase.CmdLineTask):
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
 
-
     @pipeBase.timeMethod
     def run(self,ifield):
         self.log.info('begining for field %04d' %(ifield))
         ngrid       =   64
-        nx          =   100
-        ny          =   nx
+        nx          =   1
+        ny          =   10000
         ndata       =   nx*ny
-        nrot        =   2
+        nrot        =   4
         scale       =   0.168
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
 
         variance    =   0.0035
         ud          =   galsim.UniformDeviate(ifield*10000+1)
-        np.random.seed(ifield*10000+1)
+        np.random.seed(ifield)
 
         # training data
         catName     =   'real_galaxy_catalog_25.2.fits'
@@ -79,17 +78,17 @@ class cgcSimTask(pipeBase.CmdLineTask):
         ngAll       =   len(index_use)
 
         # Get the psf and nosie information
-        psfFname    =   os.path.join('psfPre','psf%04d.fits'%(ifield))
-        psfImg      =   galsim.fits.read(psfFname)
+        if False:
+            psfFname    =   os.path.join('psfPre','psf%04d.fits'%(ifield))
+            psfImg      =   galsim.fits.read(psfFname)
+            psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.)
+        else:
+            psfInt=galsim.Moffat(beta=3.5,fwhm=0.615,trunc=0.615*4.)
+            psfInt=psfInt.shear(e1=0.,e2=0.02)
+            psfImg   =   psfInt.drawImage(nx=45,ny=45,scale=scale)
 
-        psfInt      =   galsim.InterpolatedImage(psfImg,scale=scale,flux = 1.)
-        g2          =   0.
-
-        outFname1   =   os.path.join(self.config.outDir,'gal%04d-00.fits' %(ifield))
-        outFname2   =   os.path.join(self.config.outDir,'gal%04d-20.fits' %(ifield))
-        if os.path.exists(outFname1):
-            self.log.info('Already have the outcome: %s' %outFname1)
-            return
+        outFname1   =   os.path.join(self.config.outDir,'gal%04d-0.fits' %(ifield))
+        outFname2   =   os.path.join(self.config.outDir,'gal%04d-1.fits' %(ifield))
         gal_image1  =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         gal_image1.setOrigin(0,0)
         gal_image2  =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
@@ -109,28 +108,48 @@ class cgcSimTask(pipeBase.CmdLineTask):
                 # update galaxy
                 index   =   np.random.randint(0,ngAll)
                 ss      =   param_cat[index]
+                if ss['use_bulgefit']:
+                    bparams = ss['bulgefit']
+                    gal_q   = bparams[3]
+                    gal_beta= bparams[7]*galsim.radians
+                    hlr     = ss['hlr'][2]
+                else:
+                    sparams =   ss['sersicfit']
+                    gal_q   =   sparams[3]
+                    gal_beta=   sparams[7]*galsim.radians
+                    hlr     =   ss['hlr'][0]
 
+                fluxhsc =   10**((27-ss['mag_auto'])/2.5)
                 # prepare the galaxies
                 gal0    =   cosmos_cat.makeGalaxy(gal_type='parametric',index=index,gsparams=bigfft)
                 gal0    *=  flux_scaling
+
+                npoints =   int(ud()*10+5)
+                gal_not0=   galsim.RandomKnots(half_light_radius=min(hlr+0.1,0.8),npoints=npoints,flux=fluxhsc/100.*npoints)
+                gal_not0=   gal_not0.shear(q=gal_q,beta=gal_beta)
+                gal0    =   (gal0+gal_not0)/(1+npoints/100.)
+                gal0    =   gal0.dilate(1+(ud()-0.5)*0.1)
+                #gal0    =   gal_not0
 
                 # rotate the galaxy
                 ang     =   ud()*2.*np.pi * galsim.radians
                 gal0    =   gal0.rotate(ang)
             else:
                 gal0    =   gal0.rotate(1./nrot*np.pi*galsim.radians)
-            gal         =   gal0.shear(g1=0.,g2=0.)
-            final       =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-            final.drawImage(sub_image1,method='no_pixel')
-            gal         =   gal0.shear(g1=0.02,g2=0.)
-            final       =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-            final.drawImage(sub_image2,method='no_pixel')
-            row=(i,index,ss['IDENT'],ss['RA'],ss['DEC'],ss['MAG'],iparent)
+            gal1        =   gal0.shear(g1=-0.02,g2=0.)
+            final1      =   galsim.Convolve([psfInt,gal1],gsparams=bigfft)
+            final1.drawImage(sub_image1)
+            gal2         =   gal0.shear(g1=0.02,g2=0.)
+            final2       =   galsim.Convolve([psfInt,gal2],gsparams=bigfft)
+            final2.drawImage(sub_image2)
+            row=(i,index,ss['IDENT'],ss['mag_auto'],ss['zphot'])
             data_rows.append(row)
             i   +=  1
-            del gal,final,row
+            del gal1,gal2,final1,final2,row
             gc.collect
-        pyfits.writeto(outFname,gal_image.array)
+
+        pyfits.writeto(outFname1,gal_image1.array,overwrite=True)
+        pyfits.writeto(outFname2,gal_image2.array,overwrite=True)
         del gal_image1,gal_image2
         gc.collect()
         return
@@ -152,7 +171,7 @@ class cgcSimTask(pipeBase.CmdLineTask):
         pass
 
 class cgcSimBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'sims per group')
+    perGroup =   pexConfig.Field(dtype=int, default=10, doc = 'sims per group')
     cgcSim = pexConfig.ConfigurableField(
         target = cgcSimTask,
         doc = "cgcSim task to run on multiple cores"
@@ -179,7 +198,6 @@ class cgcSimBatchTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.makeSubtask("cgcSim")
-
     @abortOnError
     def runDataRef(self,Id):
         self.log.info('beginning group %d' %(Id))
@@ -193,7 +211,6 @@ class cgcSimBatchTask(BatchPoolTask):
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
-
     def process(self,cache,ifield):
         self.cgcSim.run(ifield)
         return

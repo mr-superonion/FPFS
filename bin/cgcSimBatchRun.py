@@ -1,3 +1,3 @@
 #!/usr/bin/env python
-from rgcSim import rgcSimBatchTask
-rgcSimBatchTask.parseAndSubmit()
+from cgcSim import cgcSimBatchTask
+cgcSimBatchTask.parseAndSubmit()

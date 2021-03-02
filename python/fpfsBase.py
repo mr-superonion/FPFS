@@ -28,7 +28,7 @@ class fpfsTask():
         # the shaplet Gaussian kerenl
         # (part of __init__)
         """
-        thres   =   1.e-4
+        thres   =   1.e-3
         for dist in range(self.ngrid//5,int(self.ngrid*0.45)):
             ave =  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2+dist,self.ngrid//2])
             ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2,self.ngrid//2+dist])
@@ -36,6 +36,17 @@ class fpfsTask():
             if ave<=thres:
                 self.rlim=   dist
                 break
+        self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
+        self._indY=self._indX[:,None]
+        self._ind2D=np.ix_(self._indX,self._indX)
+        return
+
+    def setRlim(self,rlim):
+        """
+        # set rlim, the area outside rlim is supressed by
+        # the shaplet Gaussian kerenl
+        """
+        self.rlim=   rlim
         self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
