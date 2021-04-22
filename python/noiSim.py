@@ -26,17 +26,19 @@ import galsim
 import numpy as np
 import astropy.io.fits as pyfits
 
-# lsst Tasks
+# LSST Base
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 
+# LSST Tasks
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class noiSimConfig(pexConfig.Config):
-    outDir      =   pexConfig.Field(dtype=str, default='sim20210301/noise/', doc = 'directory to store exposures')
+    outDir      =   pexConfig.Field(dtype=str, default='sim20210301/noise/',\
+            doc = 'directory to store exposures')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
@@ -65,13 +67,14 @@ class noiSimTask(pipeBase.CmdLineTask):
         ny          =   nx
         scale       =   0.168
 
-        variance    =   0.0035
+        variance    =   0.01
         ud          =   galsim.UniformDeviate(ifield*10000+1)
 
         # setup the galaxy image and the noise image
         noi_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         noi_image.setOrigin(0,0)
-        corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',rng=ud,cosmos_scale=scale,variance=variance)
+        corNoise    =   galsim.getCOSMOSNoise(file_name='./corPre/correlation.fits',\
+                rng=ud,cosmos_scale=scale,variance=variance)
         corNoise.applyTo(noi_image)
         pyfits.writeto(outFname,noi_image.array)
         return
@@ -98,7 +101,6 @@ class noiSimBatchConfig(pexConfig.Config):
         target = noiSimTask,
         doc = "noiSim task to run on multiple cores"
     )
-
 class noiSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
@@ -134,11 +136,9 @@ class noiSimBatchTask(BatchPoolTask):
         pool.map(self.process,fieldList)
         self.log.info('finish group %d'%(Id) )
         return
-
     def process(self,cache,ifield):
         self.noiSim.run(ifield)
         return
-
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
