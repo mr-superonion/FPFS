@@ -22,6 +22,7 @@
 #
 # python lib
 import os
+import gc
 import galsim
 import fitsio
 import imgSimutil
@@ -39,18 +40,10 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
 class cgcSimCosmoBatchConfig(pexConfig.Config):
-    perGroup =   pexConfig.Field(dtype=int, default=100, doc = 'data per field')
-    expDir      =   pexConfig.Field(dtype=str, default='galImgCosmo', doc = 'directory to store exposures')
-    cgcSimCosmo = pexConfig.ConfigurableField(
-        target = cgcSimCosmoTask,
-        doc = "cgcSimCosmo task to run on multiple cores"
-    )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
-        if not os.path.exists(self.expDir):
-            os.mkdir(self.expDir)
 
 class cgcSimCosmoRunner(TaskRunner):
     @staticmethod
@@ -70,29 +63,28 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
                 parentTask=self._parentTask, log=self.log))
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        self.makeSubtask("cgcSimCosmo")
         return
-
     @abortOnError
     def runDataRef(self,Id):
         #Prepare the pool
-        pool    =   Pool("cgcSimCosmo")
+        pool    =   Pool("cgcSimCosmoBatch")
         pool.cacheClear()
+        expDir  =   "sim20210301/galaxy_cosmo"
         pool.storeSet(expDir=expDir)
         fieldList=  imgSimutil.cosmoHSThpix[-10:-9]
         pool.map(self.process,fieldList)
         return
 
-    def process(self,cache,ihpix):
-        self.log.info('begining for healPIX %d' %(ihpix))
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-2222.fits' %(ihpix))
+    def process(self,cache,pixId):
+        self.log.info('begining for healPIX %d' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-2222.fits' %(pixId))
         """
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-0000.fits' %(ihpix))
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-1111.fits' %(ihpix))
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-2000.fits' %(ihpix))
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-0200.fits' %(ihpix))
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-0020.fits' %(ihpix))
-        outFname    =   os.path.join(cache.expDir,'image-%05d-g1-0002.fits' %(ihpix))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-0000.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-1111.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-2000.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-0200.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-0020.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g1-0002.fits' %(pixId))
         """
         if os.path.exists(outFname):
             self.log.info('Already have the outcome')
@@ -132,19 +124,22 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         hscCat  =   cosmo252.readHpixSample(pixId)
         gal_image   =   galsim.ImageF(nx,ny,scale=scale)
         gal_image.setOrigin(0,0)
-        for ss  in hscCat:
-            if ss['xI']-32>0 and ss['xI']+32<nx and ss['i']-32>0 and ss['yI']+32<ny:
-                gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=iid,gsparams=bigfft)
+        for ss  in hscCat[0:2]:
+            if ss['xI']-32>0 and ss['xI']+32<nx and ss['yI']-32>0 and ss['yI']+32<ny:
+                print(ss['xI'],ss['yI'])
+                gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
                 gal =   gal*flux_scaling
                 gal =   gal.shear(g1=g1,g2=g2)
+                gal =   gal.shift(ss['dx'],ss['dy'])
                 gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
 
-                b   =   galsim.BoundsI(xI[i]-32,xI[i]+32,yI[i]-32,yI[i]+32)
+                b   =   galsim.BoundsI(ss['xI']-32,ss['xI']+32,ss['yI']-32,ss['yI']+32)
                 sub_img =   gal_image[b]
                 gal.drawImage(sub_img,add_to_image=True)
                 del gal,b,sub_img
                 gc.collect()
-        self.log.info('finish healPIX %d' %(ihpix))
+        gal_image.write(outFname)
+        self.log.info('finish healPIX %d' %(pixId))
         return
 
     @classmethod
