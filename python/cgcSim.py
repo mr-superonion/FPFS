@@ -62,7 +62,6 @@ class cgcSimTask(pipeBase.CmdLineTask):
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
 
-        variance    =   0.0035
         ud          =   galsim.UniformDeviate(ifield*10000+1)
         np.random.seed(ifield)
 

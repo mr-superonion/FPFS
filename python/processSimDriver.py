@@ -55,8 +55,8 @@ class processSimConfig(pexConfig.Config):
         doc = "Subtask to run measurement of fpfs method"
     )
     rootDir     = pexConfig.Field(
-        dtype=str, 
-        default="cgc-control-2gal/", 
+        dtype=str,
+        default="cgc-control-2gal/",
         doc="Root Diectory"
     )
     def setDefaults(self):
@@ -77,10 +77,10 @@ class processSimTask(pipeBase.CmdLineTask):
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
-        self.makeSubtask("readDataSim",schema=self.schema)        
+        self.makeSubtask("readDataSim",schema=self.schema)
         self.makeSubtask('fpfsBase', schema=self.schema)
-        
-        
+
+
     @pipeBase.timeMethod
     def run(self,prepend):
         self.log.info('running for %s' %prepend)
@@ -107,25 +107,21 @@ class processSimTask(pipeBase.CmdLineTask):
         wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
         dataStruct.sources.writeFits(outFname,flags=wFlag)
         return
-    
+
     @classmethod
     def _makeArgumentParser(cls):
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
         return parser
-
     @classmethod
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeMetadata(self, ifield):
         pass
-
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-        
+
 
 class processSimDriverConfig(pexConfig.Config):
     processSim = pexConfig.ConfigurableField(
@@ -138,9 +134,9 @@ class processSimDriverConfig(pexConfig.Config):
 class processSimRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        minIndex    =  parsedCmd.minIndex 
-        maxIndex    =  parsedCmd.maxIndex 
-        return [(ref, kwargs) for ref in range(minIndex,maxIndex)] 
+        minIndex    =  parsedCmd.minIndex
+        maxIndex    =  parsedCmd.maxIndex
+        return [(ref, kwargs) for ref in range(minIndex,maxIndex)]
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -150,7 +146,7 @@ class processSimDriverTask(BatchPoolTask):
     ConfigClass = processSimDriverConfig
     RunnerClass = processSimRunner
     _DefaultName = "processSimDriver"
-    
+
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -159,7 +155,7 @@ class processSimDriverTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         self.makeSubtask("processSim")
-    
+
     @abortOnError
     def run(self,index):
         catPrename  =   'catPre/control_cat.csv'
@@ -178,7 +174,7 @@ class processSimDriverTask(BatchPoolTask):
                 fieldList.append('-id%d-g%d-r%d' %(index,ig,irot))
         pool.map(self.process,fieldList)
         return
-        
+
     def process(self,cache,prepend):
         self.processSim.run(prepend)
         self.log.info('finish %s' %(prepend))
@@ -188,35 +184,28 @@ class processSimDriverTask(BatchPoolTask):
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minIndex', type= int, 
+        parser.add_argument('--minIndex', type= int,
                         default=0,
                         help='minimum Index number')
-        parser.add_argument('--maxIndex', type= int, 
+        parser.add_argument('--maxIndex', type= int,
                         default=1,
                         help='maximum Index number')
         return parser
-    
+
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None
-
     def writeConfig(self, butler, clobber=False, doBackup=False):
         pass
-
     def writeSchemas(self, butler, clobber=False, doBackup=False):
         pass
-    
     def writeMetadata(self, ifield):
         pass
-    
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
-    
     def _getConfigName(self):
         return None
-   
     def _getEupsVersionsName(self):
         return None
-    
     def _getMetadataName(self):
         return None

@@ -51,8 +51,6 @@ class noiSimTask(pipeBase.CmdLineTask):
     ConfigClass = noiSimConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
-
-
     @pipeBase.timeMethod
     def run(self,ifield):
         self.log.info('begining for field %04d' %(ifield))
