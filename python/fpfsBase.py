@@ -1,4 +1,4 @@
-import imgutil
+import fpfsImgutil as imgutil
 import numpy as np
 import numpy.lib.recfunctions as rfn
 

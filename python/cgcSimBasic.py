@@ -24,11 +24,8 @@
 import os
 import gc
 import galsim
-import fitsio
 import imgSimutil
 import numpy as np
-from pixel3D import cartesianGrid3D
-from configparser import ConfigParser
 
 # lsst Tasks
 import lsst.pex.config as pexConfig
@@ -73,7 +70,7 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimBasicBatch")
         pool.cacheClear()
-        expDir  =   "sim20210301/galaxy_basic"
+        expDir  =   "sim20210301/galaxy_basic_psf60"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
@@ -111,15 +108,9 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         self.log.info('shear List is for %s' %gList)
 
         # PSF
-        psfInt  =   galsim.Moffat(beta=3.5,fwhm=0.65,trunc=0.65*4.)
+        psfInt  =   galsim.Moffat(beta=3.5,fwhm=0.60,trunc=0.60*4.)
         psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
         psfImg  =   psfInt.drawImage(nx=45,ny=45,scale=scale)
-
-        # Stamp
-        configName  =   'config-pix-nl1.ini'
-        parser  =   ConfigParser()
-        parser.read(configName)
-        gridInfo=   cartesianGrid3D(parser)
 
         # catalog
         cosmo252=   imgSimutil.cosmoHSTGal('252')
@@ -155,6 +146,9 @@ class cgcSimBasicBatchTask(BatchPoolTask):
             del gal,b,sub_img
             gc.collect()
         gal_image.write(outFname,clobber=True)
+
+        del hscCat,cosmos_cat,cosmo252,psfImg,psfInt
+        gc.collect()
         return
 
     @classmethod
