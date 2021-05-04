@@ -39,27 +39,26 @@ from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
 
-class cgcSimCosmoBatchConfig(pexConfig.Config):
+class cgcSimBasicBatchConfig(pexConfig.Config):
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
 
-class cgcSimCosmoRunner(TaskRunner):
+class cgcSimBasicRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minGroup    =  parsedCmd.minGroup
         maxGroup    =  parsedCmd.maxGroup
-        hpList  =  imgSimutil.cosmoHSThpix[-10:-9]
-        return [(ref, kwargs) for ref in hpList]
+        return [(ref, kwargs) for ref in range(minGroup,maxGroup)]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class cgcSimCosmoBatchTask(BatchPoolTask):
-    ConfigClass = cgcSimCosmoBatchConfig
-    RunnerClass = cgcSimCosmoRunner
-    _DefaultName = "cgcSimCosmoBatch"
+class cgcSimBasicBatchTask(BatchPoolTask):
+    ConfigClass = cgcSimBasicBatchConfig
+    RunnerClass = cgcSimBasicRunner
+    _DefaultName = "cgcSimBasicBatch"
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -67,27 +66,30 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         return
+
     @abortOnError
-    def runDataRef(self,pixId):
-        self.log.info('begining for healPIX %d' %(pixId))
+    def runDataRef(self,Id):
+        self.log.info('begining for group %d' %(Id))
         #Prepare the storeSet
-        pool    =   Pool("cgcSimCosmoBatch")
+        pool    =   Pool("cgcSimBasicBatch")
         pool.cacheClear()
-        expDir  =   "sim20210301/galaxy_cosmo"
+        expDir  =   "sim20210301/galaxy_basic"
+        if not os.path.isdir(expDir):
+            os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
-        pool.storeSet(pixId=pixId)
+        pool.storeSet(Id=Id)
 
         #Prepare the pool
-        p2List=['0000','1111','2222','2000','0200','0020','0002','2111','1211','1121','1112']
+        p2List=['0000','1111','2222']
         p1List=['g1','g2']
         pendList=['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
         pool.map(self.process,pendList)
-        self.log.info('finish healPIX %d' %(pixId))
+        self.log.info('finish group %d' %(Id))
         return
 
     def process(self,cache,pend):
-        pixId       =   cache.pixId
-        outFname    =   os.path.join(cache.expDir,'image-%d-%s.fits' %(pixId,pend))
+        Id          =   cache.Id
+        outFname    =   os.path.join(cache.expDir,'image-%d-%s.fits' %(Id,pend))
         if os.path.exists(outFname):
             self.log.info('Already have the outcome')
             return
@@ -121,37 +123,37 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
 
         # catalog
         cosmo252=   imgSimutil.cosmoHSTGal('252')
-        dd      =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
-        nx      =   int(dd['dra']/gridInfo.delta)
-        ny      =   int(dd['ddec']/gridInfo.delta)
-        hscCat  =   cosmo252.readHpixSample(pixId)
-        zbound      =   [0.,0.561,0.906,1.374,5.408]
+        cosmo252.readHSTsample()
+        hscCat  =   cosmo252.catused[Id*10000:(Id+1)*10000]
 
-        gal_image   =   galsim.ImageF(nx,ny,scale=scale)
+        nx      =   100
+        ny      =   100
+        ngrid   =   64
+        gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
         gal_image.setOrigin(0,0)
 
-        for ss  in hscCat:
-            if ss['xI']-32>0 and ss['xI']+32<nx and ss['yI']-32>0 and ss['yI']+32<ny:
-                if pend.split('-')[0]=='g1':
-                    g1=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
-                    g2=0.
-                elif pend.split('-')[0]=='g2':
-                    g1=0.
-                    g2=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
-                else:
-                    pass
-                # each galaxy
-                gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
-                gal =   gal*flux_scaling
-                gal =   gal.shear(g1=g1,g2=g2)
-                gal =   gal.shift(ss['dx'],ss['dy'])
-                gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-                # draw galaxy
-                b   =   galsim.BoundsI(ss['xI']-32,ss['xI']+32,ss['yI']-32,ss['yI']+32)
-                sub_img =   gal_image[b]
-                gal.drawImage(sub_img,add_to_image=True)
-                del gal,b,sub_img
-                gc.collect()
+        for i,ss  in enumerate(hscCat):
+            ix      =   i%nx
+            iy      =   i//nx
+            b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
+            if pend.split('-')[0]=='g1':
+                g1=gList[0]
+                g2=0.
+            elif pend.split('-')[0]=='g2':
+                g1=0.
+                g2=gList[0]
+            else:
+                pass
+            # each galaxy
+            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+            gal =   gal*flux_scaling
+            gal =   gal.shear(g1=g1,g2=g2)
+            gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
+            # draw galaxy
+            sub_img =   gal_image[b]
+            gal.drawImage(sub_img,add_to_image=True)
+            del gal,b,sub_img
+            gc.collect()
         gal_image.write(outFname,clobber=True)
         return
 
