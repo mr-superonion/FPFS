@@ -85,6 +85,12 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         outFname    =   os.path.join(cache.expDir,'image-%d-g1-0200.fits' %(pixId))
         outFname    =   os.path.join(cache.expDir,'image-%d-g1-0020.fits' %(pixId))
         outFname    =   os.path.join(cache.expDir,'image-%d-g1-0002.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g2-0000.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g2-1111.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g2-2000.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g2-0200.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g2-0020.fits' %(pixId))
+        outFname    =   os.path.join(cache.expDir,'image-%d-g2-0002.fits' %(pixId))
         """
         if os.path.exists(outFname):
             self.log.info('Already have the outcome')
@@ -116,17 +122,16 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         gridInfo=   cartesianGrid3D(parser)
 
         # catalog
-        nside   =   512
         cosmo252=   imgSimutil.cosmoHSTGal('252')
         dd      =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
         nx      =   int(dd['dra']/gridInfo.delta)
         ny      =   int(dd['ddec']/gridInfo.delta)
         hscCat  =   cosmo252.readHpixSample(pixId)
+
         gal_image   =   galsim.ImageF(nx,ny,scale=scale)
         gal_image.setOrigin(0,0)
-        for ss  in hscCat[0:2]:
+        for ss  in hscCat:
             if ss['xI']-32>0 and ss['xI']+32<nx and ss['yI']-32>0 and ss['yI']+32<ny:
-                print(ss['xI'],ss['yI'])
                 gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
                 gal =   gal*flux_scaling
                 gal =   gal.shear(g1=g1,g2=g2)
