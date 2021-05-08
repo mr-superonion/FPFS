@@ -44,7 +44,6 @@ class cgcSimCosmoBatchConfig(pexConfig.Config):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
-
 class cgcSimCosmoRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
@@ -55,7 +54,6 @@ class cgcSimCosmoRunner(TaskRunner):
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
-
 class cgcSimCosmoBatchTask(BatchPoolTask):
     ConfigClass = cgcSimCosmoBatchConfig
     RunnerClass = cgcSimCosmoRunner
@@ -73,7 +71,9 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimCosmoBatch")
         pool.cacheClear()
-        expDir  =   "sim20210301/galaxy_cosmo"
+        expDir  =   "sim20210301/galaxy_cosmo_psf60"
+        if not os.path.isdir(expDir):
+            os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
         pool.storeSet(pixId=pixId)
 
@@ -103,15 +103,16 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         flux_scaling=   2.587
 
         # Get the shear information
-        gList       =   np.array([-0.02,0.,0.02])
-        gList       =   gList[[eval(i) for i in pend.split('-')[-1]]]
+        gList   =   np.array([-0.02,0.,0.02])
+        gList   =   gList[[eval(i) for i in pend.split('-')[-1]]]
         self.log.info('Processing for %s' %pend)
         self.log.info('shear List is for %s' %gList)
 
         # PSF
-        psfInt  =   galsim.Moffat(beta=3.5,fwhm=0.65,trunc=0.65*4.)
+        psfFWHM =   eval(cache.expDir.split('_psf')[-1])/100.
+        self.log.info('The FHWM for PSF is: %s arcsec'%psfFWHM)
+        psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
         psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
-        psfImg  =   psfInt.drawImage(nx=45,ny=45,scale=scale)
 
         # Stamp
         configName  =   'config-pix-nl1.ini'
@@ -153,6 +154,8 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
                 del gal,b,sub_img
                 gc.collect()
         gal_image.write(outFname,clobber=True)
+        del hscCat,cosmos_cat,cosmo252,psfInt
+        gc.collect()
         return
 
     @classmethod

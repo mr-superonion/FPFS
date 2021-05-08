@@ -24,8 +24,8 @@
 import os
 import gc
 import galsim
-import imgSimutil
 import numpy as np
+import fitsio
 
 # lsst Tasks
 import lsst.pex.config as pexConfig
@@ -35,13 +35,12 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-
-class cgcSimBasicBatchConfig(pexConfig.Config):
+class galsimProcessBatchConfig(pexConfig.Config):
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
-class cgcSimBasicRunner(TaskRunner):
+class galsimProcessRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minGroup    =  parsedCmd.minGroup
@@ -50,10 +49,10 @@ class cgcSimBasicRunner(TaskRunner):
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
-class cgcSimBasicBatchTask(BatchPoolTask):
-    ConfigClass = cgcSimBasicBatchConfig
-    RunnerClass = cgcSimBasicRunner
-    _DefaultName = "cgcSimBasicBatch"
+class galsimProcessBatchTask(BatchPoolTask):
+    ConfigClass = galsimProcessBatchConfig
+    RunnerClass = galsimProcessRunner
+    _DefaultName = "galsimProcessBatch"
     def __reduce__(self):
         """Pickler"""
         return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
@@ -66,11 +65,10 @@ class cgcSimBasicBatchTask(BatchPoolTask):
     def runDataRef(self,Id):
         self.log.info('begining for group %d' %(Id))
         #Prepare the storeSet
-        pool    =   Pool("cgcSimBasicBatch")
+        pool    =   Pool("galsimProcessBatch")
         pool.cacheClear()
-        expDir  =   "sim20210301/galaxy_basic_psf75"
-        if not os.path.isdir(expDir):
-            os.mkdir(expDir)
+        expDir  =   "sim20210301/galaxy_basic_psf60"
+        assert os.path.isdir(expDir)
         pool.storeSet(expDir=expDir)
         pool.storeSet(Id=Id)
 
@@ -84,70 +82,46 @@ class cgcSimBasicBatchTask(BatchPoolTask):
 
     def process(self,cache,pend):
         Id          =   cache.Id
-        outFname    =   os.path.join(cache.expDir,'image-%d-%s.fits' %(Id,pend))
-        if os.path.exists(outFname):
-            self.log.info('Already have the outcome')
-            return
+        inFname     =   os.path.join(cache.expDir,'image-%d-%s.fits' %(Id,pend))
+        assert os.path.exists(inFname)
+        gal_image   =   galsim.fits.read(inFname)
 
-        # Galsim galaxies
-        directory   =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
-        catName     =   'real_galaxy_catalog_25.2.fits'
-        cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
+        psfFWHM     =   cache.expDir.split('_psf')[-1]
+        psfFname    =   os.path.join(cache.expDir,'psf-%s.fits' %(psfFWHM))
+        assert os.path.exists(psfFname)
+        psf_img     =   galsim.fits.read(psfFname)
 
         # Basic parameters
-        scale       =   0.168
-        bigfft      =   galsim.GSParams(maximum_fft_size=10240)
-        flux_scaling=   2.587
+        scale   =   0.168
+        ngrid   =   64
+        nx      =   100
+        ny      =   100
+        ngal    =   nx*ny
 
         # Get the shear information
         gList       =   np.array([-0.02,0.,0.02])
         gList       =   gList[[eval(i) for i in pend.split('-')[-1]]]
         self.log.info('Processing for %s' %pend)
         self.log.info('shear List is for %s' %gList)
+        types   =   [('regauss_e1','>f8'),  ('regauss_e2','>f8'),\
+                    ('regauss_detR','>f8'), ('regauss_resolution','>f8'),\
+                    ]
 
-        # PSF
-        psfFWHM =   eval(cache.expDir.split('_psf')[-1])/100.
-        self.log.info('The FHWM for PSF is: %s arcsec'%psfFWHM)
-        psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
-        psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
-        #psfImg =   psfInt.drawImage(nx=45,ny=45,scale=scale)
-
-        # catalog
-        cosmo252=   imgSimutil.cosmoHSTGal('252')
-        cosmo252.readHSTsample()
-        hscCat  =   cosmo252.catused[Id*10000:(Id+1)*10000]
-
-        nx      =   100
-        ny      =   100
-        ngrid   =   64
-        gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
-        gal_image.setOrigin(0,0)
-
-        for i,ss  in enumerate(hscCat):
+        data   =   []
+        for i in range(ngal):
             ix      =   i%nx
             iy      =   i//nx
             b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
-            if pend.split('-')[0]=='g1':
-                g1=gList[0]
-                g2=0.
-            elif pend.split('-')[0]=='g2':
-                g1=0.
-                g2=gList[0]
-            else:
-                pass
-            # each galaxy
-            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
-            gal =   gal*flux_scaling
-            gal =   gal.shear(g1=g1,g2=g2)
-            gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-            # draw galaxy
             sub_img =   gal_image[b]
-            gal.drawImage(sub_img,add_to_image=True)
-            del gal,b,sub_img
+            result  =   galsim.hsm.EstimateShear(sub_img,psf_img,strict=False)
+            data.append((result.corrected_e1,result.corrected_e2,\
+                    result.moments_sigma,result.resolution_factor))
+            del result,sub_img
             gc.collect()
-        gal_image.write(outFname,clobber=True)
-
-        del hscCat,cosmos_cat,cosmo252,psfInt
+        out         =   np.array(data,types)
+        outFname    =   os.path.join(cache.expDir,'hsm-%d-%s.fits' %(Id,pend))
+        fitsio.write(outFname,out)
+        del data,out
         gc.collect()
         return
 
