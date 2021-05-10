@@ -4,22 +4,19 @@ import numpy.lib.recfunctions as rfn
 
 class fpfsTask():
     _DefaultName = "fpfsBase"
-    def __init__(self,psfData,noiModel=None,noiFit=None):
+    def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85):
         self.ngrid  =   psfData.shape[0]
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF model
-        self.beta   =   0.85
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
-        self.sigma  =   max(min(sigmaPsf*self.beta,4.),1.)
+        self.sigma  =   max(min(sigmaPsf*beta,4.),1.)
         self.__prepareRlim()
         # Preparing shapelets (reshaped)
         self.chi    =   imgutil.shapelets2D(self.ngrid,4,self.sigma).reshape((25,self.ngrid,self.ngrid))
         self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
         self.noiModel=  noiModel
-        self.noiFit=noiFit
-        if noiFit is not None:
-            print('testing')
+        self.noiFit =   noiFit
         return
 
     def __prepareRlim(self):
@@ -29,7 +26,7 @@ class fpfsTask():
         # (part of __init__)
         """
         thres   =   1.e-3
-        for dist in range(self.ngrid//5,int(self.ngrid*0.45)):
+        for dist in range(self.ngrid//5,self.ngrid//2-1):
             ave =  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2+dist,self.ngrid//2])
             ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2,self.ngrid//2+dist])
             ave =   ave/2.
@@ -120,12 +117,9 @@ class fpfsTask():
                     ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
                     ('fpfs_M40','>f8')\
                     ]
-        # types =   [('fpfs_M00','>f8'),\
-        #           ('fpfs_M20','>f8') ,('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-        #           ('fpfs_M40','>f8'),('fpfs_M42c','>f8'),('fpfs_M42s','>f8')]
         out     =   np.array((M.real[0],\
-                        M.real[1],M.imag[1],\
-                        M.real[2]),dtype=types)
+                    M.real[1],M.imag[1],\
+                    M.real[2]),dtype=types)
         return out
 
     def measure(self,galData):
@@ -134,18 +128,18 @@ class fpfsTask():
 
         Parameters:
         -----------
-        galData:    galaxy image
+        galData:    galaxy image [float array (list)]
 
         Returns:
         -------------
         out :   FPFS moments
         """
-        if len(galData.shape)==2:
+        if isinstance(galData,np.ndarray):
             # single galaxy
             out =   self.__measure(galData)
             return out
-
-        elif len(galData.shape)==3:
+        elif isinstance(galData,list):
+            assert isinstance(galData[0],np.ndarray)
             # list of galaxies
             results=[]
             for gal in galData:
@@ -153,8 +147,6 @@ class fpfsTask():
                 results.append(_g)
             out =   np.vstack(results)
             return out
-        else:
-            pass
 
     def __measure(self,arrayIn):
         """
@@ -164,6 +156,7 @@ class fpfsTask():
         -----------
         arrayIn:    image array (centroid does not matter)
         """
+        assert len(arrayIn.shape)==2
 
         galPow  =   imgutil.getFouPow(arrayIn)
 
@@ -190,9 +183,9 @@ def fpfsM2E(moments,const=1.,mcalib=0.):
 
     Parameters:
     -----------
-    moments:    input FPFS moments
-    const:      the weighting Constant
-    mcalib:     multiplicative biases
+    moments:    input FPFS moments     [float array]
+    const:      the weighting Constant [float]
+    mcalib:     multiplicative bias [float array]
 
     Returns:
     -------------
@@ -212,11 +205,11 @@ def fpfsM2E(moments,const=1.,mcalib=0.):
     R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e2*e2)
     RE      =   (R1+R2)/2.
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
-    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
-    ellDat['fpfs_e1']=e1.transpose()
-    ellDat['fpfs_e2']=e2.transpose()
-    ellDat['fpfs_RE']=RE.transpose()
-    ellDat['fpfs_flux']=flux.transpose()
+    ellDat  =   np.array(np.zeros((moments.size,1)),dtype=types)
+    ellDat['fpfs_e1']=e1
+    ellDat['fpfs_e2']=e2
+    ellDat['fpfs_RE']=RE
+    ellDat['fpfs_flux']=flux
     return ellDat
 
 def fpfsM2E_v2(moments,const=1.,mcalib=0.):
@@ -250,9 +243,9 @@ def fpfsM2E_v2(moments,const=1.,mcalib=0.):
     R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
     RE      =   (R1+R2)/2.
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
-    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
-    ellDat['fpfs_e1']=e1.transpose()
-    ellDat['fpfs_e2']=e2.transpose()
-    ellDat['fpfs_RE']=RE.transpose()
-    ellDat['fpfs_flux']=flux.transpose()
+    ellDat  =   np.array(np.zeros((moments.size,1)),dtype=types)
+    ellDat['fpfs_e1']=e1
+    ellDat['fpfs_e2']=e2
+    ellDat['fpfs_RE']=RE
+    ellDat['fpfs_flux']=flux
     return ellDat

@@ -67,7 +67,7 @@ class galsimProcessBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("galsimProcessBatch")
         pool.cacheClear()
-        expDir  =   "sim20210301/galaxy_basic_psf60"
+        expDir  =   "sim20210301/galaxy_basic_psf75"
         assert os.path.isdir(expDir)
         pool.storeSet(expDir=expDir)
         pool.storeSet(Id=Id)
