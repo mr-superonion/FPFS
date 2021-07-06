@@ -3,7 +3,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 class fpfsTask():
-    _DefaultName = "fpfsBase"
+    _DefaultName = "fpfsTask"
     def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85):
         self.ngrid  =   psfData.shape[0]
         self.psfPow =   imgutil.getFouPow(psfData)
@@ -177,7 +177,7 @@ class fpfsTask():
             mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
         return mm
 
-def fpfsM2E(moments,const=1.,mcalib=0.):
+def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     """
     # Estimate FPFS ellipticities from fpfs moments
 
@@ -195,21 +195,43 @@ def fpfsM2E(moments,const=1.,mcalib=0.):
     """
     #Get weight
     weight  =   moments['fpfs_M00']+const
-    #FPFS flux
-    flux    =   moments['fpfs_M00']/weight
     #Ellipticity
     e1      =   moments['fpfs_M22c']/weight
     e2      =   moments['fpfs_M22s']/weight
+    e1sq    =   e1*e1
+    e2sq    =   e2*e2
+    #FPFS flux ratio
+    s0      =   moments['fpfs_M00']/weight
+    s4      =   moments['fpfs_M40']/weight
+
+    if rev:
+        assert 'fpfs_N00N00' in moments.dtype.names
+        assert 'fpfs_N00N22c' in moments.dtype.names
+        assert 'fpfs_N00N22s' in moments.dtype.names
+        ratio=  moments['fpfs_N00N00']/weight**2.
+        e1  =   (e1+moments['fpfs_N00N22c']\
+                /weight**2.)/(1+ratio)
+        e2  =   (e2+moments['fpfs_N00N22s']\
+                /weight**2.)/(1+ratio)
+        e1sq=   (e1sq-moments['fpfs_N22cN22c']/weight**2.\
+                +4.*e1*moments['fpfs_N00N22c']/weight**2.)\
+                /(1.+3*ratio)
+        e2sq=   (e2sq-moments['fpfs_N22sN22s']/weight**2.\
+                +4.*e2*moments['fpfs_N00N22s']/weight**2.)\
+                /(1.+3*ratio)
+        s0  =   (s0+moments['fpfs_N00N00']\
+                /weight**2.)/(1+ratio)
+        s4  =   (s4+moments['fpfs_N00N40']\
+                /weight**2.)/(1+ratio)
+
     #Response factor
-    R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e1*e1)
-    R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(2)*(e2*e2)
-    RE      =   (R1+R2)/2.
-    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
+    RE      =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
+    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_s0','>f8')]
     ellDat  =   np.array(np.zeros((moments.size,1)),dtype=types)
     ellDat['fpfs_e1']=e1
     ellDat['fpfs_e2']=e2
     ellDat['fpfs_RE']=RE
-    ellDat['fpfs_flux']=flux
+    ellDat['fpfs_s0']=s0
     return ellDat
 
 def fpfsM2E_v2(moments,const=1.,mcalib=0.):
@@ -249,3 +271,55 @@ def fpfsM2E_v2(moments,const=1.,mcalib=0.):
     ellDat['fpfs_RE']=RE
     ellDat['fpfs_flux']=flux
     return ellDat
+
+class fpfsTestNoi():
+    _DefaultName = "fpfsTestNoi"
+    def __init__(self,ngrid,noiModel=None,noiFit=None):
+        self.ngrid  =   ngrid
+        # Preparing noise Model
+        self.noiModel=  noiModel
+        self.noiFit =   noiFit
+        self.rlim   =   int(ngrid//4)
+        return
+
+    def test(self,galData):
+        """
+        # test the noise subtraction
+
+        Parameters:
+        -----------
+        galData:    galaxy image [float array (list)]
+
+        Returns:
+        -------------
+        out :   FPFS moments
+        """
+        if isinstance(galData,np.ndarray):
+            # single galaxy
+            out =   self.__test(galData)
+            return out
+        elif isinstance(galData,list):
+            assert isinstance(galData[0],np.ndarray)
+            # list of galaxies
+            results=[]
+            for gal in galData:
+                _g=self.__test(gal)
+                results.append(_g)
+            out =   np.stack(results)
+            return out
+
+    def __test(self,arrayIn):
+        """
+        # test the noise subtraction
+
+        Parameters:
+        -----------
+        arrayIn:    image array (centroid does not matter)
+        """
+        assert len(arrayIn.shape)==2
+        galPow  =   imgutil.getFouPow(arrayIn)
+        if (self.noiFit is not None) or (self.noiModel is not None):
+            if self.noiModel is not None:
+                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+            galPow  =   galPow-self.noiFit
+        return galPow

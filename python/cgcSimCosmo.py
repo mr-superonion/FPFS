@@ -114,19 +114,14 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
         psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
 
-        # Stamp
-        configName  =   'config-pix-nl1.ini'
-        parser  =   ConfigParser()
-        parser.read(configName)
-        gridInfo=   cartesianGrid3D(parser)
-
+        pix_scale=  0.168
         # catalog
         cosmo252=   imgSimutil.cosmoHSTGal('252')
         dd      =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
-        nx      =   int(dd['dra']/gridInfo.delta)
-        ny      =   int(dd['ddec']/gridInfo.delta)
+        nx      =   int(dd['dra']/pix_scale)
+        ny      =   int(dd['ddec']/pix_scale)
         hscCat  =   cosmo252.readHpixSample(pixId)
-        zbound      =   [0.,0.561,0.906,1.374,5.408]
+        zbound  =   [0.,0.561,0.906,1.374,5.408]
 
         gal_image   =   galsim.ImageF(nx,ny,scale=scale)
         gal_image.setOrigin(0,0)
