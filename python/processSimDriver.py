@@ -23,9 +23,9 @@
 # python lib
 import os
 import gc
+import fpfsBase
 import numpy as np
 import astropy.io.fits as pyfits
-import astropy.table as astTab
 
 # lsst Tasks
 import lsst.pex.config as pexConfig
@@ -47,6 +47,16 @@ from readDataSim import readDataSimTask
 
 class processSimConfig(pexConfig.Config):
     "config"
+    doHSM   = pexConfig.Field(
+        dtype=bool,
+        default=False,
+        doc="Whether run HSM",
+    )
+    doFPFS  = pexConfig.Field(
+        dtype=bool,
+        default=True,
+        doc="Whether run FPFS",
+    )
     readDataSim= pexConfig.ConfigurableField(
         target  = readDataSimTask,
         doc     = "Subtask to run measurement hsm"
@@ -64,8 +74,8 @@ class processSimConfig(pexConfig.Config):
         self.readDataSim.doAddFP=   True
 
 class processSimTask(pipeBase.CmdLineTask):
-    _DefaultName = "processSim"
-    ConfigClass = processSimConfig
+    _DefaultName=   "processSim"
+    ConfigClass =   processSimConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
@@ -73,43 +83,80 @@ class processSimTask(pipeBase.CmdLineTask):
 
     @pipeBase.timeMethod
     def runDataRef(self,ifield):
-        noiVar      =   1e-4
-        psfFWHM     =   '60'
+        # Basic
         rootDir     =   self.config.rootDir
         igroup      =   ifield//250
+        self.log.info('running for group: %s, field: %s' %(igroup,ifield))
+        nn          =   100
+        ngal        =   nn*nn
+        ngrid       =   64
+        beta        =   0.75
+        noiVar      =   1e-3
+        pixScale    =   0.168
+        psfFWHM     =   '60'
+        psfFWHMF    =   eval(psfFWHM)/100.
+        rcut        =   max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
+        beg         =   ngrid//2-rcut
+        end         =   beg+2*rcut
 
+        # necessary directories
         galDir      =   os.path.join(self.config.rootDir,'galaxy_basic_psf%s' %psfFWHM)
         noiDir      =   os.path.join(self.config.rootDir,'noise')
         assert os.path.exists(galDir)
         assert os.path.exists(noiDir)
-        outDir      =   os.path.join(self.config.rootDir,'src-psf%s-%s' %(psfFWHM,igroup))
-        if not os.path.isdir(outDir):
-            os.mkdir(outDir)
 
-        self.log.info('running for group: %s, field: %s' %(igroup,ifield))
+        # noise
         noiFname    =   os.path.join(noiDir,'noi%04d.fits' %ifield)
         # multiply by 10 since the noise has variance 0.01
         noiData     =   pyfits.getdata(noiFname)*10.
-        a=np.var(noiData)
-        self.log.info('%s' %a)
+        powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar
+        powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
+        powModel[0] =   powIn
+
+        # PSF
         psfFname    =   os.path.join(galDir,'psf-%s.fits' %psfFWHM)
         psfData     =   pyfits.getdata(psfFname)
+        npad        =   (ngrid-psfData.shape[0])//2
+        psfData2    =   np.pad(psfData,(npad+1,npad),mode='constant')
+        assert psfData2.shape[0]==ngrid
+        psfData2    =   psfData2[beg:end,beg:end]
+
+        # Task
+        fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
+
+        outDir      =   os.path.join(self.config.rootDir,'src-psf%s-%s' %(psfFWHM,igroup))
+        if not os.path.isdir(outDir):
+            os.mkdir(outDir)
+        outDir2     =   os.path.join(self.config.rootDir,'fpfs-psfRcut-psf%s-%s' %(psfFWHM,igroup))
+        if not os.path.isdir(outDir2):
+            os.mkdir(outDir2)
+
         isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
-
-
         for ishear in isList:
             outFname    =   os.path.join(outDir,'src%04d-%s.fits' %(ifield,ishear))
-            if os.path.exists(outFname):
-                self.log.info('Already have the output file: %04d' %ifield)
-                continue
-
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)
-            exposure=   self.makeHSCExposure(galData,psfData,noiVar)
-            src     =   self.readDataSim.measureSource(exposure)
-            wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
-            src.writeFits(outFname,flags=wFlag)
-            del exposure,src,galData
+            if not os.path.exists(outFname) and self.config.doHSM:
+                exposure    =   self.makeHSCExposure(galData,psfData,pixScale,noiVar)
+                exposure.writeFits('aa.fits')
+                src         =   self.readDataSim.measureSource(exposure)
+                wFlag       =   afwTable.SOURCE_IO_NO_FOOTPRINTS
+                src.writeFits(outFname,flags=wFlag)
+                del exposure,src
+                gc.collect()
+            else:
+                self.log.info('Already have the hsm measurement: %04d, %s' %(ifield,ishear))
+
+            outFname    =   os.path.join(outDir2,'src%04d-%s.fits' %(ifield,ishear))
+
+            if not os.path.exists(outFname) and self.config.doFPFS:
+                imgList=[galData[i//nn*ngrid+beg:i//nn*ngrid+end,i%nn*ngrid+beg:i%nn*ngrid+end] for i in range(ngal)]
+                out=fpTask.measure(imgList)
+                pyfits.writeto(outFname,out)
+                del out,imgList
+                gc.collect()
+
+            del galData,outFname
             gc.collect()
 
         '''
@@ -120,7 +167,7 @@ class processSimTask(pipeBase.CmdLineTask):
         '''
         return
 
-    def makeHSCExposure(self,galData,psfData,variance):
+    def makeHSCExposure(self,galData,psfData,pixScale,variance):
         ny,nx=galData.shape
         exposure    =   afwImg.ExposureF(nx,ny)
         exposure.getMaskedImage().getImage().getArray()[:,:]=galData
@@ -135,7 +182,7 @@ class processSimTask(pipeBase.CmdLineTask):
         exposure.setPsf(kernelPSF)
         #prepare the wcs
         #Rotation
-        cdelt   =   (0.168*afwGeom.arcseconds)
+        cdelt   =   (pixScale*afwGeom.arcseconds)
         CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
         #wcs
         crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
@@ -201,7 +248,7 @@ class processSimDriverTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processSim")
         pool.cacheClear()
-        fieldList=np.arange(50*index,50*(index+1))
+        fieldList=np.arange(100*index,100*(index+1))
         pool.map(self.process,fieldList)
         return
 

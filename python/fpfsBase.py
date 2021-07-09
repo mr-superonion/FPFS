@@ -145,7 +145,7 @@ class fpfsTask():
             for gal in galData:
                 _g=self.__measure(gal)
                 results.append(_g)
-            out =   np.vstack(results)
+            out =   rfn.stack_arrays(results,usemask=False)
             return out
 
     def __measure(self,arrayIn):
@@ -227,7 +227,7 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     #Response factor
     RE      =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_s0','>f8')]
-    ellDat  =   np.array(np.zeros((moments.size,1)),dtype=types)
+    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
     ellDat['fpfs_e1']=e1
     ellDat['fpfs_e2']=e2
     ellDat['fpfs_RE']=RE
@@ -265,7 +265,7 @@ def fpfsM2E_v2(moments,const=1.,mcalib=0.):
     R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
     RE      =   (R1+R2)/2.
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
-    ellDat  =   np.array(np.zeros((moments.size,1)),dtype=types)
+    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
     ellDat['fpfs_e1']=e1
     ellDat['fpfs_e2']=e2
     ellDat['fpfs_RE']=RE
