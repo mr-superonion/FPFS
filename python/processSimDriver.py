@@ -49,7 +49,7 @@ class processSimConfig(pexConfig.Config):
     "config"
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=False,
+        default=True,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
