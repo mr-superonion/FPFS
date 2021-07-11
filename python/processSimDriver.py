@@ -49,7 +49,7 @@ class processSimConfig(pexConfig.Config):
     "config"
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=True,
+        default=False,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
@@ -63,12 +63,11 @@ class processSimConfig(pexConfig.Config):
     )
     rootDir     = pexConfig.Field(
         dtype=str,
-        default="sim20210301/",
+        default="./",
         doc="Root Diectory"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-        self.readDataSim.rootDir=   self.rootDir
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   True
@@ -91,11 +90,12 @@ class processSimTask(pipeBase.CmdLineTask):
         ngal        =   nn*nn
         ngrid       =   64
         beta        =   0.75
-        noiVar      =   1e-3
+        noiVar      =   7e-3
+        opend       =   'var7em3'
         pixScale    =   0.168
         psfFWHM     =   '60'
         psfFWHMF    =   eval(psfFWHM)/100.
-        rcut        =   max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
+        rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
 
@@ -109,7 +109,8 @@ class processSimTask(pipeBase.CmdLineTask):
         noiFname    =   os.path.join(noiDir,'noi%04d.fits' %ifield)
         # multiply by 10 since the noise has variance 0.01
         noiData     =   pyfits.getdata(noiFname)*10.
-        powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar
+        # same for the noivar model
+        powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
         powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
         powModel[0] =   powIn
 
@@ -124,47 +125,43 @@ class processSimTask(pipeBase.CmdLineTask):
         # Task
         fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
 
-        outDir      =   os.path.join(self.config.rootDir,'src-psf%s-%s' %(psfFWHM,igroup))
-        if not os.path.isdir(outDir):
-            os.mkdir(outDir)
-        outDir2     =   os.path.join(self.config.rootDir,'fpfs-psfRcut-psf%s-%s' %(psfFWHM,igroup))
+        outDir1     =   os.path.join(self.config.rootDir,'outcome-%s' %opend,\
+                'src-psf%s-%s' %(psfFWHM,igroup))
+        if not os.path.isdir(outDir1):
+            os.mkdir(outDir1)
+        outDir2     =   os.path.join(self.config.rootDir,'outcome-%s' %opend,\
+                'fpfs-rcut16-psf%s-%s' %(psfFWHM,igroup))
         if not os.path.isdir(outDir2):
             os.mkdir(outDir2)
 
         isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         for ishear in isList:
-            outFname    =   os.path.join(outDir,'src%04d-%s.fits' %(ifield,ishear))
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)
+
+            outFname    =   os.path.join(outDir1,'src%04d-%s.fits' %(ifield,ishear))
             if not os.path.exists(outFname) and self.config.doHSM:
                 exposure    =   self.makeHSCExposure(galData,psfData,pixScale,noiVar)
-                exposure.writeFits('aa.fits')
                 src         =   self.readDataSim.measureSource(exposure)
                 wFlag       =   afwTable.SOURCE_IO_NO_FOOTPRINTS
                 src.writeFits(outFname,flags=wFlag)
                 del exposure,src
                 gc.collect()
             else:
-                self.log.info('Already have the hsm measurement: %04d, %s' %(ifield,ishear))
+                self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
 
             outFname    =   os.path.join(outDir2,'src%04d-%s.fits' %(ifield,ishear))
-
             if not os.path.exists(outFname) and self.config.doFPFS:
                 imgList=[galData[i//nn*ngrid+beg:i//nn*ngrid+end,i%nn*ngrid+beg:i%nn*ngrid+end] for i in range(ngal)]
                 out=fpTask.measure(imgList)
                 pyfits.writeto(outFname,out)
                 del out,imgList
                 gc.collect()
+            else:
+                self.log.info('Skipping FPFS measurement: %04d, %s' %(ifield,ishear))
 
             del galData,outFname
             gc.collect()
-
-        '''
-        dataStruct  =   self.readDataSim.readData(prepend)
-        if dataStruct is None:
-            self.log.info('failed to read data')
-            return
-        '''
         return
 
     def makeHSCExposure(self,galData,psfData,pixScale,variance):
