@@ -203,6 +203,9 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     #FPFS flux ratio
     s0      =   moments['fpfs_M00']/weight
     s4      =   moments['fpfs_M40']/weight
+    #FPFS sel Respose (part1)
+    e1sqS0  =   e1sq*s0
+    e2sqS0  =   e2sq*s0
 
     if rev:
         assert 'fpfs_N00N00' in moments.dtype.names
@@ -224,14 +227,24 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
         s4  =   (s4+moments['fpfs_N00N40']\
                 /weight**2.)/(1+ratio)
 
+        e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/weight**2.\
+                -s0*moments['fpfs_N22cN22c']/weight**2.)/(1+6.*ratio)
+        e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/weight**2.\
+                -s0*moments['fpfs_N22sN22s']/weight**2.)/(1+6.*ratio)
+
+    eSq     =   e1sq+e2sq
+    eSqS0   =   e1sqS0+e2sqS0
     #Response factor
     RE      =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
-    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_s0','>f8')]
+    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),\
+                ('fpfs_s0','>f8'), ('fpfs_eSq','>f8'), ('fpfs_eSqS0','>f8')]
     ellDat  =   np.array(np.zeros(moments.size),dtype=types)
     ellDat['fpfs_e1']=e1
     ellDat['fpfs_e2']=e2
     ellDat['fpfs_RE']=RE
     ellDat['fpfs_s0']=s0
+    ellDat['fpfs_eSq']=eSq
+    ellDat['fpfs_eSqS0']=eSqS0
     return ellDat
 
 def fpfsM2E_v2(moments,const=1.,mcalib=0.):
