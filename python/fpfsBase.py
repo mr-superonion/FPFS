@@ -237,18 +237,19 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     #Response factor
     RE      =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),\
-                ('fpfs_s0','>f8'), ('fpfs_eSq','>f8'), ('fpfs_eSqS0','>f8')]
+                ('fpfs_s0','>f8'), ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
     ellDat  =   np.array(np.zeros(moments.size),dtype=types)
-    ellDat['fpfs_e1']=e1
-    ellDat['fpfs_e2']=e2
-    ellDat['fpfs_RE']=RE
-    ellDat['fpfs_s0']=s0
-    ellDat['fpfs_eSq']=eSq
-    ellDat['fpfs_eSqS0']=eSqS0
+    ellDat['fpfs_e1']   =   e1
+    ellDat['fpfs_e2']   =   e2
+    ellDat['fpfs_RE']   =   RE
+    ellDat['fpfs_s0']   =   s0
+    ellDat['fpfs_eSquare']  =   eSq
+    ellDat['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
     return ellDat
 
-def fpfsM2E_v2(moments,const=1.,mcalib=0.):
+def fpfsM2E_v3(moments,const=1.,mcalib=0.):
     """
+    (Note: the implementation of this function is unfinished)
     # Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
