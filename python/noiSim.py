@@ -35,9 +35,8 @@ from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-
 class noiSimConfig(pexConfig.Config):
-    outDir      =   pexConfig.Field(dtype=str, default='sim20210301/noise/',\
+    outDir      =   pexConfig.Field(dtype=str, default='noise/',\
             doc = 'directory to store exposures')
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)

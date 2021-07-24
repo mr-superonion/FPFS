@@ -47,9 +47,11 @@ class cgcSimBasicRunner(TaskRunner):
         minGroup    =  parsedCmd.minGroup
         maxGroup    =  parsedCmd.maxGroup
         return [(ref, kwargs) for ref in range(minGroup,maxGroup)]
+
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
+
 class cgcSimBasicBatchTask(BatchPoolTask):
     ConfigClass = cgcSimBasicBatchConfig
     RunnerClass = cgcSimBasicRunner
@@ -68,7 +70,7 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimBasicBatch")
         pool.cacheClear()
-        expDir  =   "sim20210301/galaxy_basic_psf75"
+        expDir  =   "galaxy_basic_psf60"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
@@ -83,8 +85,11 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         return
 
     def process(self,cache,pend):
-        Id          =   cache.Id
-        outFname    =   os.path.join(cache.expDir,'image-%d-%s.fits' %(Id,pend))
+        irot        =   cache.Id//8
+        self.log.info('The rotating angle is %d degree' %(irot*90))
+        Id          =   int(cache.Id%8) # we only use 80000 galaxies
+        self.log.info('The ID for galaxies is %s' %Id)
+        outFname    =   os.path.join(cache.expDir,'image-%d-%s.fits' %(cache.Id,pend))
         if os.path.exists(outFname):
             self.log.info('Already have the outcome')
             return
@@ -137,6 +142,8 @@ class cgcSimBasicBatchTask(BatchPoolTask):
                 pass
             # each galaxy
             gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+            ang =   irot*np.pi/2.*galsim.radians
+            gal =   gal.rotate(ang)
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
