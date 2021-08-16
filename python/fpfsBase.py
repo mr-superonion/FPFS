@@ -247,6 +247,70 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     ellDat['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
     return ellDat
 
+def fpfsM2Err(moments,const=1.):
+    """
+    # Estimate FPFS measurement errors from the fpfs
+    # moments and the moments covariances
+
+    Parameters:
+    -----------
+    moments:    input FPFS moments     [float array]
+    const:      the weighting Constant [float]
+    mcalib:     multiplicative bias [float array]
+
+    Returns:
+    -------------
+    out :       an array of measurement error for,
+                FPFS ellipticity,
+                FPFS flux ratio
+    """
+    assert 'fpfs_N00N00' in moments.dtype.names
+    assert 'fpfs_N00N22c' in moments.dtype.names
+    assert 'fpfs_N00N22s' in moments.dtype.names
+    assert 'fpfs_N00N40' in moments.dtype.names
+
+    #Get weight
+    weight  =   moments['fpfs_M00']+const
+    #FPFS Ellipticity
+    e1      =   moments['fpfs_M22c']/weight
+    e2      =   moments['fpfs_M22s']/weight
+    #FPFS flux ratio
+    s0      =   moments['fpfs_M00']/weight
+    e1sq    =   e1*e1
+    e2sq    =   e2*e2
+    s0sq    =   s0*s0
+    ratio   =   moments['fpfs_N00N00']/weight**2.
+
+    e1Err    =   moments['fpfs_N22cN22c']/weight**2.\
+            -4.*e1*moments['fpfs_N00N22c']/weight**2.\
+            +3*ratio*e1sq
+    e2Err    =   moments['fpfs_N22sN22s']/weight**2.\
+            -4.*e2*moments['fpfs_N00N22s']/weight**2.\
+            +3*ratio*e2sq
+    s0Err    =   moments['fpfs_N00N00']/weight**2.\
+            -4.*s0*moments['fpfs_N00N00']/weight**2.\
+             +3*ratio*s0sq
+
+    e1s0Cov =   moments['fpfs_N00N22c']/weight**2.\
+            -2.*s0*moments['fpfs_N00N22c']/weight**2.\
+            -2.*e1*moments['fpfs_N00N00']/weight**2.\
+            +3*ratio*e1*s0
+
+    e2s0Cov =   moments['fpfs_N00N22s']/weight**2.\
+            -2.*s0*moments['fpfs_N00N22s']/weight**2.\
+            -2.*e2*moments['fpfs_N00N00']/weight**2.\
+            +3*ratio*e2*s0
+
+    types   =   [('fpfs_e1Err','>f8'),('fpfs_e2Err','>f8'),('fpfs_s0Err','>f8'),\
+                    ('fpfs_e1s0Cov','>f8'),('fpfs_e2s0Cov','>f8')]
+    errDat  =   np.array(np.zeros(moments.size),dtype=types)
+    errDat['fpfs_e1Err']   =   e1Err
+    errDat['fpfs_e2Err']   =   e2Err
+    errDat['fpfs_s0Err']   =   s0Err
+    errDat['fpfs_e1s0Cov'] =   e1s0Cov
+    errDat['fpfs_e2s0Cov'] =   e2s0Cov
+    return errDat
+
 def fpfsM2E_v3(moments,const=1.,mcalib=0.):
     """
     (Note: the implementation of this function is unfinished)
