@@ -134,8 +134,8 @@ class processSimTask(pipeBase.CmdLineTask):
         if not os.path.isdir(outDir2):
             os.mkdir(outDir2)
 
-        #isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
-        isList      =   ['g1-1111']
+        isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
+        #isList      =   ['g1-1111']
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)
