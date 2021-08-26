@@ -1,16 +1,9 @@
-# FPFS2
+# `FPFS`: Fourier Power Function Shaplets (A simple, accurate shear estimator)
 ----
 
-## Simulation
-### noise
+# Install
 
-### cgcBasic
-+ Isolated galaxies
-
-### cgcBlend
-+ Blended galaxy pairs
-
-### cgcCosmos
-+ Cosmos HST cgc blending
+python setup.py install
 
 
+# Example

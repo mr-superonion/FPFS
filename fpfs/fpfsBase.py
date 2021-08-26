@@ -1,4 +1,4 @@
-import fpfsImgutil as imgutil
+from . import imgutil
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
@@ -313,7 +313,8 @@ def fpfsM2Err(moments,const=1.):
 
 def fpfsM2E_v3(moments,const=1.,mcalib=0.):
     """
-    (Note: the implementation of this function is unfinished)
+    (This is for higher order shapelest moments
+    but the implementation of this function is unfinished)
     # Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
