@@ -15,7 +15,7 @@ import astropy.io.fits as pyfits
 # read PSF image
 psfData=pyfits.getdata('data/psf_test.fits')
 # setup the task
-fpTask=fpfsBase.fpfsTask(psfData)
+fpTask=fpfs.fpfsBase.fpfsTask(psfData)
 
 
 # read GAL image
