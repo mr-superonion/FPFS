@@ -14,3 +14,4 @@ notebook/*/.ipynb_checkpoints/*
 *.out
 *.pdf
 *.synctex.gz
+*.egg-info

@@ -6,7 +6,7 @@ setup(
     version='2.0.1',
     description='FPFS shear estimator',
     author='Xiangchong Li et al.',
-    author_email='xiangchong.li@ipmu.jp',
+    author_email='mr.superonion@hotmail.com',
     python_requires='>=3.6',
     install_requires=[
         'numpy',
