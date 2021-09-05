@@ -6,6 +6,15 @@
 pip install ./
 ```
 
+## optional dependency
+
+### Galsim
+Galsim package is used for galaxy image simulation
+to test the `FPFS` shear estimator.
+```shell
+pip install galsim
+```
+
 ## Example
 
 ```python
