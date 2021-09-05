@@ -3,6 +3,7 @@
 ## Install
 
 ```shell
+git clone https://github.com/mr-superonion/FPFS.git
 pip install ./
 ```
 
@@ -13,7 +14,6 @@ Galsim package is used for galaxy image simulation
 to test the `FPFS` shear estimator.
 
 ```shell
-git clone https://github.com/mr-superonion/FPFS.git
 pip install galsim
 ```
 
