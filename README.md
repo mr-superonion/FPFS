@@ -42,5 +42,5 @@ print(np.average(b['fpfs_e1'])/np.average(b['fpfs_RE']))
 ```
 
 ## Reference
-[version 2.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
-[version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
++ [version 2.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
++ [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
