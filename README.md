@@ -1,4 +1,4 @@
-# `FPFS`: Fourier Power Function Shaplets (A simple, accurate shear estimator)
+# `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 
 ## Install
 
@@ -11,7 +11,9 @@ pip install ./
 ### Galsim
 Galsim package is used for galaxy image simulation
 to test the `FPFS` shear estimator.
+
 ```shell
+git clone https://github.com/mr-superonion/FPFS.git
 pip install galsim
 ```
 
@@ -35,7 +37,6 @@ imgList=[galImgAll[i*64:(i+1)*64,0:64] for i in range(4)]
 a=fpTask.measure(imgList)
 
 # measure FPFS ellipticity, FPFS response
-
 C=100 # the weighting parameter
 b=fpfs.fpfsBase.fpfsM2E(a,C)
 print(np.average(b['fpfs_e1'])/np.average(b['fpfs_RE']))
