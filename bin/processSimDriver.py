@@ -23,7 +23,7 @@
 # python lib
 import os
 import gc
-import fpfsBase
+from fpfs import fpfsBase
 import numpy as np
 import astropy.io.fits as pyfits
 

@@ -257,7 +257,7 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     RE      =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),\
                 ('fpfs_s0','>f8'), ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
-    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
+    ellDat  =   np.array(np.zeros(len(moments)),dtype=types)
     ellDat['fpfs_e1']   =   e1
     ellDat['fpfs_e2']   =   e2
     ellDat['fpfs_RE']   =   RE
@@ -322,7 +322,7 @@ def fpfsM2Err(moments,const=1.):
 
     types   =   [('fpfs_e1Err','>f8'),('fpfs_e2Err','>f8'),('fpfs_s0Err','>f8'),\
                     ('fpfs_e1s0Cov','>f8'),('fpfs_e2s0Cov','>f8')]
-    errDat  =   np.array(np.zeros(moments.size),dtype=types)
+    errDat  =   np.array(np.zeros(len(moments)),dtype=types)
     errDat['fpfs_e1Err']   =   e1Err
     errDat['fpfs_e2Err']   =   e2Err
     errDat['fpfs_s0Err']   =   s0Err
@@ -363,7 +363,7 @@ def fpfsM2E_v3(moments,const=1.,mcalib=0.):
     R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
     RE      =   (R1+R2)/2.
     types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
-    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
+    ellDat  =   np.array(np.zeros(len(moments)),dtype=types)
     ellDat['fpfs_e1']=e1
     ellDat['fpfs_e2']=e2
     ellDat['fpfs_RE']=RE
