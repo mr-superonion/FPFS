@@ -103,6 +103,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         flux_scaling=   2.587
 
         # Get the shear information
+        # Three choice on g(-0.02,0,0.02)
         gList   =   np.array([-0.02,0.,0.02])
         gList   =   gList[[eval(i) for i in pend.split('-')[-1]]]
         self.log.info('Processing for %s' %pend)

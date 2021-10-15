@@ -45,7 +45,7 @@ from lsst.ctrl.pool.pool import Pool, abortOnError
 import lsst.obs.subaru.filterFraction
 from readDataSim import readDataSimTask
 
-class processSimConfig(pexConfig.Config):
+class processBasicConfig(pexConfig.Config):
     "config"
     doHSM   = pexConfig.Field(
         dtype=bool,
@@ -70,11 +70,11 @@ class processSimConfig(pexConfig.Config):
         pexConfig.Config.setDefaults(self)
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
-        self.readDataSim.doAddFP=   True
+        self.readDataSim.doAddFP=   False
 
-class processSimTask(pipeBase.CmdLineTask):
-    _DefaultName=   "processSim"
-    ConfigClass =   processSimConfig
+class processBasicTask(pipeBase.CmdLineTask):
+    _DefaultName=   "processBasic"
+    ConfigClass =   processBasicConfig
     def __init__(self,**kwargs):
         pipeBase.CmdLineTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
@@ -135,6 +135,8 @@ class processSimTask(pipeBase.CmdLineTask):
             os.mkdir(outDir2)
 
         isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
+        # This is for additive bias measurement
+        # Caution: need 90 deg pairs
         #isList      =   ['g1-1111']
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
@@ -208,15 +210,15 @@ class processSimTask(pipeBase.CmdLineTask):
         pass
 
 
-class processSimDriverConfig(pexConfig.Config):
-    processSim = pexConfig.ConfigurableField(
-        target = processSimTask,
-        doc = "processSim task to run on multiple cores"
+class processBasicDriverConfig(pexConfig.Config):
+    processBasic = pexConfig.ConfigurableField(
+        target = processBasicTask,
+        doc = "processBasic task to run on multiple cores"
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
 
-class processSimRunner(TaskRunner):
+class processBasicRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minIndex    =  parsedCmd.minIndex
@@ -227,10 +229,10 @@ def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
 
-class processSimDriverTask(BatchPoolTask):
-    ConfigClass = processSimDriverConfig
-    RunnerClass = processSimRunner
-    _DefaultName = "processSimDriver"
+class processBasicDriverTask(BatchPoolTask):
+    ConfigClass = processBasicDriverConfig
+    RunnerClass = processBasicRunner
+    _DefaultName = "processBasicDriver"
 
     def __reduce__(self):
         """Pickler"""
@@ -239,19 +241,19 @@ class processSimDriverTask(BatchPoolTask):
 
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        self.makeSubtask("processSim")
+        self.makeSubtask("processBasic")
 
     @abortOnError
     def runDataRef(self,index):
         #Prepare the pool
-        pool    =   Pool("processSim")
+        pool    =   Pool("processBasic")
         pool.cacheClear()
         fieldList=np.arange(100*index,100*(index+1))
         pool.map(self.process,fieldList)
         return
 
     def process(self,cache,prepend):
-        self.processSim.runDataRef(prepend)
+        self.processBasic.runDataRef(prepend)
         self.log.info('finish %s' %(prepend))
         return
 

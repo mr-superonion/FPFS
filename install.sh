@@ -9,6 +9,3 @@ export PATH="$Dir/bin/":$PATH
 export PYTHONPATH="$Dir/bin/":$PYTHONPATH
 export PYTHONPATH="$DirF/python/":$PYTHONPATH
 export PYTHONPATH="$DirM/python/":$PYTHONPATH
-#export PATH="$DirF/bin/":$PATH
-#export PATH="$DirM/bin/":$PATH
-#export PYTHONPATH="$Dir/fpfs/":$PYTHONPATH
