@@ -24,6 +24,7 @@
 import os
 import gc
 import numpy as np
+import imgSimutil as imgUtil
 import astropy.io.fits as pyfits
 
 # lsst Tasks
@@ -48,7 +49,7 @@ class processCosmoConfig(pexConfig.Config):
     "config"
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=False,
+        default=True,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
@@ -83,23 +84,21 @@ class processCosmoTask(pipeBase.CmdLineTask):
     def runDataRef(self,ifield):
         # Basic
         rootDir     =   self.config.rootDir
-        igroup      =   ifield//250
+        igroup      =   imgUtil.cosmoHSThpix[ifield//30]
+        #igroup      =   1744588
         self.log.info('running for group: %s, field: %s' %(igroup,ifield))
-        nn          =   100
-        ngal        =   nn*nn
         ngrid       =   64
+        ngridT      =   ngrid*100
         beta        =   0.75
-        noiVar      =   7e-3
-        opend       =   'var7em3'
+        noiVar      =   3.6e-3
+        opend       =   'var36em4'
         pixScale    =   0.168
         psfFWHM     =   '60'
         psfFWHMF    =   eval(psfFWHM)/100.
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
-        beg         =   ngrid//2-rcut
-        end         =   beg+2*rcut
 
         # necessary directories
-        galDir      =   os.path.join(self.config.rootDir,'galaxy_basic_psf%s' %psfFWHM)
+        galDir      =   os.path.join(self.config.rootDir,'galaxy_cosmo_psf%s' %psfFWHM)
         noiDir      =   os.path.join(self.config.rootDir,'noise')
         assert os.path.exists(galDir)
         assert os.path.exists(noiDir)
@@ -119,21 +118,18 @@ class processCosmoTask(pipeBase.CmdLineTask):
         npad        =   (ngrid-psfData.shape[0])//2
         psfData2    =   np.pad(psfData,(npad+1,npad),mode='constant')
         assert psfData2.shape[0]==ngrid
-        psfData2    =   psfData2[beg:end,beg:end]
 
-
-        outDir1     =   os.path.join(self.config.rootDir,'outcome-%s' %opend,\
+        outDir1     =   os.path.join(self.config.rootDir,'outCosmo-%s' %opend,\
                 'src-psf%s-%s' %(psfFWHM,igroup))
         if not os.path.isdir(outDir1):
             os.mkdir(outDir1)
 
-        isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
-        # This is for additive bias measurement
-        # Caution: need 90 deg pairs
-        #isList      =   ['g1-1111']
+        isList      =   ['g1-0000','g1-0002','g1-0020','g1-0200','g1-2000','g1-2222']
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
-            galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)
+            galData     =   pyfits.getdata(galFname)
+            ny,nx       =   galData.shape
+            galData     =   galData+noiData[0:ny,0:nx]*np.sqrt(noiVar)
             outFname    =   os.path.join(outDir1,'src%04d-%s.fits' %(ifield,ishear))
             if not os.path.exists(outFname) and self.config.doHSM:
                 exposure    =   self.makeHSCExposure(galData,psfData,pixScale,noiVar)
@@ -144,7 +140,6 @@ class processCosmoTask(pipeBase.CmdLineTask):
                 gc.collect()
             else:
                 self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
-
             del galData,outFname
             gc.collect()
         return
@@ -191,7 +186,6 @@ class processCosmoTask(pipeBase.CmdLineTask):
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
 
-
 class processCosmoDriverConfig(pexConfig.Config):
     processCosmo = pexConfig.ConfigurableField(
         target = processCosmoTask,
@@ -199,7 +193,6 @@ class processCosmoDriverConfig(pexConfig.Config):
     )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
-
 class processCosmoRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
@@ -228,9 +221,10 @@ class processCosmoDriverTask(BatchPoolTask):
         fieldList=np.arange(100*index,100*(index+1))
         pool.map(self.process,fieldList)
         return
-    def process(self,cache,prepend):
-        self.processCosmo.runDataRef(prepend)
-        self.log.info('finish %s' %(prepend))
+
+    def process(self,cache,ifield):
+        self.processCosmo.runDataRef(ifield)
+        self.log.info('finish %s' %(ifield))
         return
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
@@ -243,7 +237,6 @@ class processCosmoDriverTask(BatchPoolTask):
                         default=1,
                         help='maximum Index number')
         return parser
-
     @classmethod
     def batchWallTime(cls, time, parsedCmd, numCpus):
         return None

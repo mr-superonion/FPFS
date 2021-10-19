@@ -209,7 +209,6 @@ class processBasicTask(pipeBase.CmdLineTask):
     def writeEupsVersions(self, butler, clobber=False, doBackup=False):
         pass
 
-
 class processBasicDriverConfig(pexConfig.Config):
     processBasic = pexConfig.ConfigurableField(
         target = processBasicTask,
@@ -256,7 +255,6 @@ class processBasicDriverTask(BatchPoolTask):
         self.processBasic.runDataRef(prepend)
         self.log.info('finish %s' %(prepend))
         return
-
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
