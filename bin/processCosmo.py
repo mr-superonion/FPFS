@@ -93,12 +93,13 @@ class processCosmoTask(pipeBase.CmdLineTask):
         noiVar      =   3.6e-3
         opend       =   'var36em4'
         pixScale    =   0.168
-        psfFWHM     =   '60'
+        psfFWHM     =   '90'
         psfFWHMF    =   eval(psfFWHM)/100.
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
 
         # necessary directories
         galDir      =   os.path.join(self.config.rootDir,'galaxy_cosmo_psf%s' %psfFWHM)
+        galDir2     =   os.path.join(self.config.rootDir,'galaxy_cosmoE_psf%s' %psfFWHM)
         noiDir      =   os.path.join(self.config.rootDir,'noise')
         assert os.path.exists(galDir)
         assert os.path.exists(noiDir)
@@ -119,7 +120,7 @@ class processCosmoTask(pipeBase.CmdLineTask):
         psfData2    =   np.pad(psfData,(npad+1,npad),mode='constant')
         assert psfData2.shape[0]==ngrid
 
-        outDir1     =   os.path.join(self.config.rootDir,'outCosmo-%s' %opend,\
+        outDir1     =   os.path.join(self.config.rootDir,'outCosmoE-%s' %opend,\
                 'src-psf%s-%s' %(psfFWHM,igroup))
         if not os.path.isdir(outDir1):
             os.mkdir(outDir1)
@@ -128,8 +129,11 @@ class processCosmoTask(pipeBase.CmdLineTask):
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)
+            galFname2   =   os.path.join(galDir2,'image-%s-%s.fits' %(igroup,ishear))
+            galData2    =   pyfits.getdata(galFname2)
+            assert galData.shape==galData2.shape
             ny,nx       =   galData.shape
-            galData     =   galData+noiData[0:ny,0:nx]*np.sqrt(noiVar)
+            galData     =   galData+galData2+noiData[0:ny,0:nx]*np.sqrt(noiVar)
             outFname    =   os.path.join(outDir1,'src%04d-%s.fits' %(ifield,ishear))
             if not os.path.exists(outFname) and self.config.doHSM:
                 exposure    =   self.makeHSCExposure(galData,psfData,pixScale,noiVar)
@@ -140,7 +144,7 @@ class processCosmoTask(pipeBase.CmdLineTask):
                 gc.collect()
             else:
                 self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
-            del galData,outFname
+            del galData,galData2,outFname
             gc.collect()
         return
 

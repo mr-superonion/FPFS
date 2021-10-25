@@ -81,6 +81,7 @@ class reGaussCosmoMergeBatchTask(BatchPoolTask):
         pool.cacheClear()
         pool.storeSet(pend=pend)
         hpList  =  imgSimutil.cosmoHSThpix[:-1]
+        #hpList  =  imgSimutil.cosmoHSThpix[:67]
         #Prepare the pool
         pool.map(self.process,hpList)
         return
@@ -88,6 +89,9 @@ class reGaussCosmoMergeBatchTask(BatchPoolTask):
     @abortOnError
     def process(self,cache,pixId):
         self.log.info('processing healpix: %d' %pixId)
+        pend    =   cache.pend
+        inDir   =   os.path.join(self.config.rootDir,'outCosmo-var36em4','src-psf75-%s' %(pixId))
+        outFname=os.path.join(inDir,'stackAll-%s_2.fits' %pend)
         names=['ext_shapeHSM_HsmShapeRegauss_e1','ext_shapeHSM_HsmShapeRegauss_e2','base_SdssShape_x','base_SdssShape_y',\
            'modelfit_CModel_instFlux','modelfit_CModel_instFluxErr','ext_shapeHSM_HsmShapeRegauss_resolution']
         pltDir='../../galSim-HSC/s19/s19-1/anaCat_newS19Mask_fdeltacut/plot/optimize_weight/'
@@ -107,36 +111,66 @@ class reGaussCosmoMergeBatchTask(BatchPoolTask):
         del msk,xyRef
         gc.collect()
 
-        pend    =   cache.pend
-        inDir   =   os.path.join(self.config.rootDir,'outCosmo-var36em4','src-psf60-%s' %(pixId))
-        fnList  =   glob.glob(os.path.join(inDir,'*-%s.fits' %pend))
+        fnList  =   glob.glob(os.path.join(inDir,'src*-%s.fits' %pend))
         dataAll =   []
         for fname in fnList:
             assert os.path.isfile(fname)
-            data=Table.read(fname)
+            data=   self.readFits(fname)
             data['a_i']=0.
             wlmsk   =   catutil.get_wl_flags(data)
-            data    =   data[names][wlmsk]
+            data    =   data[names]
             xyDat   =   np.vstack([data['base_SdssShape_x'],data['base_SdssShape_y']]).T
             dis,inds=   tree.query(xyDat,k=1)
-            matcat  =   hstcat[inds]
-            mask    =   (dis<=(0.6/0.168))
+            mask    =   (dis<=(1.5/0.168))
+            dis     =   dis[mask]
+            inds    =   inds[mask]
             data    =   data[mask]
-            matcat  =   matcat[mask]
+            wlmsk   =   wlmsk[mask]
+            matcat  =   hstcat[inds]
             data    =   Table(data.as_array(), names=names)
             sigmae  =   catutil.get_sigma_e_model(data,pltDir)
-            data['i_hsmshaperegauss_derived_sigma_e']=   sigmae
             erms    =   catutil.get_erms_model(data,pltDir)
+            data['i_hsmshaperegauss_derived_sigma_e']=   sigmae
             data['i_hsmshaperegauss_derived_rms_e']  =   erms
             data['i_hsmshaperegauss_derived_weight'] =   1./(sigmae**2 + erms**2)
             data['mag_auto']    =   matcat['mag_auto']
             data['zphot']       =   matcat['zphot']
             data['cosmo_index'] =   matcat['index']
+            data['match_dPix']  =   dis
+            data['wlmask']      =   wlmsk
             dataAll.append(data)
-            del xyDat,dis,inds,mask,wlmsk,matcat
+            del xyDat,dis,inds,wlmsk,matcat,data
         dataAll=vstack(dataAll)
-        dataAll.write(os.path.join(inDir,'stackAll.fits'),overwrite=True)
+        dataAll.write(outFname,overwrite=True)
+        del dataAll,hstcat
+        gc.collect()
         return
+
+    def readFits(self,filename):
+        dd=Table.read(filename)
+        # Load the header to get proper name of flags
+        header = pyfits.getheader(filename, 1)
+        n_flag = dd["flags"].shape[1]
+        for i in range(n_flag):
+            dd[header["TFLAG%s" % (i+1)]] = dd["flags"][:, i]
+
+        # Then, apply mask for permissive cuts
+        mask =  (~(dd['base_SdssCentroid_flag'])) &\
+                (~dd['ext_shapeHSM_HsmShapeRegauss_flag']) &\
+                (dd['base_ClassificationExtendedness_value'] > 0) &\
+                (~np.isnan(dd['modelfit_CModel_instFlux']))&\
+                (~np.isnan(dd['modelfit_CModel_instFluxErr'])) &\
+                (~np.isnan(dd['ext_shapeHSM_HsmShapeRegauss_resolution'])) &\
+                (~np.isnan(dd['ext_shapeHSM_HsmPsfMoments_xx'])) &\
+                (~np.isnan(dd['ext_shapeHSM_HsmPsfMoments_yy'])) &\
+                (~np.isnan(dd['ext_shapeHSM_HsmPsfMoments_xy'])) &\
+                (~np.isnan(dd['base_Variance_value']))&\
+                (~np.isnan(dd['modelfit_CModel_instFlux']))&\
+                (~np.isnan(dd['modelfit_CModel_instFluxErr']))&\
+                (~np.isnan(dd['ext_shapeHSM_HsmShapeRegauss_resolution']))&\
+                (dd['deblend_nChild']  ==  0)
+        dd =   dd[mask]
+        return dd
 
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):

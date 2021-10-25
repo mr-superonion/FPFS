@@ -46,10 +46,12 @@ class cgcSimCosmoBatchConfig(pexConfig.Config):
 class cgcSimCosmoRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        minGroup    =  parsedCmd.minGroup
-        maxGroup    =  parsedCmd.maxGroup
-        hpList  =  imgSimutil.cosmoHSThpix
-        return [(ref, kwargs) for ref in hpList]
+        #Prepare the pool
+        p2List  =   ['0000','2222','2000','0200','0020','0002']
+        #p2List  =   ['0000','1111','2222','2000','0200','0020','0002','2111','1211','1121','1112']
+        p1List  =   ['g1'] #['g1','g2']
+        pendList=   ['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
+        return [(ref, kwargs) for ref in pendList]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
@@ -66,38 +68,36 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         return
 
     @abortOnError
-    def runDataRef(self,pixId):
-        self.log.info('begining for healPIX %d' %(pixId))
+    def runDataRef(self,pend):
+        self.log.info('begining for setup %s' %(pend))
         #Prepare the storeSet
         pool    =   Pool("cgcSimCosmoBatch")
         pool.cacheClear()
-        expDir  =   "galaxy_cosmo_psf60"
+        expDir  =   "galaxy_cosmoE_psf75"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
-        pool.storeSet(pixId=pixId)
+        pool.storeSet(pend=pend)
 
-        #Prepare the pool
-        p2List  =   ['0000','1111','2222','2000','0200','0020','0002','2111','1211','1121','1112']
-        p1List  =   ['g1','g2']
-        pendList=   ['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
-        pool.map(self.process,pendList)
-        self.log.info('finish healPIX %d' %(pixId))
+        hpList  =  imgSimutil.cosmoHSThpix
+        pool.map(self.process,hpList)
+        self.log.info('finish setup %s' %(pend))
         return
 
     @abortOnError
-    def process(self,cache,pend):
-        pixId   =   cache.pixId
+    def process(self,cache,pixId):
+
+        pend   =   cache.pend
         psfFWHM =   eval(cache.expDir.split('_psf')[-1])/100.
         outFname=   os.path.join(cache.expDir,'image-%d-%s.fits' %(pixId,pend))
 
         if os.path.isfile(outFname):
             self.log.info('Already have the outcome')
         else:
-            self.processExp(pixId,psfFWHM,outFname)
+            self.processExp(pixId,pend,psfFWHM,outFname)
         return
 
-    def processExp(self,pixId,psfFWHM,outFname)
+    def processExp(self,pixId,pend,psfFWHM,outFname):
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
         catName     =   'real_galaxy_catalog_25.2.fits'
@@ -112,7 +112,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         # Three choice on g(-0.02,0,0.02)
         gList   =   np.array([-0.02,0.,0.02])
         gList   =   gList[[eval(i) for i in pend.split('-')[-1]]]
-        self.log.info('Processing for %s' %pend)
+        self.log.info('Processing for pixId %d' %pixId)
         self.log.info('shear List is for %s' %gList)
 
         # PSF
@@ -122,7 +122,8 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
 
         pix_scale=  0.168
         # catalog
-        cosmo252=   imgSimutil.cosmoHSTGal('252')
+        trainName=  '252E' # 252
+        cosmo252=   imgSimutil.cosmoHSTGal(trainName)
         dd      =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
         nx      =   int(dd['dra']/pix_scale*3600.)+1
         ny      =   int(dd['ddec']/pix_scale*3600.)+1
@@ -131,6 +132,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
                 &(hscCat['xI']<nx-32)&(hscCat['yI']<ny-32)
         hscCat  =   hscCat[msk]
         del msk
+        self.log.info('total %d galaxies' %(len(hscCat)))
         zbound  =   [0.,0.561,0.906,1.374,5.410]
         gal_image   =   galsim.ImageF(nx,ny,scale=scale)
         gal_image.setOrigin(0,0)
@@ -143,9 +145,11 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
                 g1=0.
                 g2=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
             # each galaxy
-            self.log.info('%s' %ss['index'])
             gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
-            gal =   gal*flux_scaling
+            flux=   10**((27.-ss['mag_auto'])/2.5)
+            #self.log.info('%s' %(flux/gal.flux))
+            gal.withFlux(flux)
+            #gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
             gal =   gal.shift(ss['dx'],ss['dy'])
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
@@ -164,12 +168,6 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minGroup', type= int,
-                        default=0,
-                        help='minimum group number')
-        parser.add_argument('--maxGroup', type= int,
-                        default=1,
-                        help='maximum group number')
         return parser
     @classmethod
     def writeConfig(self, butler, clobber=False, doBackup=False):
