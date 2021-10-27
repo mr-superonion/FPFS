@@ -84,6 +84,8 @@ class processCosmoTask(pipeBase.CmdLineTask):
     def runDataRef(self,ifield):
         # Basic
         rootDir     =   self.config.rootDir
+        if ifield//30>=len(imgUtil.cosmoHSThpix):
+            return
         igroup      =   imgUtil.cosmoHSThpix[ifield//30]
         #igroup      =   1744588
         self.log.info('running for group: %s, field: %s' %(igroup,ifield))
@@ -93,7 +95,7 @@ class processCosmoTask(pipeBase.CmdLineTask):
         noiVar      =   3.6e-3
         opend       =   'var36em4'
         pixScale    =   0.168
-        psfFWHM     =   '90'
+        psfFWHM     =   '75'
         psfFWHMF    =   eval(psfFWHM)/100.
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
 
@@ -230,6 +232,7 @@ class processCosmoDriverTask(BatchPoolTask):
         self.processCosmo.runDataRef(ifield)
         self.log.info('finish %s' %(ifield))
         return
+
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)

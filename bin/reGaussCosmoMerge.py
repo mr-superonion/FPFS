@@ -80,7 +80,7 @@ class reGaussCosmoMergeBatchTask(BatchPoolTask):
         pool    =   Pool("reGaussCosmoMergeBatch")
         pool.cacheClear()
         pool.storeSet(pend=pend)
-        hpList  =  imgSimutil.cosmoHSThpix[:-1]
+        hpList  =  imgSimutil.cosmoHSThpix[:100]
         #hpList  =  imgSimutil.cosmoHSThpix[:67]
         #Prepare the pool
         pool.map(self.process,hpList)
@@ -90,8 +90,8 @@ class reGaussCosmoMergeBatchTask(BatchPoolTask):
     def process(self,cache,pixId):
         self.log.info('processing healpix: %d' %pixId)
         pend    =   cache.pend
-        inDir   =   os.path.join(self.config.rootDir,'outCosmo-var36em4','src-psf75-%s' %(pixId))
-        outFname=os.path.join(inDir,'stackAll-%s_2.fits' %pend)
+        inDir   =   os.path.join(self.config.rootDir,'outCosmoE-var36em4','src-psf90-%s' %(pixId))
+        outFname=   os.path.join(inDir,'stackAll-%s_2.fits' %pend)
         names=['ext_shapeHSM_HsmShapeRegauss_e1','ext_shapeHSM_HsmShapeRegauss_e2','base_SdssShape_x','base_SdssShape_y',\
            'modelfit_CModel_instFlux','modelfit_CModel_instFluxErr','ext_shapeHSM_HsmShapeRegauss_resolution']
         pltDir='../../galSim-HSC/s19/s19-1/anaCat_newS19Mask_fdeltacut/plot/optimize_weight/'
