@@ -86,16 +86,16 @@ class processCosmoTask(pipeBase.CmdLineTask):
         rootDir     =   self.config.rootDir
         if ifield//30>=len(imgUtil.cosmoHSThpix):
             return
-        igroup      =   imgUtil.cosmoHSThpix[ifield//30]
-        #igroup      =   1744588
-        self.log.info('running for group: %s, field: %s' %(igroup,ifield))
+        pixId      =   imgUtil.cosmoHSThpix[ifield//30]
+        #pixId      =   1744588
+        self.log.info('processing group: %s, field: %s' %(pixId,ifield))
         ngrid       =   64
         ngridT      =   ngrid*100
         beta        =   0.75
         noiVar      =   3.6e-3
         opend       =   'var36em4'
         pixScale    =   0.168
-        psfFWHM     =   '75'
+        psfFWHM     =   '60'
         psfFWHMF    =   eval(psfFWHM)/100.
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
 
@@ -123,21 +123,22 @@ class processCosmoTask(pipeBase.CmdLineTask):
         assert psfData2.shape[0]==ngrid
 
         outDir1     =   os.path.join(self.config.rootDir,'outCosmoE-%s' %opend,\
-                'src-psf%s-%s' %(psfFWHM,igroup))
+                'src-psf%s-%s' %(psfFWHM,pixId))
         if not os.path.isdir(outDir1):
             os.mkdir(outDir1)
 
         isList      =   ['g1-0000','g1-0002','g1-0020','g1-0200','g1-2000','g1-2222']
+        #isList      =   ['g1-0002']
         for ishear in isList:
-            galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
+            galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(pixId,ishear))
             galData     =   pyfits.getdata(galFname)
-            galFname2   =   os.path.join(galDir2,'image-%s-%s.fits' %(igroup,ishear))
+            galFname2   =   os.path.join(galDir2,'image-%s-%s.fits' %(pixId,ishear))
             galData2    =   pyfits.getdata(galFname2)
             assert galData.shape==galData2.shape
             ny,nx       =   galData.shape
             galData     =   galData+galData2+noiData[0:ny,0:nx]*np.sqrt(noiVar)
             outFname    =   os.path.join(outDir1,'src%04d-%s.fits' %(ifield,ishear))
-            if not os.path.exists(outFname) and self.config.doHSM:
+            if self.config.doHSM:
                 exposure    =   self.makeHSCExposure(galData,psfData,pixScale,noiVar)
                 src         =   self.readDataSim.measureSource(exposure)
                 wFlag       =   afwTable.SOURCE_IO_NO_FOOTPRINTS
@@ -148,6 +149,7 @@ class processCosmoTask(pipeBase.CmdLineTask):
                 self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
             del galData,galData2,outFname
             gc.collect()
+        self.log.info('finish group: %s, field: %s' %(pixId,ifield))
         return
 
     def makeHSCExposure(self,galData,psfData,pixScale,variance):
