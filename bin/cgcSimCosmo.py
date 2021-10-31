@@ -27,8 +27,7 @@ import galsim
 import fitsio
 import imgSimutil
 import numpy as np
-from pixel3D import cartesianGrid3D
-from configparser import ConfigParser
+import numpy.lib.recfunctions as rfn
 
 # lsst Tasks
 import lsst.pex.config as pexConfig
@@ -50,7 +49,9 @@ class cgcSimCosmoRunner(TaskRunner):
         p2List  =   ['0000','2222','2000','0200','0020','0002']
         #p2List  =   ['0000','1111','2222','2000','0200','0020','0002','2111','1211','1121','1112']
         p1List  =   ['g1'] #['g1','g2']
+        # TODO: remove
         pendList=   ['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
+        pendList  =  imgSimutil.cosmoHSThpix[4:5]
         return [(ref, kwargs) for ref in pendList]
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
@@ -73,21 +74,26 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimCosmoBatch")
         pool.cacheClear()
-        expDir  =   "galaxy_cosmoE_psf75"
+        expDir  =   "galaxy_cosmoE_psf150"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
         pool.storeSet(pend=pend)
 
-        hpList  =  imgSimutil.cosmoHSThpix
+        hpList  =  imgSimutil.cosmoHSThpix[4:5]
+        #TODO: remove
+        p2List  =   ['0000','2222','2000','0200','0020','0002']
+        p1List  =   ['g1'] #['g1','g2']
+        hpList  =   ['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
         pool.map(self.process,hpList)
         self.log.info('finish setup %s' %(pend))
         return
 
     @abortOnError
     def process(self,cache,pixId):
-
-        pend   =   cache.pend
+        #TODO: change
+        pend    =   pixId
+        pixId   =   cache.pend
         psfFWHM =   eval(cache.expDir.split('_psf')[-1])/100.
         outFname=   os.path.join(cache.expDir,'image-%d-%s.fits' %(pixId,pend))
 
@@ -106,7 +112,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         # Basic parameters
         scale       =   0.168
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
-        flux_scaling=   2.587
+        #flux_scaling=   2.587
 
         # Get the shear information
         # Three choice on g(-0.02,0,0.02)
@@ -124,20 +130,26 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         # catalog
         trainName=  '252E' # 252
         cosmo252=   imgSimutil.cosmoHSTGal(trainName)
-        dd      =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
-        nx      =   int(dd['dra']/pix_scale*3600.)+1
-        ny      =   int(dd['ddec']/pix_scale*3600.)+1
-        hscCat  =   cosmo252.readHpixSample(pixId)
-        msk     =   (hscCat['xI']>32)&(hscCat['yI']>32)\
-                &(hscCat['xI']<nx-32)&(hscCat['yI']<ny-32)
-        hscCat  =   hscCat[msk]
+        cosmo252E=  imgSimutil.cosmoHSTGal('252E')
+        info    =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
+        nx      =   int(info['dra']/pix_scale*3600.)+1
+        ny      =   int(info['ddec']/pix_scale*3600.)+1
+
+        cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
+        cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
+        hstCat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
+        del cat_tmp1,cat_tmp2
+        msk     =   (hstCat['xI']>32)&(hstCat['yI']>32)\
+                &(hstCat['xI']<nx-32)&(hstCat['yI']<ny-32)
+
+        hstCat  =   hstCat[msk]
         del msk
-        self.log.info('total %d galaxies' %(len(hscCat)))
+        self.log.info('total %d galaxies' %(len(hstCat)))
         zbound  =   [0.,0.561,0.906,1.374,5.410]
         gal_image   =   galsim.ImageF(nx,ny,scale=scale)
         gal_image.setOrigin(0,0)
 
-        for ss  in hscCat:
+        for ss  in hstCat:
             if pend.split('-')[0]=='g1':
                 g1=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
                 g2=0.
@@ -151,16 +163,20 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
             gal.withFlux(flux)
             #gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
-            gal =   gal.shift(ss['dx'],ss['dy'])
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
+            gPix=   gal.getGoodImageSize(scale)
+            rx1 =   np.min([gPix//2,ss['xI']])
+            ry1 =   np.min([gPix//2,ss['yI']])
+            rx2 =   np.min([gPix//2,nx-ss['xI']-1])
+            ry2 =   np.min([gPix//2,ny-ss['yI']-1])
             # draw galaxy
-            b   =   galsim.BoundsI(ss['xI']-32,ss['xI']+32,ss['yI']-32,ss['yI']+32)
+            b   =   galsim.BoundsI(ss['xI']-rx1,ss['xI']+rx2,ss['yI']-ry1,ss['yI']+ry2)
             sub_img =   gal_image[b]
             gal.drawImage(sub_img,add_to_image=True)
             del gal,b,sub_img
             gc.collect()
         gal_image.write(outFname,clobber=True)
-        del hscCat,cosmos_cat,cosmo252,psfInt
+        del hstCat,cosmos_cat,cosmo252,cosmo252E,psfInt,gal_image
         gc.collect()
         return
 

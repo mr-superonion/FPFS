@@ -75,7 +75,7 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
 
     @abortOnError
     def runDataRef(self,pend):
-        psfFWHM =   90
+        psfFWHM =   120
         self.log.info('beginning for %s, seeing %d: ' %(pend,psfFWHM))
         #Prepare the storeSet
         pool    =   Pool("reGaussCosmoMeasBatch")
@@ -83,12 +83,12 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         pool.storeSet(pend=pend)
         pool.storeSet(psfFWHM=psfFWHM)
         #Prepare the pool
-        resList =   pool.map(self.process,np.arange(4000))
+        resList =   pool.map(self.process,np.arange(100))
         resList =   [x for x in resList if x is not None]
         if len(resList)>1:
             newTab  =   Table(rows=resList,names=('e1_z1','n_z1',\
                     'e1_z2','n_z2','e1_z3','n_z3','e1_z4','n_z4'))
-            outDir  =   os.path.join(self.config.rootDir,'outCosmoE-var36em4','mag235-res03-bm38')
+            outDir  =   os.path.join(self.config.rootDir,'outCosmoE-var36em4','mag245-res03-bm38')
             finOname=   os.path.join(outDir,'e1_%s_psf%d.fits' %(pend,psfFWHM))
             newTab.write(finOname,overwrite=True)
         return
@@ -96,10 +96,11 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
     @abortOnError
     def process(self,cache,ifield):
         hpList  =   imgSimutil.cosmoHSThpix
-        nhp     =   len(hpList)
-        if int(ifield//30>=nhp):
-            return
-        pixId   =   hpList[ifield//30]
+        #nhp     =   len(hpList)
+        #if int(ifield//30>=nhp):
+        #    return
+        #pixId   =   hpList[ifield//30]
+        pixId   =   1743743
         self.log.info('process healpix: %d, field: %d ' %(pixId,ifield))
         pend    =   cache.pend
         psfFWHM =   cache.psfFWHM
@@ -149,15 +150,16 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         dd      =   self.readFits(fname)
         xyDat   =   np.vstack([dd['base_SdssShape_x'],dd['base_SdssShape_y']]).T
         dis,inds=   tree.query(xyDat,k=1)
-        mask    =   (dis<=(0.8/0.168))
+        mask    =   (dis<=(0.6/0.168))
         dis     =   dis[mask]
         inds    =   inds[mask]
         dd      =   dd[mask]
 
-        wlmsk   =   (catutil.get_imag(dd) < 23.5) & \
+        wlmsk   =   (catutil.get_imag(dd) < 24.5) & \
             (catutil.get_abs_ellip(dd) <= 2.)   & \
             (catutil.get_res(dd) >= 0.3)        & \
             (catutil.get_snr(dd) >= 10.)        & \
+            (catutil.get_imag_A10(dd)<25.5)     & \
             (catutil.get_logb(dd)<= -0.38)
         dd      =   dd[wlmsk]
         inds    =   inds[wlmsk]
