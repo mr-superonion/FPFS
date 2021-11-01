@@ -74,7 +74,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimCosmoBatch")
         pool.cacheClear()
-        expDir  =   "galaxy_cosmoE_psf150"
+        expDir  =   "galaxy_cosmoR_psfHSC"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
@@ -94,23 +94,20 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         #TODO: change
         pend    =   pixId
         pixId   =   cache.pend
-        psfFWHM =   eval(cache.expDir.split('_psf')[-1])/100.
         outFname=   os.path.join(cache.expDir,'image-%d-%s.fits' %(pixId,pend))
-
         if os.path.isfile(outFname):
             self.log.info('Already have the outcome')
         else:
-            self.processExp(pixId,pend,psfFWHM,outFname)
+            self.processExp(pixId,pend,cache.expDir,outFname)
         return
 
-    def processExp(self,pixId,pend,psfFWHM,outFname):
+    def processExp(self,pixId,pend,outDir,outFname):
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
         catName     =   'real_galaxy_catalog_25.2.fits'
         cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
         # Basic parameters
-        scale       =   0.168
         bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         #flux_scaling=   2.587
 
@@ -122,23 +119,35 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         self.log.info('shear List is for %s' %gList)
 
         # PSF
-        self.log.info('The FHWM for PSF is: %s arcsec'%psfFWHM)
-        psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
-        psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
-
         pix_scale=  0.168
+        try:
+            psfFWHM =   eval(outDir.split('_psf')[-1])/100.
+            self.log.info('The FHWM for PSF is: %s arcsec'%psfFWHM)
+            psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
+            psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
+        except:
+            self.log.info('Use HSC PSF')
+            psfFname=   os.path.join(outDir,'psf-HSC.fits')
+            psfImg  =   galsim.fits.read(psfFname)
+            psfInt  =   galsim.InterpolatedImage(psfImg,scale=pix_scale,flux = 1.)
+
         # catalog
-        trainName=  '252E' # 252
-        cosmo252=   imgSimutil.cosmoHSTGal(trainName)
+        cosmo252=   imgSimutil.cosmoHSTGal('252')
         cosmo252E=  imgSimutil.cosmoHSTGal('252E')
+
         info    =   cosmo252.hpInfo[cosmo252.hpInfo['pix']==pixId]
         nx      =   int(info['dra']/pix_scale*3600.)+1
         ny      =   int(info['ddec']/pix_scale*3600.)+1
 
-        cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
-        cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
-        hstCat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
-        del cat_tmp1,cat_tmp2
+        if 'cosmoE' in outDir:
+            #cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
+            #cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
+            #hstCat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
+            #del cat_tmp1,cat_tmp2
+            hstCat  =   fitsio.read('hstcatE.fits')
+        elif 'cosmoR' in outDir:
+            hstCat  =   fitsio.read('hstcatR.fits')
+
         msk     =   (hstCat['xI']>32)&(hstCat['yI']>32)\
                 &(hstCat['xI']<nx-32)&(hstCat['yI']<ny-32)
 
@@ -146,7 +155,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         del msk
         self.log.info('total %d galaxies' %(len(hstCat)))
         zbound  =   [0.,0.561,0.906,1.374,5.410]
-        gal_image   =   galsim.ImageF(nx,ny,scale=scale)
+        gal_image   =   galsim.ImageF(nx,ny,scale=pix_scale)
         gal_image.setOrigin(0,0)
 
         for ss  in hstCat:
@@ -158,13 +167,13 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
                 g2=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
             # each galaxy
             gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+            #gal=   gal*flux_scaling
             flux=   10**((27.-ss['mag_auto'])/2.5)
+            gal =   gal.withFlux(flux)
             #self.log.info('%s' %(flux/gal.flux))
-            gal.withFlux(flux)
-            #gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-            gPix=   gal.getGoodImageSize(scale)
+            gPix=   gal.getGoodImageSize(pix_scale)
             rx1 =   np.min([gPix//2,ss['xI']])
             ry1 =   np.min([gPix//2,ss['yI']])
             rx2 =   np.min([gPix//2,nx-ss['xI']-1])

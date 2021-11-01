@@ -75,20 +75,24 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
 
     @abortOnError
     def runDataRef(self,pend):
-        psfFWHM =   120
+        psfFWHM =   60
+        npend   =   'outCosmoE-var36em4'
+        outDir  =   os.path.join(self.config.rootDir,npend,'mag245-res03-bm38')
+        if not os.path.isdir(outDir):
+            os.mkdir(outDir)
         self.log.info('beginning for %s, seeing %d: ' %(pend,psfFWHM))
         #Prepare the storeSet
         pool    =   Pool("reGaussCosmoMeasBatch")
         pool.cacheClear()
         pool.storeSet(pend=pend)
         pool.storeSet(psfFWHM=psfFWHM)
+        pool.storeSet(npend=npend)
         #Prepare the pool
-        resList =   pool.map(self.process,np.arange(100))
+        resList =   pool.map(self.process,np.arange(200))
         resList =   [x for x in resList if x is not None]
         if len(resList)>1:
             newTab  =   Table(rows=resList,names=('e1_z1','n_z1',\
                     'e1_z2','n_z2','e1_z3','n_z3','e1_z4','n_z4'))
-            outDir  =   os.path.join(self.config.rootDir,'outCosmoE-var36em4','mag245-res03-bm38')
             finOname=   os.path.join(outDir,'e1_%s_psf%d.fits' %(pend,psfFWHM))
             newTab.write(finOname,overwrite=True)
         return
@@ -103,8 +107,9 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         pixId   =   1743743
         self.log.info('process healpix: %d, field: %d ' %(pixId,ifield))
         pend    =   cache.pend
+        npend   =   cache.npend
         psfFWHM =   cache.psfFWHM
-        inDir   =   os.path.join(self.config.rootDir,'outCosmoE-var36em4','src-psf%d-%s' %(psfFWHM,pixId))
+        inDir   =   os.path.join(self.config.rootDir,npend,'src-psf%d-%s' %(psfFWHM,pixId))
         fname   =   os.path.join(inDir,'src%04d-%s.fits' %(ifield,pend))
         assert os.path.isfile(fname)
         data    =   self.readMatch(fname,pixId)
@@ -137,10 +142,13 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         nx      =   int(info['dra']/pix_scale)
         ny      =   int(info['ddec']/pix_scale)
 
-        cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto']]
-        cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto']]
-        hstcat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
-        del cat_tmp1,cat_tmp2
+        if False:
+            cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto']]
+            cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto']]
+            hstcat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
+            del cat_tmp1,cat_tmp2
+        else:
+            hstcat  =   pyfits.getdata('hstcatE.fits')
         msk     =   (hstcat['xI']>32)&(hstcat['yI']>32)&(hstcat['xI']<nx-32)&(hstcat['yI']<ny-32)
         hstcat  =   hstcat[msk]
         xyRef   =   np.vstack([hstcat['xI'],hstcat['yI']]).T
@@ -150,7 +158,7 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         dd      =   self.readFits(fname)
         xyDat   =   np.vstack([dd['base_SdssShape_x'],dd['base_SdssShape_y']]).T
         dis,inds=   tree.query(xyDat,k=1)
-        mask    =   (dis<=(0.6/0.168))
+        mask    =   (dis<=(0.85/0.168))
         dis     =   dis[mask]
         inds    =   inds[mask]
         dd      =   dd[mask]

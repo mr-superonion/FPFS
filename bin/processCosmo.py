@@ -90,10 +90,9 @@ class processCosmoTask(pipeBase.CmdLineTask):
         pixId       =   1743743
         self.log.info('processing group: %s, field: %s' %(pixId,ifield))
         ngrid       =   64
-        ngridT      =   ngrid*100
         beta        =   0.75
-        noiVar      =   7e-3#3.6e-3#
-        opend       =   'var70em4'
+        noiVar      =   3.6e-3#7e-3#
+        opend       =   'var36em4'
         pixScale    =   0.168
         psfFWHM     =   '60'
         psfFWHMF    =   eval(psfFWHM)/100.
@@ -127,7 +126,6 @@ class processCosmoTask(pipeBase.CmdLineTask):
             os.mkdir(outDir1)
 
         isList      =   ['g1-0000','g1-0002','g1-0020','g1-0200','g1-2000','g1-2222']
-        #isList      =   ['g1-0002']
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(pixId,ishear))
             galData     =   pyfits.getdata(galFname)
@@ -222,7 +220,7 @@ class processCosmoDriverTask(BatchPoolTask):
         #Prepare the pool
         pool    =   Pool("processCosmo")
         pool.cacheClear()
-        fieldList=np.arange(100*index,100*(index+1))
+        fieldList=np.arange(200*index,200*(index+1))
         pool.map(self.process,fieldList)
         return
 
