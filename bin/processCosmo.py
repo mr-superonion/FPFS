@@ -92,14 +92,12 @@ class processCosmoTask(pipeBase.CmdLineTask):
         ngrid       =   64
         beta        =   0.75
         noiVar      =   3.6e-3#7e-3#
-        opend       =   'var36em4'
+        opend       =   'var%dem4' %int(noiVar*1e4+0.5)
         pixScale    =   0.168
-        psfFWHM     =   '60'
-        psfFWHMF    =   eval(psfFWHM)/100.
-        rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
+        psfFWHM     =   'HSC'#'60'
 
         # necessary directories
-        galDir      =   os.path.join(self.config.rootDir,'galaxy_cosmoE_psf%s' %psfFWHM)
+        galDir      =   os.path.join(self.config.rootDir,'galaxy_cosmoR_psf%s' %psfFWHM)
         noiDir      =   os.path.join(self.config.rootDir,'noise')
         assert os.path.exists(galDir)
         assert os.path.exists(noiDir)
@@ -108,10 +106,6 @@ class processCosmoTask(pipeBase.CmdLineTask):
         noiFname    =   os.path.join(noiDir,'noi%04d.fits' %ifield)
         # multiply by 10 since the noise has variance 0.01
         noiData     =   pyfits.getdata(noiFname)*10.
-        # same for the noivar model
-        powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
-        powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
-        powModel[0] =   powIn
 
         # PSF
         psfFname    =   os.path.join(galDir,'psf-%s.fits' %psfFWHM)
@@ -120,8 +114,12 @@ class processCosmoTask(pipeBase.CmdLineTask):
         psfData2    =   np.pad(psfData,(npad+1,npad),mode='constant')
         assert psfData2.shape[0]==ngrid
 
-        outDir1     =   os.path.join(self.config.rootDir,'outCosmoE-%s' %opend,\
-                'src-psf%s-%s' %(psfFWHM,pixId))
+        if 'cosmoE' in galDir:
+            outDir1     =   os.path.join(self.config.rootDir,'outCosmoE-%s' %opend,\
+                    'src-psf%s-%s' %(psfFWHM,pixId))
+        elif 'cosmoR' in galDir:
+            outDir1     =   os.path.join(self.config.rootDir,'outCosmoR-%s' %opend,\
+                    'src-psf%s-%s' %(psfFWHM,pixId))
         if not os.path.isdir(outDir1):
             os.mkdir(outDir1)
 

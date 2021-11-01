@@ -75,12 +75,12 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
 
     @abortOnError
     def runDataRef(self,pend):
-        psfFWHM =   60
+        psfFWHM =   'HSC'#'60'
         npend   =   'outCosmoE-var36em4'
         outDir  =   os.path.join(self.config.rootDir,npend,'mag245-res03-bm38')
         if not os.path.isdir(outDir):
             os.mkdir(outDir)
-        self.log.info('beginning for %s, seeing %d: ' %(pend,psfFWHM))
+        self.log.info('beginning for %s, seeing %s: ' %(pend,psfFWHM))
         #Prepare the storeSet
         pool    =   Pool("reGaussCosmoMeasBatch")
         pool.cacheClear()
@@ -93,7 +93,7 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         if len(resList)>1:
             newTab  =   Table(rows=resList,names=('e1_z1','n_z1',\
                     'e1_z2','n_z2','e1_z3','n_z3','e1_z4','n_z4'))
-            finOname=   os.path.join(outDir,'e1_%s_psf%d.fits' %(pend,psfFWHM))
+            finOname=   os.path.join(outDir,'e1_%s_psf%s.fits' %(pend,psfFWHM))
             newTab.write(finOname,overwrite=True)
         return
 
@@ -109,7 +109,7 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         pend    =   cache.pend
         npend   =   cache.npend
         psfFWHM =   cache.psfFWHM
-        inDir   =   os.path.join(self.config.rootDir,npend,'src-psf%d-%s' %(psfFWHM,pixId))
+        inDir   =   os.path.join(self.config.rootDir,npend,'src-psf%s-%s' %(psfFWHM,pixId))
         fname   =   os.path.join(inDir,'src%04d-%s.fits' %(ifield,pend))
         assert os.path.isfile(fname)
         data    =   self.readMatch(fname,pixId)
@@ -148,7 +148,10 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
             hstcat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
             del cat_tmp1,cat_tmp2
         else:
-            hstcat  =   pyfits.getdata('hstcatE.fits')
+            if 'CosmoE' in fname:
+                hstcat  =   pyfits.getdata('hstcatE.fits')
+            elif 'CosmoR' in fname:
+                hstcat  =   pyfits.getdata('hstcatR.fits')
         msk     =   (hstcat['xI']>32)&(hstcat['yI']>32)&(hstcat['xI']<nx-32)&(hstcat['yI']<ny-32)
         hstcat  =   hstcat[msk]
         xyRef   =   np.vstack([hstcat['xI'],hstcat['yI']]).T
