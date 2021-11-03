@@ -1,6 +1,4 @@
 *.pyc
-__*
-*__
 *.swp
 wrkDir
 datDir
