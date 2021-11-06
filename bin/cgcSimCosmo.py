@@ -74,7 +74,7 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimCosmoBatch")
         pool.cacheClear()
-        expDir  =   "galaxy_cosmoR_psfHSC"
+        expDir  =   "galaxy_cosmoR_psf105"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
@@ -139,11 +139,11 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         nx      =   int(info['dra']/pix_scale*3600.)+1
         ny      =   int(info['ddec']/pix_scale*3600.)+1
 
+        #cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
+        #cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
+        #hstCat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
+        #del cat_tmp1,cat_tmp2
         if 'cosmoE' in outDir:
-            #cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
-            #cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto','index']]
-            #hstCat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
-            #del cat_tmp1,cat_tmp2
             hstCat  =   fitsio.read('hstcatE.fits')
         elif 'cosmoR' in outDir:
             hstCat  =   fitsio.read('hstcatR.fits')
@@ -154,17 +154,19 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         hstCat  =   hstCat[msk]
         del msk
         self.log.info('total %d galaxies' %(len(hstCat)))
-        zbound  =   [0.,0.561,0.906,1.374,5.410]
+        #zbound  =   np.array([0.,0.561,0.906,1.374,5.410]) #before sim3
+        zbound  =   np.array([0.005,0.5477,0.8874,1.3119,3.0]) #sim 3
         gal_image   =   galsim.ImageF(nx,ny,scale=pix_scale)
         gal_image.setOrigin(0,0)
 
         for ss  in hstCat:
-            if pend.split('-')[0]=='g1':
-                g1=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
-                g2=0.
-            elif pend.split('-')[0]=='g2':
-                g1=0.
-                g2=gList[np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]][0]
+            g1  =   0.; g2  = 0.
+            gInd=   np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]
+            if len(gInd)==1:
+                if pend.split('-')[0]=='g1':
+                    g1=gList[gInd][0]
+                elif pend.split('-')[0]=='g2':
+                    g2=gList[gInd][0]
             # each galaxy
             gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
             #gal=   gal*flux_scaling
