@@ -94,7 +94,7 @@ class processCosmoTask(pipeBase.CmdLineTask):
         noiVar      =   3.6e-3#7e-3#
         opend       =   'var%dem4' %int(noiVar*1e4+0.5)
         pixScale    =   0.168
-        psfFWHM     =   'HSC'#'60'
+        psfFWHM     =   '105'#'HSC'
 
         # necessary directories
         galDir      =   os.path.join(self.config.rootDir,'galaxy_cosmoR_psf%s' %psfFWHM)

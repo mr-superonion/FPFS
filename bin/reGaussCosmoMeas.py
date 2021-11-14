@@ -75,9 +75,9 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
 
     @abortOnError
     def runDataRef(self,pend):
-        psfFWHM =   'HSC'#'60'
-        npend   =   'outCosmoE-var36em4'
-        outDir  =   os.path.join(self.config.rootDir,npend,'mag245-res03-bm38')
+        psfFWHM =   '60'#'60','HSC'
+        npend   =   'outCosmoR-var36em4'
+        outDir  =   os.path.join(self.config.rootDir,npend,'mag245-res03-bm38-dis4')
         if not os.path.isdir(outDir):
             os.mkdir(outDir)
         self.log.info('beginning for %s, seeing %s: ' %(pend,psfFWHM))
@@ -88,7 +88,7 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         pool.storeSet(psfFWHM=psfFWHM)
         pool.storeSet(npend=npend)
         #Prepare the pool
-        resList =   pool.map(self.process,np.arange(200))
+        resList =   pool.map(self.process,np.arange(1000))
         resList =   [x for x in resList if x is not None]
         if len(resList)>1:
             newTab  =   Table(rows=resList,names=('e1_z1','n_z1',\
@@ -114,7 +114,8 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         assert os.path.isfile(fname)
         data    =   self.readMatch(fname,pixId)
 
-        zbound  =   np.array([0.,0.561,0.906,1.374,5.410])
+        #zbound  =   np.array([0.,0.561,0.906,1.374,5.410])     #before sim 3
+        zbound  =   np.array([0.005,0.5477,0.8874,1.3119,3.0]) #sim 3
         nzs     =   len(zbound)-1
         eAll    =   ()
         for iz in range(nzs):
@@ -142,16 +143,11 @@ class reGaussCosmoMeasBatchTask(BatchPoolTask):
         nx      =   int(info['dra']/pix_scale)
         ny      =   int(info['ddec']/pix_scale)
 
-        if False:
-            cat_tmp1=   cosmo252.readHpixSample(pixId)[['xI','yI','zphot','mag_auto']]
-            cat_tmp2=   cosmo252E.readHpixSample(pixId)[['xI','yI','zphot','mag_auto']]
-            hstcat  =   rfn.stack_arrays([cat_tmp1,cat_tmp2],usemask=False,autoconvert=True)
-            del cat_tmp1,cat_tmp2
-        else:
-            if 'CosmoE' in fname:
-                hstcat  =   pyfits.getdata('hstcatE.fits')
-            elif 'CosmoR' in fname:
-                hstcat  =   pyfits.getdata('hstcatR.fits')
+        if 'CosmoE' in fname:
+            hstcat  =   pyfits.getdata('hstcatE-dis4.fits')
+        elif 'CosmoR' in fname:
+            hstcat  =   pyfits.getdata('hstcatR-dis4.fits')
+
         msk     =   (hstcat['xI']>32)&(hstcat['yI']>32)&(hstcat['xI']<nx-32)&(hstcat['yI']<ny-32)
         hstcat  =   hstcat[msk]
         xyRef   =   np.vstack([hstcat['xI'],hstcat['yI']]).T
