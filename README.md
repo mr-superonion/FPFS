@@ -1,10 +1,17 @@
 # `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 
-## Install
-
+## Download
 ```shell
 git clone https://github.com/mr-superonion/FPFS.git
+```
+
+## Install
+```shell
 pip install ./
+```
+or
+```shell
+python ./setup.py install
 ```
 
 ## optional dependency
@@ -15,10 +22,6 @@ to test the `FPFS` shear estimator.
 
 ```shell
 pip install galsim
-```
-or
-```shell
-python ./setup.py install
 ```
 
 ## Example for a noiseless galaxy
