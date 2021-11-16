@@ -16,6 +16,10 @@ to test the `FPFS` shear estimator.
 ```shell
 pip install galsim
 ```
+or
+```shell
+python ./setup.py install
+```
 
 ## Example for a noiseless galaxy
 
