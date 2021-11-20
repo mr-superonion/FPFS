@@ -196,7 +196,7 @@ class fpfsTask():
             mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
         return mm
 
-def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
+def fpfsM2E(moments,const=1.,mcalib=0.,rev=False,flipsign=False):
     """
     # Estimate FPFS ellipticities from fpfs moments
 
@@ -205,6 +205,10 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     moments:    input FPFS moments     [float array]
     const:      the weighting Constant [float]
     mcalib:     multiplicative bias [float array]
+    rev:        revise the second-order noise bias? [bool]
+    flipsign:   flip the sign of response? [bool]
+                (if you are using the convention in paper 1,
+                set it to True)
 
     Returns:
     -------------
@@ -260,7 +264,8 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False):
     ellDat  =   np.array(np.zeros(moments.size),dtype=types)
     ellDat['fpfs_e1']   =   e1
     ellDat['fpfs_e2']   =   e2
-    ellDat['fpfs_RE']   =   RE
+    # In Li et. al (2018) there is a minus sign difference
+    ellDat['fpfs_RE']   =   RE*(2.*flipsign.real-1.)
     ellDat['fpfs_s0']   =   s0
     ellDat['fpfs_eSquare']  =   eSq
     ellDat['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)

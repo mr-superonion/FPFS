@@ -1,7 +1,10 @@
 import galsim
 import numpy as np
 import astropy.io.fits as pyfits
-
+r'''
+This code simulate four noiseless galaxies with 45 degree difference in
+orientation and distort by gamma=(0.02,0) to test the FPFS code.
+'''
 ngrid       =   64
 nx          =   1
 ny          =   4
@@ -39,7 +42,7 @@ while i <ndata:
         gal0    =   gal0.rotate(ang)
     else:
         gal0    =   gal0.rotate(1./nrot*np.pi*galsim.radians)
-    gal1        =   gal0.shear(g1=-0.02,g2=0.)
+    gal1        =   gal0.shear(g1=0.02,g2=0.)
     final1      =   galsim.Convolve([psfInt,gal1],gsparams=bigfft)
     final1.drawImage(sub_image)
     i   +=  1
