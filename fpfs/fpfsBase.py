@@ -40,9 +40,9 @@ class fpfsTask():
 
     def __prepareRlim(self):
         """
-        # Get rlim, the area outside rlim is supressed by
-        # the shaplet Gaussian kerenl
-        # (part of __init__)
+        # Get rlim, the area outside rlim is supressed by the shaplet Gaussian
+        # kerenl (part of __init__)
+
         """
         thres   =   1.e-3
         for dist in range(self.ngrid//5,self.ngrid//2-1):
@@ -76,6 +76,8 @@ class fpfsTask():
 
         Returns :
             Deconvolved galaxy power (truncated at rlim)
+
+
         """
         out  =   np.zeros(arrayIn.shape,dtype=np.float64)
         out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]**order
@@ -89,8 +91,9 @@ class fpfsTask():
 
         Returns:
             projection in shapelet space
-        """
 
+
+        """
         # Moments
         _chiU   =   self.chi[self._indC,self._indY,self._indX]
         chiUList=   []
@@ -122,6 +125,8 @@ class fpfsTask():
 
         Returns:
             projection in shapelet space
+
+
         """
 
         # Moments
@@ -144,6 +149,8 @@ class fpfsTask():
 
         Returns:
             FPFS moments
+
+
         """
         if isinstance(galData,np.ndarray):
             # single galaxy
@@ -200,6 +207,8 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False,flipsign=False):
 
     Returns:
         an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
+
+
     """
     #Get weight
     weight  =   moments['fpfs_M00']+const
@@ -268,6 +277,8 @@ def fpfsM2Err(moments,const=1.):
 
     Returns:
         an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
+
+
     """
     assert 'fpfs_N00N00' in moments.dtype.names
     assert 'fpfs_N00N22c' in moments.dtype.names
@@ -330,6 +341,7 @@ def fpfsM2Err(moments,const=1.):
 #    Returns:
 #       an array of FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio
 #
+#
 #    """
 #    #Get weight
 #    weight  =   moments['fpfs_M20']+const
@@ -371,6 +383,8 @@ def fpfsM2Err(moments,const=1.):
 
 #        Returns:
 #        out :   FPFS moments
+#
+#
 #        """
 #        if isinstance(galData,np.ndarray):
 #            # single galaxy

@@ -28,6 +28,8 @@ def getFouPow(arrayIn):
 
     Returns:
         Fourier Power (centered at (ngrid//2,ngrid//2))
+
+
     """
 
     arrayIn.astype(np.float64)
@@ -46,6 +48,8 @@ def getRnaive(arrayIn):
 
     Returns:
         Fourier Power (centered at (ngrid//2,ngrid//2))
+
+
     """
 
     arrayIn2=   np.abs(arrayIn)
@@ -66,6 +70,8 @@ def shapelets2D(ngrid,nord,sigma):
 
     Returns:
         2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
+
+
     """
 
     mord    =   nord
@@ -109,6 +115,8 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
 
     Returns:
         list:       (power after removing noise power,subtracted noise power)
+
+
     """
 
     rlim2=  int(max(ngrid*0.4,rlim))
@@ -133,6 +141,8 @@ def pcaimages(X,nmodes):
 
     Returns:
         list:        (pc images, stds on the axis)
+
+
     """
 
     assert len(X.shape)==3
