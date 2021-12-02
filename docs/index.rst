@@ -14,11 +14,3 @@ Fourier Power Function Shaplets (A fast, accurate shear estimator)
     pages/quick-start
     pages/modules
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

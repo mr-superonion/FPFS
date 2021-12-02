@@ -1,5 +1,7 @@
 # `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 
+See document from https://fpfs.readthedocs.io/en/latest/
+
 ## Download
 ```shell
 git clone https://github.com/mr-superonion/FPFS.git
