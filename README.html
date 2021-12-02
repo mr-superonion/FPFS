@@ -88,33 +88,38 @@
 <h3 id="download">Download</h3>
 <pre class="shell"><code>git clone https://github.com/mr-superonion/FPFS.git</code></pre>
 <h3 id="install">Install</h3>
-<pre class="shell"><code>pip install ./</code></pre>
-<h2 id="example-for-a-noiseless-galaxy">Example for a noiseless galaxy</h2>
+<pre class="shell"><code>cd FPFS
+pip install ./</code></pre>
+<h2 id="example-for-noiseless-galaxies">Example for noiseless galaxies</h2>
 <div class="sourceCode" id="cb3"><pre class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> fpfs</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> astropy.io.fits <span class="im">as</span> pyfits</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Read PSF image</span></span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>psfData<span class="op">=</span>pyfits.getdata(<span class="st">&#39;data/psf_test.fits&#39;</span>)</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Setup the task</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>fpTask<span class="op">=</span>fpfs.fpfsBase.fpfsTask(psfData)</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Read GAL image</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>galImgAll<span class="op">=</span>pyfits.getdata(<span class="st">&#39;data/gal_test.fits&#39;</span>)</span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>imgList<span class="op">=</span>[galImgAll[i<span class="op">*</span><span class="dv">64</span>:(i<span class="op">+</span><span class="dv">1</span>)<span class="op">*</span><span class="dv">64</span>,<span class="dv">0</span>:<span class="dv">64</span>] <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">4</span>)]</span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Measure FPFS moments</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>a<span class="op">=</span>fpTask.measure(imgList)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Setup the FPFS task.</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co"># For noiseless galaxies, no need to input</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co"># model for noise power.</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>fpTask<span class="op">=</span>fpfs.fpfsBase.fpfsTask(psfData)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Read GAL image</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>galImgAll<span class="op">=</span>pyfits.getdata(<span class="st">&#39;data/gal_test.fits&#39;</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Put images into a list</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>imgList<span class="op">=</span>[galImgAll[i<span class="op">*</span><span class="dv">64</span>:(i<span class="op">+</span><span class="dv">1</span>)<span class="op">*</span><span class="dv">64</span>,<span class="dv">0</span>:<span class="dv">64</span>] <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">4</span>)]</span>
 <span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Measure FPFS ellipticity, FPFS response</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co"># The weighting parameter</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>C<span class="op">=</span><span class="dv">100</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># You can set rev=True to revise second-order noise bias</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>b<span class="op">=</span>fpfs.fpfsBase.fpfsM2E(a,C)</span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Estimate shear</span></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>g_est<span class="op">=</span>np.average(b[<span class="st">&#39;fpfs_e1&#39;</span>])<span class="op">/</span>np.average(b[<span class="st">&#39;fpfs_RE&#39;</span>])</span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;estimated shear is: </span><span class="sc">%.5f</span><span class="st">&#39;</span> <span class="op">%</span>g_est)</span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;input shear is: 0.02&#39;</span>)</span></code></pre></div>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Measure FPFS moments</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>a<span class="op">=</span>fpTask.measure(imgList)</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Measure FPFS ellipticity, FPFS response</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="co"># The weighting parameter</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>C<span class="op">=</span><span class="dv">100</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Again, for noiseless galaxies, you do not need to set rev=True</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="co"># to revise second-order noise bias</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>b<span class="op">=</span>fpfs.fpfsBase.fpfsM2E(a,C)</span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Estimate shear</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>g_est<span class="op">=</span>np.average(b[<span class="st">&#39;fpfs_e1&#39;</span>])<span class="op">/</span>np.average(b[<span class="st">&#39;fpfs_RE&#39;</span>])</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;estimated shear is: </span><span class="sc">%.5f</span><span class="st">&#39;</span> <span class="op">%</span>g_est)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">&#39;input shear is: 0.02&#39;</span>)</span></code></pre></div>
 <h2 id="reference">Reference</h2>
 <ul>
 <li><a href="https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract">version 2.0</a></li>
