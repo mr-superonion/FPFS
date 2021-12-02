@@ -22,16 +22,30 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 class fpfsTask():
+    """
+    A class to measure FPFS shapelet mode estimation
+    Parameters:
+        psfData:    2D array of PSF image
+        noiModel:   Models used to fit noise power function if you wish to estimate the noise power
+                    using the pixels at large k for each galaxy (in Fourier space)
+                    [default: None]
+        noiFit:     Estimated noise power function if you already have it
+                    [default: None]
+    After construction, the following attributes are available:
+    """
     _DefaultName = "fpfsTask"
     def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85):
         self.ngrid  =   psfData.shape[0]
         self.psfPow =   imgutil.getFouPow(psfData)
-        # Preparing PSF model
+        # Preparing PSF
+        # size of PSF
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
+        # shapelet scale
         self.sigma  =   max(min(sigmaPsf*beta,4.),1.)
         self.__prepareRlim()
         # Preparing shapelets (reshaped)
         self.chi    =   imgutil.shapelets2D(self.ngrid,4,self.sigma).reshape((25,self.ngrid,self.ngrid))
+        # Only uses M00, M22 (real and img) and M40
         self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
         self.noiModel=  noiModel
@@ -40,8 +54,8 @@ class fpfsTask():
 
     def __prepareRlim(self):
         """
-        # Get rlim, the area outside rlim is supressed by the shaplet Gaussian
-        # kerenl (part of __init__)
+        Get rlim, the area outside rlim is supressed by the shaplet Gaussian
+        kerenl (part of __init__)
 
         """
         thres   =   1.e-3
@@ -59,8 +73,8 @@ class fpfsTask():
 
     def setRlim(self,rlim):
         """
-        # set rlim, the area outside rlim is supressed by
-        # the shaplet Gaussian kerenl
+        set rlim, the area outside rlim is supressed by the shaplet Gaussian
+        kerenl
         """
         self.rlim=   rlim
         self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
@@ -68,24 +82,49 @@ class fpfsTask():
         self._ind2D=np.ix_(self._indX,self._indX)
         return
 
-    def deconvolvePow(self,arrayIn,order=1.):
+    def deconvolvePow(self,data,order=1.):
         """
         Deconvolve the galaxy power with the PSF power
         Parameters:
-        arrayIn :   galaxy power, centerred at middle
+            data :   galaxy power, centerred at middle
 
         Returns :
             Deconvolved galaxy power (truncated at rlim)
 
 
         """
-        out  =   np.zeros(arrayIn.shape,dtype=np.float64)
-        out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]**order
+        out  =   np.zeros(data.shape,dtype=np.float64)
+        out[self._ind2D]=data[self._ind2D]/self.psfPow[self._ind2D]**order
         return out
+
+    def itransform(self,data):
+        """
+        Project image onto shapelet basis vectors
+        Parameters:
+            data:   image to transfer
+
+        Returns:
+            projection in shapelet space
+
+
+        """
+
+        # Moments
+        M       =   np.sum(data[None,self._indY,self._indX]*self.chi[self._indC,self._indY,self._indX],axis=(1,2))
+        types   =   [('fpfs_M00','>f8'),\
+                    ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
+                    ('fpfs_M40','>f8')\
+                    ]
+        out     =   np.array((M.real[0],\
+                    M.real[1],M.imag[1],\
+                    M.real[2]),dtype=types)
+        return out
+
 
     def itransformCov(self,data):
         """
-        project data onto shapelet basis
+        Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.
+
         Parameters:
             data:   data to transfer
 
@@ -117,29 +156,6 @@ class fpfsTask():
         out     =   np.array(tuple(N),dtype=types)
         return out
 
-    def itransform(self,data):
-        """
-        Project the (PP+PD)/P^2 to get the covariance
-        Parameters:
-            data:   data to transfer
-
-        Returns:
-            projection in shapelet space
-
-
-        """
-
-        # Moments
-        M       =   np.sum(data[None,self._indY,self._indX]*self.chi[self._indC,self._indY,self._indX],axis=(1,2))
-        types   =   [('fpfs_M00','>f8'),\
-                    ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-                    ('fpfs_M40','>f8')\
-                    ]
-        out     =   np.array((M.real[0],\
-                    M.real[1],M.imag[1],\
-                    M.real[2]),dtype=types)
-        return out
-
     def measure(self,galData):
         """
         Measure the FPFS moments
@@ -166,16 +182,18 @@ class fpfsTask():
             out =   rfn.stack_arrays(results,usemask=False)
             return out
 
-    def __measure(self,arrayIn):
+    def __measure(self,data):
         """
         Measure the FPFS moments
 
         Parameters:
-            arrayIn:    image array (centroid does not matter)
-        """
-        assert len(arrayIn.shape)==2
+            data:    image array (centroid does not matter)
 
-        galPow  =   imgutil.getFouPow(arrayIn)
+
+        """
+        assert len(data.shape)==2
+
+        galPow  =   imgutil.getFouPow(data)
 
         if (self.noiFit is not None) or (self.noiModel is not None):
             if self.noiModel is not None:
@@ -400,15 +418,15 @@ def fpfsM2Err(moments,const=1.):
 #            out =   np.stack(results)
 #            return out
 
-#    def __test(self,arrayIn):
+#    def __test(self,data):
 #        """
 #        # test the noise subtraction
 
 #        Parameters:
-#        arrayIn:    image array (centroid does not matter)
+#        data:    image array (centroid does not matter)
 #        """
-#        assert len(arrayIn.shape)==2
-#        galPow  =   imgutil.getFouPow(arrayIn)
+#        assert len(data.shape)==2
+#        galPow  =   imgutil.getFouPow(data)
 #        if (self.noiFit is not None) or (self.noiModel is not None):
 #            if self.noiModel is not None:
 #                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
