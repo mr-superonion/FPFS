@@ -5,7 +5,7 @@
 
 
 Fourier Power Function Shaplets (A fast, accurate shear estimator)
-================================
+===================================================================
 
 .. toctree::
     :maxdepth: 2
