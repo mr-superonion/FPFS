@@ -1,29 +1,17 @@
 # `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 
-See document from https://fpfs.readthedocs.io/en/latest/
+Document: https://fpfs.readthedocs.io/en/latest/
 
-## Download
+## Installation
+
+### Download
 ```shell
 git clone https://github.com/mr-superonion/FPFS.git
 ```
 
-## Install
+### Install
 ```shell
 pip install ./
-```
-or
-```shell
-python ./setup.py install
-```
-
-## optional dependency
-
-### Galsim
-Galsim package is used for galaxy image simulation
-to test the `FPFS` shear estimator.
-
-```shell
-pip install galsim
 ```
 
 ## Example for a noiseless galaxy
