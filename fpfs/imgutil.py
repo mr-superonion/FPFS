@@ -21,15 +21,13 @@ import numpy as np
 
 def getFouPow(arrayIn):
     """
-    # get Fourier power function
+    Get Fourier power function
 
     Parameters:
-    -----------
-    arrayIn:    image array (centroid does not matter)
+        arrayIn:    image array (centroid does not matter)
 
     Returns:
-    ----------
-    galpow:     Fourier Power (centered at (ngrid//2,ngrid//2))
+        Fourier Power (centered at (ngrid//2,ngrid//2))
     """
 
     arrayIn.astype(np.float64)
@@ -40,17 +38,14 @@ def getFouPow(arrayIn):
 
 def getRnaive(arrayIn):
     """
-    # A naive way to estimate Radius
-    # Note that this naive estimation is
-    # heavily influenced by noise
+    A naive way to estimate Radius.
+    Note, this naive estimation is heavily influenced by noise.
 
     Parameters:
-    -----------
-    arrayIn:    image array (centroid does not matter)
+        arrayIn:    image array (centroid does not matter)
 
     Returns:
-    ----------
-    galpow:     Fourier Power (centered at (ngrid//2,ngrid//2))
+        Fourier Power (centered at (ngrid//2,ngrid//2))
     """
 
     arrayIn2=   np.abs(arrayIn)
@@ -62,18 +57,15 @@ def getRnaive(arrayIn):
 
 def shapelets2D(ngrid,nord,sigma):
     """
-    # Generate the shapelets function
+    Generate the shapelets function
 
     Parameters:
-    -----------
-    ngrid:      number of pixels in x and y direction
-    nord:       radial order of the shaplets
-    sigma:      scale of shapelets
+        ngrid:      number of pixels in x and y direction
+        nord:       radial order of the shaplets
+        sigma:      scale of shapelets
 
     Returns:
-    ----------
-    chi:        2D shapelet basis
-                in shape of [nord,nord,ngrid,ngrid]
+        2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
     """
 
     mord    =   nord
@@ -109,17 +101,14 @@ def shapelets2D(ngrid,nord,sigma):
 
 def fitNoiPow(ngrid,galPow,noiModel,rlim):
     """
-    # fit the noise power and remove it
+    Fit the noise power from observed galaxy power and remove it
 
     Parameters:
-    -----------
-    ngrid:      number of pixels in x and y direction
-    galPow:     galaxy Fourier power function
+        ngrid:      number of pixels in x and y direction
+        galPow:     galaxy Fourier power function
 
     Returns:
-    ----------
-    minPow:     power after removing noise power
-    noiSub:     subtracted noise power
+        list:       (power after removing noise power,subtracted noise power)
     """
 
     rlim2=  int(max(ngrid*0.4,rlim))
@@ -135,17 +124,15 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
 
 def pcaimages(X,nmodes):
     """
-    # Estimate the principal components of X
+    Estimate the principal components of array list X
 
     Parameters:
-    -----------
-    X:          input data array
-    nmodes:   number of pcs to keep
+        X:          input data array
+        nmodes:   number of pcs to keep
+
 
     Returns:
-    ----------
-    out:        pc images
-    S:          stds on the axis
+        list:        (pc images, stds on the axis)
     """
 
     assert len(X.shape)==3

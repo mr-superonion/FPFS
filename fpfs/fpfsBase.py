@@ -70,14 +70,12 @@ class fpfsTask():
 
     def deconvolvePow(self,arrayIn,order=1.):
         """
-        # Deconvolve the galaxy power with the PSF power
+        Deconvolve the galaxy power with the PSF power
         Parameters:
-        -------------
         arrayIn :   galaxy power, centerred at middle
 
         Returns :
-        -------------
-        out     :   Deconvolved galaxy power (truncated at rlim)
+            Deconvolved galaxy power (truncated at rlim)
         """
         out  =   np.zeros(arrayIn.shape,dtype=np.float64)
         out[self._ind2D]=arrayIn[self._ind2D]/self.psfPow[self._ind2D]**order
@@ -85,14 +83,12 @@ class fpfsTask():
 
     def itransformCov(self,data):
         """
-        # project data onto shapelet basis
+        project data onto shapelet basis
         Parameters:
-        -------------
-        data:   data to transfer
+            data:   data to transfer
 
         Returns:
-        -------------
-        out :   projection in shapelet space
+            projection in shapelet space
         """
 
         # Moments
@@ -120,14 +116,12 @@ class fpfsTask():
 
     def itransform(self,data):
         """
-        # Project the (PP+PD)/P^2 to get the covariance
+        Project the (PP+PD)/P^2 to get the covariance
         Parameters:
-        -------------
-        data:   data to transfer
+            data:   data to transfer
 
         Returns:
-        -------------
-        out :   projection in shapelet space
+            projection in shapelet space
         """
 
         # Moments
@@ -143,15 +137,13 @@ class fpfsTask():
 
     def measure(self,galData):
         """
-        # measure the FPFS moments
+        Measure the FPFS moments
 
         Parameters:
-        -----------
         galData:    galaxy image [float array (list)]
 
         Returns:
-        -------------
-        out :   FPFS moments
+            FPFS moments
         """
         if isinstance(galData,np.ndarray):
             # single galaxy
@@ -169,11 +161,10 @@ class fpfsTask():
 
     def __measure(self,arrayIn):
         """
-        # measure the FPFS moments
+        Measure the FPFS moments
 
         Parameters:
-        -----------
-        arrayIn:    image array (centroid does not matter)
+            arrayIn:    image array (centroid does not matter)
         """
         assert len(arrayIn.shape)==2
 
@@ -198,23 +189,17 @@ class fpfsTask():
 
 def fpfsM2E(moments,const=1.,mcalib=0.,rev=False,flipsign=False):
     """
-    # Estimate FPFS ellipticities from fpfs moments
+    Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
-    -----------
-    moments:    input FPFS moments     [float array]
-    const:      the weighting Constant [float]
-    mcalib:     multiplicative bias [float array]
-    rev:        revise the second-order noise bias? [bool]
-    flipsign:   flip the sign of response? [bool]
-                (if you are using the convention in paper 1,
-                set it to True)
+        moments:    input FPFS moments     [float array]
+        const:      the weighting Constant [float]
+        mcalib:     multiplicative bias [float array]
+        rev:        revise the second-order noise bias? [bool]
+        flipsign:   flip the sign of response? [bool] (if you are using the convention in paper 1, set it to True)
 
     Returns:
-    -------------
-    out :       an array of FPFS ellipticities,
-                FPFS ellipticity response,
-                FPFS flux ratio, and FPFS selection response
+        an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
     """
     #Get weight
     weight  =   moments['fpfs_M00']+const
@@ -273,20 +258,16 @@ def fpfsM2E(moments,const=1.,mcalib=0.,rev=False,flipsign=False):
 
 def fpfsM2Err(moments,const=1.):
     """
-    # Estimate FPFS measurement errors from the fpfs
-    # moments and the moments covariances
+    Estimate FPFS measurement errors from the fpfs
+    moments and the moments covariances
 
     Parameters:
-    -----------
-    moments:    input FPFS moments     [float array]
-    const:      the weighting Constant [float]
-    mcalib:     multiplicative bias [float array]
+        moments:    input FPFS moments     [float array]
+        const:      the weighting Constant [float]
+        mcalib:     multiplicative bias [float array]
 
     Returns:
-    -------------
-    out :       an array of measurement error for,
-                FPFS ellipticity,
-                FPFS flux ratio
+        an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
     """
     assert 'fpfs_N00N00' in moments.dtype.names
     assert 'fpfs_N00N22c' in moments.dtype.names
@@ -335,94 +316,87 @@ def fpfsM2Err(moments,const=1.):
     errDat['fpfs_e2s0Cov'] =   e2s0Cov
     return errDat
 
-def fpfsM2E_v3(moments,const=1.,mcalib=0.):
-    """
-    (This is for higher order shapelest moments
-    but the implementation of this function is unfinished)
-    # Estimate FPFS ellipticities from fpfs moments
+#def fpfsM2E_v3(moments,const=1.,mcalib=0.):
+#    """
+#    (This is for higher order shapelest moments
+#    but the implementation of this function is unfinished)
+#    # Estimate FPFS ellipticities from fpfs moments
 
-    Parameters:
-    -----------
-    moments:    input FPFS moments
-    const:      the weighting Constant
-    mcalib:     multiplicative biases
+#    Parameters:
+#    moments:    input FPFS moments
+#    const:      the weighting Constant
+#    mcalib:     multiplicative biases
 
-    Returns:
-    -------------
-    out :       an array of FPFS ellipticities,
-                FPFS ellipticity response,
-                FPFS flux ratio
+#    Returns:
+#       an array of FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio
+#
+#    """
+#    #Get weight
+#    weight  =   moments['fpfs_M20']+const
+#    #FPFS flux
+#    flux    =   moments['fpfs_M00']/weight
+#    #Ellipticity
+#    e1      =   moments['fpfs_M22c']/weight
+#    e2      =   moments['fpfs_M22s']/weight
+#    e41     =   moments['fpfs_M42c']/weight
+#    e42     =   moments['fpfs_M42s']/weight
+#    #Response factor
+#    R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e1*e41)
+#    R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
+#    RE      =   (R1+R2)/2.
+#    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
+#    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
+#    ellDat['fpfs_e1']=e1
+#    ellDat['fpfs_e2']=e2
+#    ellDat['fpfs_RE']=RE
+#    ellDat['fpfs_flux']=flux
+#    return ellDat
 
-    """
-    #Get weight
-    weight  =   moments['fpfs_M20']+const
-    #FPFS flux
-    flux    =   moments['fpfs_M00']/weight
-    #Ellipticity
-    e1      =   moments['fpfs_M22c']/weight
-    e2      =   moments['fpfs_M22s']/weight
-    e41     =   moments['fpfs_M42c']/weight
-    e42     =   moments['fpfs_M42s']/weight
-    #Response factor
-    R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e1*e41)
-    R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
-    RE      =   (R1+R2)/2.
-    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
-    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
-    ellDat['fpfs_e1']=e1
-    ellDat['fpfs_e2']=e2
-    ellDat['fpfs_RE']=RE
-    ellDat['fpfs_flux']=flux
-    return ellDat
+#class fpfsTestNoi():
+#    _DefaultName = "fpfsTestNoi"
+#    def __init__(self,ngrid,noiModel=None,noiFit=None):
+#        self.ngrid  =   ngrid
+#        # Preparing noise Model
+#        self.noiModel=  noiModel
+#        self.noiFit =   noiFit
+#        self.rlim   =   int(ngrid//4)
+#        return
 
-class fpfsTestNoi():
-    _DefaultName = "fpfsTestNoi"
-    def __init__(self,ngrid,noiModel=None,noiFit=None):
-        self.ngrid  =   ngrid
-        # Preparing noise Model
-        self.noiModel=  noiModel
-        self.noiFit =   noiFit
-        self.rlim   =   int(ngrid//4)
-        return
+#    def test(self,galData):
+#        """
+#        # test the noise subtraction
 
-    def test(self,galData):
-        """
-        # test the noise subtraction
+#        Parameters:
+#        galData:    galaxy image [float array (list)]
 
-        Parameters:
-        -----------
-        galData:    galaxy image [float array (list)]
+#        Returns:
+#        out :   FPFS moments
+#        """
+#        if isinstance(galData,np.ndarray):
+#            # single galaxy
+#            out =   self.__test(galData)
+#            return out
+#        elif isinstance(galData,list):
+#            assert isinstance(galData[0],np.ndarray)
+#            # list of galaxies
+#            results=[]
+#            for gal in galData:
+#                _g=self.__test(gal)
+#                results.append(_g)
+#            out =   np.stack(results)
+#            return out
 
-        Returns:
-        -------------
-        out :   FPFS moments
-        """
-        if isinstance(galData,np.ndarray):
-            # single galaxy
-            out =   self.__test(galData)
-            return out
-        elif isinstance(galData,list):
-            assert isinstance(galData[0],np.ndarray)
-            # list of galaxies
-            results=[]
-            for gal in galData:
-                _g=self.__test(gal)
-                results.append(_g)
-            out =   np.stack(results)
-            return out
+#    def __test(self,arrayIn):
+#        """
+#        # test the noise subtraction
 
-    def __test(self,arrayIn):
-        """
-        # test the noise subtraction
-
-        Parameters:
-        -----------
-        arrayIn:    image array (centroid does not matter)
-        """
-        assert len(arrayIn.shape)==2
-        galPow  =   imgutil.getFouPow(arrayIn)
-        if (self.noiFit is not None) or (self.noiModel is not None):
-            if self.noiModel is not None:
-                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
-            galPow  =   galPow-self.noiFit
-        return galPow
+#        Parameters:
+#        arrayIn:    image array (centroid does not matter)
+#        """
+#        assert len(arrayIn.shape)==2
+#        galPow  =   imgutil.getFouPow(arrayIn)
+#        if (self.noiFit is not None) or (self.noiModel is not None):
+#            if self.noiModel is not None:
+#                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+#            galPow  =   galPow-self.noiFit
+#        return galPow

@@ -3,6 +3,7 @@
 wrkDir
 datDir
 notebook/*/.ipynb_checkpoints/*
+*_build
 *.aux
 *.bbl
 *.blg
