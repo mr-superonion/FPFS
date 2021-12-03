@@ -7,3 +7,19 @@ language: python
 python:
     - 3.7
     - 3.8
+
+install:
+    - pip install numpy
+
+cache:
+    - pip: true
+
+script:
+    - python setup.py install --prefix=$PYHOME
+    - cd tests
+    - nosetests -v --with-coverage --cover-package=fpfs
+    # Only do doctests on one version, since number of digits output varies between python 2 and 3
+    - nosetests -v --with-coverage --cover-package=fpfs --with-doctest --where=../fpfs
+
+after_success:
+    - codecov
