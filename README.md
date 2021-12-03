@@ -19,6 +19,7 @@ pip install ./
 
 ```python
 import fpfs
+import numpy as np
 import astropy.io.fits as pyfits
 
 # Read PSF image

@@ -10,6 +10,7 @@ python:
 
 install:
     - pip install -r requirements.txt
+    - pip install -r dev_requirements.txt
 
 cache:
     - pip: true
@@ -17,9 +18,7 @@ cache:
 script:
     - python setup.py install --prefix=$PYHOME
     - cd tests
-    - nosetests -v --with-coverage --cover-package=fpfs
-    # Only do doctests on one version, since number of digits output varies between python 2 and 3
-    - nosetests -v --with-coverage --cover-package=fpfs --with-doctest --where=../fpfs
+    - nosetests test*.py --with-coverage --cover-package=fpfs --with-doctest --cover-erase
 
-after_success:
-    - codecov
+# after_success:
+#     - codecov
