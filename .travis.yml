@@ -9,7 +9,7 @@ python:
     - 3.8
 
 install:
-    - pip install numpy
+    - pip install -r requirement.txt
 
 cache:
     - pip: true
