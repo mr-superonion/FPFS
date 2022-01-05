@@ -44,7 +44,9 @@ class fpfsTask():
         self.sigma  =   max(min(sigmaPsf*beta,4.),1.)
         self.__prepareRlim()
         # Preparing shapelets (reshaped)
-        self.chi    =   imgutil.shapelets2D(self.ngrid,4,self.sigma).reshape((25,self.ngrid,self.ngrid))
+        nnord       =   4
+        self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigma)\
+                .reshape(((nnord+1)**2.,self.ngrid,self.ngrid))
         # Only uses M00, M22 (real and img) and M40
         self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
