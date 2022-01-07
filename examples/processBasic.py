@@ -24,6 +24,7 @@
 import os
 import gc
 from fpfs import fpfsBase
+from fpfs import simutil
 import numpy as np
 import astropy.io.fits as pyfits
 
@@ -33,23 +34,19 @@ import lsst.pipe.base as pipeBase
 import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
 import lsst.afw.image as afwImg
-import lsst.afw.detection as afwDet
 import lsst.afw.geom as afwGeom
-import lsst.afw.coord as afwCoord
 import lsst.meas.algorithms as meaAlg
 
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool, abortOnError
 
-import lsst.obs.subaru.filterFraction
 from readDataSim import readDataSimTask
 
-class processBasicConfig(pexConfig.Config):
-    "config"
+class processBasicDriverConfig(pexConfig.Config):
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=False,
+        default=True,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
@@ -61,31 +58,52 @@ class processBasicConfig(pexConfig.Config):
         target  = readDataSimTask,
         doc     = "Subtask to run measurement hsm"
     )
-    rootDir     = pexConfig.Field(
-        dtype=str,
-        default="./",
-        doc="Root Diectory"
-    )
+    # rootDir     = pexConfig.Field(
+    #     dtype=str,
+    #     default="./",
+    #     doc="Root Diectory"
+    # )
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
 
-class processBasicTask(pipeBase.CmdLineTask):
-    _DefaultName=   "processBasic"
-    ConfigClass =   processBasicConfig
+class processBasicRunner(TaskRunner):
+    @staticmethod
+    def getTargetList(parsedCmd, **kwargs):
+        minIndex    =  parsedCmd.minIndex
+        maxIndex    =  parsedCmd.maxIndex
+        return [(ref, kwargs) for ref in range(minIndex,maxIndex)]
+def unpickle(factory, args, kwargs):
+    """Unpickle something by calling a factory"""
+    return factory(*args, **kwargs)
+class processBasicDriverTask(BatchPoolTask):
+    ConfigClass = processBasicDriverConfig
+    RunnerClass = processBasicRunner
+    _DefaultName = "processBasicDriver"
+    def __reduce__(self):
+        """Pickler"""
+        return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
+                parentTask=self._parentTask, log=self.log))
     def __init__(self,**kwargs):
-        pipeBase.CmdLineTask.__init__(self, **kwargs)
+        BatchPoolTask.__init__(self, **kwargs)
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
         self.makeSubtask("readDataSim",schema=self.schema)
 
-    @pipeBase.timeMethod
-    def runDataRef(self,ifield):
+    @abortOnError
+    def runDataRef(self,index):
+        #Prepare the pool
+        pool    =   Pool("processBasic")
+        pool.cacheClear()
+        pool.storeSet(doHSM=self.config.doHSM)
+        pool.storeSet(doFPFS=self.config.doFPFS)
+        fieldList=np.arange(100*index,100*(index+1))
+        pool.map(self.process,fieldList)
+        return
+
+    def process(self,cache,ifield):
         # Basic
-        rootDir     =   self.config.rootDir
-        igroup      =   ifield//250
-        self.log.info('running for group: %s, field: %s' %(igroup,ifield))
         nn          =   100
         ngal        =   nn*nn
         ngrid       =   64
@@ -93,17 +111,32 @@ class processBasicTask(pipeBase.CmdLineTask):
         noiVar      =   7e-3
         opend       =   'var7em3'
         pixScale    =   0.168
-        psfFWHM     =   '60'
-        psfFWHMF    =   eval(psfFWHM)/100.
+
+        # necessary directories
+        # galDir      =   'galaxy_basic_psf%s' %psfFWHM
+        galDir      =   'small2_psf60'
+        noiDir      =   'noise'
+        assert os.path.exists(galDir)
+        assert os.path.exists(noiDir)
+        psfFWHM     =   galDir.split('_psf')[-1]
+        #psfFWHMF    =   eval(psfFWHM)/100.
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
-
-        # necessary directories
-        galDir      =   os.path.join(self.config.rootDir,'galaxy_basic_psf%s' %psfFWHM)
-        noiDir      =   os.path.join(self.config.rootDir,'noise')
-        assert os.path.exists(galDir)
-        assert os.path.exists(noiDir)
+        if 'small' in galDir:
+            igroup      =   ifield//2
+            irr =   eval(galDir.split('_psf')[0].split('small')[-1])
+            gnm =   'Small%d' %irr
+        else:
+            igroup      =   ifield//250
+            gnm =   'Basic'
+        self.log.info('running for group: %s, field: %s' %(igroup,ifield))
+        outDir1     =   os.path.join('out%s-%s' %(gnm,opend),'src-psf%s-%s' %(psfFWHM,igroup))
+        if not os.path.isdir(outDir1):
+            os.mkdir(outDir1)
+        outDir2     =   os.path.join('out%s-%s' %(gnm,opend),'fpfs-rcut16-psf%s-%s' %(psfFWHM,igroup))
+        if not os.path.isdir(outDir2):
+            os.mkdir(outDir2)
 
         # noise
         noiFname    =   os.path.join(noiDir,'noi%04d.fits' %ifield)
@@ -125,26 +158,16 @@ class processBasicTask(pipeBase.CmdLineTask):
         # Task
         fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
 
-        outDir1     =   os.path.join(self.config.rootDir,'outcome-%s' %opend,\
-                'src-psf%s-%s' %(psfFWHM,igroup))
-        if not os.path.isdir(outDir1):
-            os.mkdir(outDir1)
-        outDir2     =   os.path.join(self.config.rootDir,'outcome-%s' %opend,\
-                'fpfs-rcut16-psf%s-%s' %(psfFWHM,igroup))
-        if not os.path.isdir(outDir2):
-            os.mkdir(outDir2)
-
-        isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
-        # This is for additive bias measurement
-        # Caution: need 90 deg pairs
-        #isList      =   ['g1-1111']
+        # isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
+        # isList      =   ['g1-1111']
+        isList          =   ['g1-0000','g1-2222']
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)
 
             outFname    =   os.path.join(outDir1,'src%04d-%s.fits' %(ifield,ishear))
-            if not os.path.exists(outFname) and self.config.doHSM:
-                exposure    =   self.makeHSCExposure(galData,psfData,pixScale,noiVar)
+            if not os.path.exists(outFname) and cache.doHSM:
+                exposure    =   simutil.makeHSCExposure(galData,psfData,pixScale,noiVar)
                 src         =   self.readDataSim.measureSource(exposure)
                 wFlag       =   afwTable.SOURCE_IO_NO_FOOTPRINTS
                 src.writeFits(outFname,flags=wFlag)
@@ -154,7 +177,7 @@ class processBasicTask(pipeBase.CmdLineTask):
                 self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
 
             outFname    =   os.path.join(outDir2,'src%04d-%s.fits' %(ifield,ishear))
-            if not os.path.exists(outFname) and self.config.doFPFS:
+            if not os.path.exists(outFname) and cache.doFPFS:
                 imgList=[galData[i//nn*ngrid+beg:i//nn*ngrid+end,i%nn*ngrid+beg:i%nn*ngrid+end] for i in range(ngal)]
                 out=fpTask.measure(imgList)
                 pyfits.writeto(outFname,out)
@@ -165,96 +188,9 @@ class processBasicTask(pipeBase.CmdLineTask):
 
             del galData,outFname
             gc.collect()
+        self.log.info('finish %s' %(ifield))
         return
 
-    def makeHSCExposure(self,galData,psfData,pixScale,variance):
-        ny,nx=galData.shape
-        exposure    =   afwImg.ExposureF(nx,ny)
-        exposure.getMaskedImage().getImage().getArray()[:,:]=galData
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
-        #Set the PSF
-        ngridPsf    =   psfData.shape[0]
-        psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-        psfLsst.getArray()[:,:]= psfData
-        psfLsst     =   psfLsst.convertD()
-        kernel      =   afwMath.FixedKernel(psfLsst)
-        kernelPSF   =   meaAlg.KernelPsf(kernel)
-        exposure.setPsf(kernelPSF)
-        #prepare the wcs
-        #Rotation
-        cdelt   =   (pixScale*afwGeom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
-        #wcs
-        crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
-        #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
-        crpix   =   afwGeom.Point2D(0.0, 0.0)
-        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-        exposure.setWcs(dataWcs)
-        #prepare the frc
-        dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
-        exposure.setPhotoCalib(dataCalib)
-        return exposure
-
-    @classmethod
-    def _makeArgumentParser(cls):
-        parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        return parser
-    @classmethod
-    def writeConfig(self, butler, clobber=False, doBackup=False):
-        pass
-    def writeSchemas(self, butler, clobber=False, doBackup=False):
-        pass
-    def writeMetadata(self, ifield):
-        pass
-    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
-        pass
-
-class processBasicDriverConfig(pexConfig.Config):
-    processBasic = pexConfig.ConfigurableField(
-        target = processBasicTask,
-        doc = "processBasic task to run on multiple cores"
-    )
-    def setDefaults(self):
-        pexConfig.Config.setDefaults(self)
-
-class processBasicRunner(TaskRunner):
-    @staticmethod
-    def getTargetList(parsedCmd, **kwargs):
-        minIndex    =  parsedCmd.minIndex
-        maxIndex    =  parsedCmd.maxIndex
-        return [(ref, kwargs) for ref in range(minIndex,maxIndex)]
-
-def unpickle(factory, args, kwargs):
-    """Unpickle something by calling a factory"""
-    return factory(*args, **kwargs)
-
-class processBasicDriverTask(BatchPoolTask):
-    ConfigClass = processBasicDriverConfig
-    RunnerClass = processBasicRunner
-    _DefaultName = "processBasicDriver"
-
-    def __reduce__(self):
-        """Pickler"""
-        return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
-                parentTask=self._parentTask, log=self.log))
-
-    def __init__(self,**kwargs):
-        BatchPoolTask.__init__(self, **kwargs)
-        self.makeSubtask("processBasic")
-
-    @abortOnError
-    def runDataRef(self,index):
-        #Prepare the pool
-        pool    =   Pool("processBasic")
-        pool.cacheClear()
-        fieldList=np.arange(100*index,100*(index+1))
-        pool.map(self.process,fieldList)
-        return
-
-    def process(self,cache,prepend):
-        self.processBasic.runDataRef(prepend)
-        self.log.info('finish %s' %(prepend))
-        return
     @classmethod
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
