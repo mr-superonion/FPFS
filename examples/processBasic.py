@@ -55,7 +55,7 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="small0_psf60",
+        default="small2_psf60",
         doc="Input galaxy directory"
     )
     noiName     = pexConfig.Field(
@@ -78,6 +78,8 @@ class processBasicDriverConfig(pexConfig.Config):
         if 'small' in self.galDir:
             irr     =   eval(self.galDir.split('_psf')[0].split('small')[-1])
             gnm     =   'Small%d' %irr
+        elif 'star' in self.galDir:
+            gnm     =   'Star'
         else:
             gnm     =   'Basic'
         self.outDir  =   os.path.join('out%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
@@ -142,7 +144,9 @@ class processBasicDriverTask(BatchPoolTask):
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
         if 'small' in galDir:
-            igroup  =   ifield//2
+            igroup  =   ifield//8
+        elif 'star' in galDir:
+            igroup  =   0
         else:
             igroup  =   ifield//250
         self.log.info('running for group: %s, field: %s' %(igroup,ifield))
@@ -167,7 +171,8 @@ class processBasicDriverTask(BatchPoolTask):
 
         # isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList      =   ['g1-1111']
-        isList          =   ['g1-0000','g1-2222']
+        isList      =   ['g1-0000','g1-2222']
+        # isList        =   ['g1-0000']
         for ishear in isList:
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)

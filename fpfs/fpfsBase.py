@@ -34,7 +34,12 @@ class fpfsTask():
     After construction, the following attributes are available:
     """
     _DefaultName = "fpfsTask"
-    def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85):
+    def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85,debug=False):
+        psfData     =   np.array(psfData,dtype='>f8')
+        if noiFit is not None:
+            noiFit     =   np.array(noiFit,dtype='>f8')
+        if noiModel is not None:
+            noiFit     =   np.array(noiModel,dtype='>f8')
         self.ngrid  =   psfData.shape[0]
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF
@@ -52,6 +57,10 @@ class fpfsTask():
         # Preparing noise Model
         self.noiModel=  noiModel
         self.noiFit =   noiFit
+        if debug:
+            self.stackRes=np.zeros(psfData.shape,dtype='>f8')
+        else:
+            self.stackRes=None
         return
 
     def __prepareRlim(self):
@@ -171,9 +180,20 @@ class fpfsTask():
 
         """
         if isinstance(galData,np.ndarray):
-            # single galaxy
-            out =   self.__measure(galData)
-            return out
+            assert galData.shape[-1]==galData.shape[-2]
+            if len(galData.shape) == 2:
+                # single galaxy
+                out =   self.__measure(galData)
+                return out
+            elif len(galData.shape)==3:
+                results=[]
+                for gal in galData:
+                    _g=self.__measure(gal)
+                    results.append(_g)
+                out =   rfn.stack_arrays(results,usemask=False)
+                return out
+            else:
+                raise ValueError("Input galaxy data has wrong ndarray shape.")
         elif isinstance(galData,list):
             assert isinstance(galData[0],np.ndarray)
             # list of galaxies
@@ -183,6 +203,8 @@ class fpfsTask():
                 results.append(_g)
             out =   rfn.stack_arrays(results,usemask=False)
             return out
+        else:
+            raise TypeError("Input galaxy data has wrong type (neither list nor ndarray).")
 
     def __measure(self,data):
         """
@@ -194,10 +216,8 @@ class fpfsTask():
 
         """
         assert len(data.shape)==2
-
-        galPow  =   imgutil.getFouPow(data)
-        decPow      =   self.deconvolvePow(galPow,order=1.)
-        mm          =   self.itransform(decPow)
+        nn          =   None
+        galPow      =   imgutil.getFouPow(data)
         if self.noiModel is not None:
             self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
         if self.noiFit is not None:
@@ -205,11 +225,15 @@ class fpfsTask():
             epcor   =   self.noiFit*self.noiFit+2.*self.noiFit*galPow
             decEP   =   self.deconvolvePow(epcor,order=2.)
             nn      =   self.itransformCov(decEP)
-            mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
-
+        decPow      =   self.deconvolvePow(galPow,order=1.)
+        mm          =   self.itransform(decPow)
+        if nn is not None:
+            mm      =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
+        if self.stackRes is not None:
+            self.stackRes+=galPow
         return mm
 
-def fpfsM2E(moments,const=1.,mcalib=0.,rev=False,flipsign=False):
+def fpfsM2E(moments,const=1.,rev=False,flipsign=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 

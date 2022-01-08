@@ -23,7 +23,7 @@ import numpy as np
 import astropy.io.fits as pyfits
 
 # Read PSF image
-psfData=pyfits.getdata('data/psf_test.fits')
+psfData=pyfits.getdata('tests/data/psf_test.fits')
 # Setup the FPFS task.
 # For noiseless galaxies, no need to input
 # model for noise power.

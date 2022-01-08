@@ -4,7 +4,7 @@ import astropy.io.fits as pyfits
 
 def test_noiseless_gals():
     # Read PSF image
-    psfData=pyfits.getdata('../data/psf_test.fits')
+    psfData=pyfits.getdata('data/psf_test.fits')
     # Setup the FPFS task.
     # For noiseless galaxies, no need to input
     # model for noise power.
@@ -12,7 +12,7 @@ def test_noiseless_gals():
 
 
     # Read GAL image
-    galImgAll=pyfits.getdata('../data/gal_test.fits')
+    galImgAll=pyfits.getdata('data/gal_test.fits')
     # Put images into a list
     imgList=[galImgAll[i*64:(i+1)*64,0:64] for i in range(4)]
 
