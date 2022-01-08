@@ -22,9 +22,7 @@
 #
 # python lib
 import os
-import gc
 import fpfs
-import galsim
 import numpy as np
 
 # lsst Tasks
@@ -33,7 +31,7 @@ import lsst.pipe.base as pipeBase
 
 from lsst.pipe.base import TaskRunner
 from lsst.ctrl.pool.parallel import BatchPoolTask
-from lsst.ctrl.pool.pool import Pool, abortOnError
+from lsst.ctrl.pool.pool import Pool
 
 class cgcSimBasicBatchConfig(pexConfig.Config):
     def setDefaults(self):
@@ -61,7 +59,7 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         BatchPoolTask.__init__(self, **kwargs)
         return
 
-    @abortOnError
+    @pipeBase.timeMethod
     def runDataRef(self,index):
         self.log.info('begining for group %d' %(index))
         #Prepare the storeSet
@@ -76,6 +74,7 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         pool.map(self.process,fieldList)
         return
 
+    @pipeBase.timeMethod
     def process(self,cache,Id):
         #Prepare the pool
         p2List=['0000','2222']

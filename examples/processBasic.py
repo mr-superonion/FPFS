@@ -23,30 +23,25 @@
 # python lib
 import os
 import gc
-from fpfs import fpfsBase
-from fpfs import simutil
 import numpy as np
+from fpfs import simutil
+from fpfs import fpfsBase
 import astropy.io.fits as pyfits
 
+from readDataSim import readDataSimTask
 # lsst Tasks
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
-import lsst.afw.math as afwMath
 import lsst.afw.table as afwTable
-import lsst.afw.image as afwImg
-import lsst.afw.geom as afwGeom
-import lsst.meas.algorithms as meaAlg
 
 from lsst.pipe.base import TaskRunner
+from lsst.ctrl.pool.pool import Pool
 from lsst.ctrl.pool.parallel import BatchPoolTask
-from lsst.ctrl.pool.pool import Pool, abortOnError
-
-from readDataSim import readDataSimTask
 
 class processBasicDriverConfig(pexConfig.Config):
     doHSM   = pexConfig.Field(
         dtype=bool,
-        default=True,
+        default=False,
         doc="Whether run HSM",
     )
     doFPFS  = pexConfig.Field(
@@ -58,16 +53,40 @@ class processBasicDriverConfig(pexConfig.Config):
         target  = readDataSimTask,
         doc     = "Subtask to run measurement hsm"
     )
-    # rootDir     = pexConfig.Field(
-    #     dtype=str,
-    #     default="./",
-    #     doc="Root Diectory"
-    # )
+    galDir      = pexConfig.Field(
+        dtype=str,
+        default="small0_psf60",
+        doc="Input galaxy directory"
+    )
+    noiName     = pexConfig.Field(
+        dtype=str,
+        default="var7em3",
+        doc="noise variance name"
+    )
+    outDir     = pexConfig.Field(
+        dtype=str,
+        default="",
+        doc="output directory"
+    )
+
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
+        psfFWHM =   self.galDir.split('_psf')[-1]
+        if 'small' in self.galDir:
+            irr     =   eval(self.galDir.split('_psf')[0].split('small')[-1])
+            gnm     =   'Small%d' %irr
+        else:
+            gnm     =   'Basic'
+        self.outDir  =   os.path.join('out%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
+
+    def validate(self):
+        assert os.path.exists('noise')
+        assert os.path.exists(self.galDir)
+        if not os.path.isdir(self.outDir):
+            os.mkdir(self.outDir)
 
 class processBasicRunner(TaskRunner):
     @staticmethod
@@ -91,17 +110,20 @@ class processBasicDriverTask(BatchPoolTask):
         self.schema     =   afwTable.SourceTable.makeMinimalSchema()
         self.makeSubtask("readDataSim",schema=self.schema)
 
-    @abortOnError
+    @pipeBase.timeMethod
     def runDataRef(self,index):
         #Prepare the pool
         pool    =   Pool("processBasic")
         pool.cacheClear()
         pool.storeSet(doHSM=self.config.doHSM)
         pool.storeSet(doFPFS=self.config.doFPFS)
+        pool.storeSet(galDir=self.config.galDir)
+        pool.storeSet(outDir=self.config.outDir)
         fieldList=np.arange(100*index,100*(index+1))
         pool.map(self.process,fieldList)
         return
 
+    @pipeBase.timeMethod
     def process(self,cache,ifield):
         # Basic
         nn          =   100
@@ -109,53 +131,38 @@ class processBasicDriverTask(BatchPoolTask):
         ngrid       =   64
         beta        =   0.75
         noiVar      =   7e-3
-        opend       =   'var7em3'
         pixScale    =   0.168
 
         # necessary directories
         # galDir      =   'galaxy_basic_psf%s' %psfFWHM
-        galDir      =   'small2_psf60'
-        noiDir      =   'noise'
-        assert os.path.exists(galDir)
-        assert os.path.exists(noiDir)
+        galDir      =   cache.galDir
         psfFWHM     =   galDir.split('_psf')[-1]
         #psfFWHMF    =   eval(psfFWHM)/100.
         rcut        =   16#max(min(int(psfFWHMF/pixScale*4+0.5),15),12)
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
         if 'small' in galDir:
-            igroup      =   ifield//2
-            irr =   eval(galDir.split('_psf')[0].split('small')[-1])
-            gnm =   'Small%d' %irr
+            igroup  =   ifield//2
         else:
-            igroup      =   ifield//250
-            gnm =   'Basic'
+            igroup  =   ifield//250
         self.log.info('running for group: %s, field: %s' %(igroup,ifield))
-        outDir1     =   os.path.join('out%s-%s' %(gnm,opend),'src-psf%s-%s' %(psfFWHM,igroup))
-        if not os.path.isdir(outDir1):
-            os.mkdir(outDir1)
-        outDir2     =   os.path.join('out%s-%s' %(gnm,opend),'fpfs-rcut16-psf%s-%s' %(psfFWHM,igroup))
-        if not os.path.isdir(outDir2):
-            os.mkdir(outDir2)
 
         # noise
-        noiFname    =   os.path.join(noiDir,'noi%04d.fits' %ifield)
+        noiFname    =   os.path.join('noise','noi%04d.fits' %ifield)
         # multiply by 10 since the noise has variance 0.01
-        noiData     =   pyfits.getdata(noiFname)*10.
+        noiData     =   pyfits.open(noiFname)[0].data*10.
         # same for the noivar model
         powIn       =   np.load('corPre/noiPows2.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
         powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
         powModel[0] =   powIn
-
         # PSF
         psfFname    =   os.path.join(galDir,'psf-%s.fits' %psfFWHM)
-        psfData     =   pyfits.getdata(psfFname)
+        psfData     =   pyfits.open(psfFname)[0].data
         npad        =   (ngrid-psfData.shape[0])//2
         psfData2    =   np.pad(psfData,(npad+1,npad),mode='constant')
         assert psfData2.shape[0]==ngrid
         psfData2    =   psfData2[beg:end,beg:end]
-
-        # Task
+        # FPFS Task
         fpTask      =   fpfsBase.fpfsTask(psfData2,noiFit=powModel[0],beta=beta)
 
         # isList      =   ['g1-0000','g2-0000','g1-2222','g2-2222']
@@ -165,18 +172,18 @@ class processBasicDriverTask(BatchPoolTask):
             galFname    =   os.path.join(galDir,'image-%s-%s.fits' %(igroup,ishear))
             galData     =   pyfits.getdata(galFname)+noiData*np.sqrt(noiVar)
 
-            outFname    =   os.path.join(outDir1,'src%04d-%s.fits' %(ifield,ishear))
+            outFname    =   os.path.join(cache.outDir,'src-%04d-%s.fits' %(ifield,ishear))
             if not os.path.exists(outFname) and cache.doHSM:
-                exposure    =   simutil.makeHSCExposure(galData,psfData,pixScale,noiVar)
-                src         =   self.readDataSim.measureSource(exposure)
-                wFlag       =   afwTable.SOURCE_IO_NO_FOOTPRINTS
+                exposure=   simutil.makeHSCExposure(galData,psfData,pixScale,noiVar)
+                src     =   self.readDataSim.measureSource(exposure)
+                wFlag   =   afwTable.SOURCE_IO_NO_FOOTPRINTS
                 src.writeFits(outFname,flags=wFlag)
                 del exposure,src
                 gc.collect()
             else:
                 self.log.info('Skipping HSM measurement: %04d, %s' %(ifield,ishear))
 
-            outFname    =   os.path.join(outDir2,'src%04d-%s.fits' %(ifield,ishear))
+            outFname    =   os.path.join(cache.outDir,'fpfs-cut%d-%04d-%s.fits' %(rcut,ifield,ishear))
             if not os.path.exists(outFname) and cache.doFPFS:
                 imgList=[galData[i//nn*ngrid+beg:i//nn*ngrid+end,i%nn*ngrid+beg:i%nn*ngrid+end] for i in range(ngal)]
                 out=fpTask.measure(imgList)
