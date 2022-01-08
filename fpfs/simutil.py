@@ -196,6 +196,7 @@ def make_basic_sim(outDir,gname,Id0):
         logging.info('Already have the outcome')
         return
 
+    bigfft      =   galsim.GSParams(maximum_fft_size=10240)
     if 'small' not in outDir:
         rotArray    =   make_ringrot_radians(8)
         irot        =   Id0//8     # we only use 80000 galaxies
@@ -209,7 +210,6 @@ def make_basic_sim(outDir,gname,Id0):
         cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
         # Basic parameters
-        bigfft      =   galsim.GSParams(maximum_fft_size=10240)
         flux_scaling=   2.587
         # catalog
         cosmo252=   cosmoHSTGal('252')
@@ -257,15 +257,15 @@ def make_basic_sim(outDir,gname,Id0):
                             iy*ngrid,(iy+1)*ngrid-1)
                 if igal%4==0 and igal!=0:
                     gal0=   galsim.RandomKnots(half_light_radius=radius,\
-                            npoints=npoints,flux=10.,rng=ud)
+                            npoints=npoints,flux=10.,rng=ud,gsparams=bigfft)
                 sub_img =   gal_image[b]
                 ang     =   igal%4*np.pi/4. * galsim.radians
                 gal     =   gal0.rotate(ang)
                 # Shear the galaxy
                 gal     =   gal.shear(g1=g1,g2=g2)
-                gal     =   galsim.Convolve([psfInt,gal])
+                gal     =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
                 # Draw the galaxy image
-                gal.drawImage(sub_img)
+                gal.drawImage(sub_img,add_to_image=True)
                 del gal,b,sub_img
                 gc.collect()
     gal_image.write(outFname,clobber=True)

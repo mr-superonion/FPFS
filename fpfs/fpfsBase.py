@@ -196,22 +196,17 @@ class fpfsTask():
         assert len(data.shape)==2
 
         galPow  =   imgutil.getFouPow(data)
-
-        if (self.noiFit is not None) or (self.noiModel is not None):
-            if self.noiModel is not None:
-                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
-            galPow  =   galPow-self.noiFit
-            epcor   =   self.noiFit*self.noiFit+2*self.noiFit*galPow
-            decEP   =   self.deconvolvePow(epcor,order=2.)
-            nn      =   self.itransformCov(decEP)
-            noiRev  =   True
-        else:
-            noiRev  =   False
-
         decPow      =   self.deconvolvePow(galPow,order=1.)
         mm          =   self.itransform(decPow)
-        if noiRev:
+        if self.noiModel is not None:
+            self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+        if self.noiFit is not None:
+            galPow  =   galPow-self.noiFit
+            epcor   =   self.noiFit*self.noiFit+2.*self.noiFit*galPow
+            decEP   =   self.deconvolvePow(epcor,order=2.)
+            nn      =   self.itransformCov(decEP)
             mm  =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
+
         return mm
 
 def fpfsM2E(moments,const=1.,mcalib=0.,rev=False,flipsign=False):
