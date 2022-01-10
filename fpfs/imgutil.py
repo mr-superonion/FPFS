@@ -34,7 +34,7 @@ def getFouPow(arrayIn):
 
     arrayIn.astype(np.float64)
     # Get power function and subtract noise power
-    galpow  =   np.abs(np.fft.fft2(arrayIn))**2.
+    galpow  =   np.abs(np.fft.rfft2(arrayIn))**2.
     galpow  =   np.fft.fftshift(galpow)
     return galpow
 
