@@ -17,7 +17,31 @@
 #
 # python lib
 
+import math
 import numpy as np
+
+def getFouPow_new(arrayIn):
+    """
+    Get Fourier power function
+
+    Parameters:
+        arrayIn:    image array (centroid does not matter)
+
+    Returns:
+        Fourier Power (centered at (ngrid//2,ngrid//2))
+
+
+    """
+
+    ngrid   =   arrayIn.shape[0]
+    tmp     =   np.abs(np.fft.rfft2(arrayIn))**2.
+    tmp     =   np.fft.fftshift(tmp,axes=0)
+    # Get power function and subtract noise power
+    galpow  =   np.empty((ngrid,ngrid),dtype=np.float64)
+    tmp2    =   np.roll(np.flip(tmp),axis=0,shift=1)
+    galpow[:,:ngrid//2+1] =  tmp2
+    galpow[:,ngrid//2:]   =  tmp[:,:-1]
+    return galpow
 
 def getFouPow(arrayIn):
     """
@@ -32,9 +56,10 @@ def getFouPow(arrayIn):
 
     """
 
-    arrayIn.astype(np.float64)
+    ngrid   =   arrayIn.shape[0]
+    galpow  =   np.empty((ngrid,ngrid),dtype=np.float64)
     # Get power function and subtract noise power
-    galpow  =   np.abs(np.fft.fft2(arrayIn))**2.
+    galpow[:,:]  =   np.abs(np.fft.fft2(arrayIn))**2.
     galpow  =   np.fft.fftshift(galpow)
     return galpow
 
@@ -99,8 +124,8 @@ def shapelets2D(ngrid,nord,sigma):
         for mm in range(nn,-1,-2):
             c1=(nn-abs(mm))//2
             d1=(nn+abs(mm))//2
-            cc=np.math.factorial(c1)+0.
-            dd=np.math.factorial(d1)+0.
+            cc=math.factorial(c1)+0.
+            dd=math.factorial(d1)+0.
             cc=cc/dd/np.pi
             chi[nn,mm,:,:]=pow(-1.,d1)/sigma*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]*pow(rfunc,abs(mm))*gaufunc*eulfunc**mm
     return chi

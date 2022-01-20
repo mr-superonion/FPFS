@@ -3,7 +3,7 @@ build*
 *.swp
 wrkDir
 datDir
-notebook/*/.ipynb_checkpoints/*
+*.ipynb_checkpoints/*
 _build
 dist
 *.aux
