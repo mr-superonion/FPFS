@@ -184,28 +184,38 @@ def make_basic_sim(outDir,gname,Id0):
     logging.info('Processing for %s, and shear List is for %s.' %(gname,gList))
     # PSF
     psfFWHM =   eval(outDir.split('_psf')[-1])/100.
-    logging.info('The FHWM for PSF is: %s arcsec'%psfFWHM)
+    logging.info('The FWHM for PSF is: %s arcsec'%psfFWHM)
     psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
     psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
     #psfImg =   psfInt.drawImage(nx=45,ny=45,scale=scale)
 
-    gal_image   =   galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
+    gal_image=  galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
     gal_image.setOrigin(0,0)
-    outFname    =   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
+    outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
     if os.path.exists(outFname):
         logging.info('Already have the outcome')
         return
 
-    bigfft      =   galsim.GSParams(maximum_fft_size=10240)
+    ud      =   galsim.UniformDeviate(Id0)
+    bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     if 'small' not in outDir:
-        rotArray    =   make_ringrot_radians(8)
+        # use parametric galaxies
+        if 'Shift' in outDir:
+            do_shift=   True
+            logging.info('Galaxies with be randomly shifted')
+        else:
+            do_shift=   False
+            logging.info('Galaxies will not be shifted')
+        rotArray    =   make_ringrot_radians(7) #2**7*8=1024 groups
+        logging.info('We have %d rotation realizations' %len(rotArray))
         irot        =   Id0//8     # we only use 80000 galaxies
+        ang         =   rotArray[irot]*galsim.radians
         Id          =   int(Id0%8)
         logging.info('Making Basic Simulation. ID: %d, GID: %d.' %(Id0,Id))
-        logging.info('The rotating angle is %.2f degree.' %(irot*90))
+        logging.info('The rotating angle is %.2f degree.' %rotArray[irot])
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],\
-                    'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
+                        'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
         catName     =   'real_galaxy_catalog_25.2.fits'
         cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
@@ -216,16 +226,19 @@ def make_basic_sim(outDir,gname,Id0):
         cosmo252.readHSTsample()
         hscCat  =   cosmo252.catused[Id*10000:(Id+1)*10000]
         for i,ss  in enumerate(hscCat):
-            ix      =   i%nx
-            iy      =   i//nx
-            b       =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
+            ix  =   i%nx
+            iy  =   i//nx
+            b   =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
             # each galaxy
-            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index']\
-                            ,gsparams=bigfft)
-            ang =   rotArray[irot]*galsim.radians
+            gal =   cosmos_cat.makeGalaxy(gal_type='parametric'\
+                    ,index=ss['index'],gsparams=bigfft)
             gal =   gal.rotate(ang)
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
+            if do_shift:
+                dx =ud()-1
+                dy =ud()-1
+                gal=gal.shift(dx,dy)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
             # draw galaxy
             sub_img =   gal_image[b]
@@ -235,6 +248,7 @@ def make_basic_sim(outDir,gname,Id0):
         del hscCat,cosmos_cat,cosmo252,psfInt
         gc.collect()
     else:
+        # use galaxies with random knots
         irr =   eval(outDir.split('_psf')[0].split('small')[-1])
         if irr==0:
             radius  =0.07
@@ -246,7 +260,6 @@ def make_basic_sim(outDir,gname,Id0):
             raise ValueError('Something wrong with the outDir!')
         logging.info('Making Small Simulation with Random Knots.' )
         logging.info('Radius: %s, ID: %s.' %(radius,Id0) )
-        ud      =   galsim.UniformDeviate(Id0)
         npoints =   20
         gal0    =   galsim.RandomKnots(half_light_radius=radius,\
                     npoints=npoints,flux=10.,rng=ud)

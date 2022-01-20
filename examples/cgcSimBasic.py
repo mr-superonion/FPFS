@@ -66,7 +66,8 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         pool    =   Pool("cgcSimBasicBatch")
         pool.cacheClear()
         # expDir  =   "galaxy_basic_psf60"
-        expDir  =   "small0_psf60"
+        # expDir  =   "small0_psf60"
+        expDir  =   "galaxy_basicShift_psf60"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
