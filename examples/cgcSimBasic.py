@@ -22,6 +22,7 @@
 #
 # python lib
 import os
+import gc
 import fpfs
 import numpy as np
 
@@ -84,6 +85,7 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         pendList=['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
         for pp in pendList:
             fpfs.simutil.make_basic_sim(cache.expDir,pp,Id)
+            gc.collect()
         self.log.info('finish ID: %d' %(Id))
         return
 

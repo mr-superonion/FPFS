@@ -158,7 +158,7 @@ def make_ringrot_radians(nord=8):
             rotArray[nnum]=i/nj
     return rotArray*np.pi
 
-def make_basic_sim(outDir,gname,Id0):
+def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
     """
     Make basic galaxy image simulation (isolated)
     Parameters:
@@ -166,8 +166,6 @@ def make_basic_sim(outDir,gname,Id0):
         gname:      shear distortion setup
         Id0:        index of the simulation
     """
-    nx          =   100
-    ny          =   100
     ngrid       =   64
     scale       =   0.168
     # Get the shear information
@@ -224,7 +222,7 @@ def make_basic_sim(outDir,gname,Id0):
         # catalog
         cosmo252=   cosmoHSTGal('252')
         cosmo252.readHSTsample()
-        hscCat  =   cosmo252.catused[Id*10000:(Id+1)*10000]
+        hscCat  =   cosmo252.catused[Id*nx*ny:(Id+1)*nx*ny]
         for i,ss  in enumerate(hscCat):
             ix  =   i%nx
             iy  =   i//nx
@@ -236,9 +234,11 @@ def make_basic_sim(outDir,gname,Id0):
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
             if do_shift:
-                dx =ud()-1
-                dy =ud()-1
-                gal=gal.shift(dx,dy)
+                # This shift ensure that the offset to (0,0) is statistically a
+                # symmetric top-hat square
+                dx = ud()*scale
+                dy = ud()*scale
+                gal= gal.shift(dx,dy)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
             # draw galaxy
             sub_img =   gal_image[b]
@@ -281,7 +281,7 @@ def make_basic_sim(outDir,gname,Id0):
                 gal.drawImage(sub_img,add_to_image=True)
                 del gal,b,sub_img
                 gc.collect()
-    gal_image.write(outFname,clobber=True)
-    del gal_image
+    if do_write:
+        gal_image.write(outFname,clobber=True)
     gc.collect()
-    return
+    return gal_image.array

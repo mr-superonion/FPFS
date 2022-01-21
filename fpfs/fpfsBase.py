@@ -26,8 +26,9 @@ class fpfsTask():
     A class to measure FPFS shapelet mode estimation
     Parameters:
         psfData:    2D array of PSF image
-        noiModel:   Models used to fit noise power function if you wish to estimate the noise power
-                    using the pixels at large k for each galaxy (in Fourier space)
+        noiModel:   Models used to fit noise power function if you wish to
+                    estimate the noise power using the pixels at large k for
+                    each galaxy (in Fourier space)
                     [default: None]
         noiFit:     Estimated noise power function if you already have it
                     [default: None]
@@ -71,8 +72,10 @@ class fpfsTask():
         """
         thres   =   1.e-3
         for dist in range(self.ngrid//5,self.ngrid//2-1):
-            ave =  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2+dist,self.ngrid//2])
-            ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)/self.psfPow[self.ngrid//2,self.ngrid//2+dist])
+            ave =  abs(np.exp(-dist**2./2./self.sigma**2.)\
+                    /self.psfPow[self.ngrid//2+dist,self.ngrid//2])
+            ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)\
+                    /self.psfPow[self.ngrid//2,self.ngrid//2+dist])
             ave =   ave/2.
             if ave<=thres:
                 self.rlim=   dist
@@ -121,7 +124,8 @@ class fpfsTask():
         """
 
         # Moments
-        M       =   np.sum(data[None,self._indY,self._indX]*self.chi[self._indC,self._indY,self._indX],axis=(1,2))
+        M       =   np.sum(data[None,self._indY,self._indX]\
+                    *self.chi[self._indC,self._indY,self._indX],axis=(1,2))
         types   =   [('fpfs_M00','>f8'),\
                     ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
                     ('fpfs_M40','>f8')\

@@ -20,6 +20,32 @@
 import math
 import numpy as np
 
+def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
+    """
+    Generate a Gaussian kernel on grids
+
+    Parameters:
+        ny:    		    grid size in y-direction
+        nx:    		    grid size in x-direction
+		sigma:		    scale of Gaussian
+		do_shift:	    center at (0,0) or (ny/2,nx/2)
+        return_grid:    return grids or not
+
+    """
+    out = np.empty((ny,nx))
+    x   = np.fft.fftfreq(nx,1/np.pi/2.)
+    y   = np.fft.fftfreq(ny,1/np.pi/2.)
+    if do_shift:
+        x=np.fft.fftshift(x)
+        y=np.fft.fftshift(y)
+    Y,X = np.meshgrid(y,x,indexing='ij')
+    r2  = X**2.+Y**2.
+    out = np.exp(-r2/2./sigma**2.)
+    if not return_grid:
+        return out
+    else:
+        return out,(Y,X)
+
 def getFouPow_new(arrayIn):
     """
     Get Fourier power function
@@ -161,11 +187,11 @@ def pcaimages(X,nmodes):
 
     Parameters:
         X:          input data array
-        nmodes:   number of pcs to keep
+        nmodes:     number of pcs to keep
 
 
     Returns:
-        list:        (pc images, stds on the axis)
+        list:       pc images, stds on the axis
 
 
     """
