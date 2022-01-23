@@ -199,14 +199,15 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
     if 'small' not in outDir:
         # use parametric galaxies
         if 'Shift' in outDir:
-            do_shift=   True
             logging.info('Galaxies with be randomly shifted')
         else:
-            do_shift=   False
             logging.info('Galaxies will not be shifted')
         rotArray    =   make_ringrot_radians(7) #2**7*8=1024 groups
         logging.info('We have %d rotation realizations' %len(rotArray))
         irot        =   Id0//8     # we only use 80000 galaxies
+        if irot>= len(rotArray):
+            logging.info('galaxy image index greater than %d' %len(rotArray*8))
+            return
         ang         =   rotArray[irot]*galsim.radians
         Id          =   int(Id0%8)
         logging.info('Making Basic Simulation. ID: %d, GID: %d.' %(Id0,Id))
@@ -233,11 +234,15 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
             gal =   gal.rotate(ang)
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
-            if do_shift:
+            if 'Shift' in outDir:
                 # This shift ensure that the offset to (0,0) is statistically a
                 # symmetric top-hat square
                 dx = ud()*scale
                 dy = ud()*scale
+                gal= gal.shift(dx,dy)
+            elif 'Center' in outDir:
+                dx = 0.5*scale
+                dy = 0.5*scale
                 gal= gal.shift(dx,dy)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
             # draw galaxy
