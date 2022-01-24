@@ -199,9 +199,11 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
     if 'small' not in outDir:
         # use parametric galaxies
         if 'Shift' in outDir:
-            logging.info('Galaxies with be randomly shifted')
+            logging.info('Galaxies will be randomly shifted')
+        elif 'Center' in outDir:
+            logging.info('Galaxies will be located at (ngrid//2,ngrid//2)')
         else:
-            logging.info('Galaxies will not be shifted')
+            logging.info('Galaxies will be located at (ngrid//2-0.5,ngrid//2-0.5)')
         rotArray    =   make_ringrot_radians(7) #2**7*8=1024 groups
         logging.info('We have %d rotation realizations' %len(rotArray))
         irot        =   Id0//8     # we only use 80000 galaxies
