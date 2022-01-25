@@ -231,8 +231,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
             iy  =   i//nx
             b   =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
             # each galaxy
-            gal =   cosmos_cat.makeGalaxy(gal_type='parametric'\
-                    ,index=ss['index'],gsparams=bigfft)
+            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',\
+                    index=ss['index'],gsparams=bigfft)
             gal =   gal.rotate(ang)
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
