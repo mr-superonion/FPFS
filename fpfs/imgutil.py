@@ -20,18 +20,14 @@
 import math
 import numpy as np
 
-def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
-    """
-    Generate a Gaussian kernel on grids
+def try_numba_njit():
+    try:
+        import numba
+        return numba.njit
+    except ImportError:
+        return lambda func: func
 
-    Parameters:
-        ny:    		    grid size in y-direction
-        nx:    		    grid size in x-direction
-		sigma:		    scale of Gaussian
-		do_shift:	    center at (0,0) or (ny/2,nx/2)
-        return_grid:    return grids or not
-
-    """
+def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
     out = np.empty((ny,nx))
     x   = np.fft.fftfreq(nx,1/np.pi/2.)
     y   = np.fft.fftfreq(ny,1/np.pi/2.)
@@ -45,6 +41,57 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
         return out
     else:
         return out,(Y,X)
+
+def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
+    """
+    Generate a Gaussian kernel on grids for np.fft.rfft transform
+
+    Parameters:
+        ny:    		    grid size in y-direction
+        nx:    		    grid size in x-direction
+        sigma:		    scale of Gaussian
+        return_grid:    return grids or not
+
+    """
+    out = np.empty((ny,nx//2+1))
+    x   = np.fft.rfftfreq(nx,1/np.pi/2.)
+    y   = np.fft.fftfreq(ny,1/np.pi/2.)
+    Y,X = np.meshgrid(y,x,indexing='ij')
+    r2  = X**2.+Y**2.
+    out = np.exp(-r2/2./sigma**2.)
+    if not return_grid:
+        return out
+    else:
+        return out,(Y,X)
+
+def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
+    """
+    Generate a Gaussian kernel in Fourier space on grids
+
+    Parameters:
+        ny:    		    grid size in y-direction
+        nx:    		    grid size in x-direction
+		sigma:		    scale of Gaussian
+		do_shift:	    center at (0,0) or (ny/2,nx/2) [bool]
+        return_grid:    return grids or not [bool]
+        use_rfft:       whether use rfft or not [bool]
+
+    """
+    if not isinstance(ny,int):
+        raise TypeError('ny should be int')
+    if not isinstance(nx,int):
+        raise TypeError('nx should be int')
+    if not isinstance(sigma,(float,int)):
+        raise TypeError('sigma should be float or int')
+    if sigma<=0.:
+        raise ValueError('sigma should be positive')
+
+    if not use_rfft:
+        return _gauss_kernel(ny,nx,sigma,do_shift,return_grid)
+    else:
+        if do_shift:
+            raise ValueError('do not support shifting centroid if use_rfft=True')
+        return _gauss_kernel_rfft(ny,nx,sigma,return_grid)
 
 def getFouPow_new(arrayIn):
     """
@@ -78,7 +125,6 @@ def getFouPow(arrayIn):
 
     Returns:
         Fourier Power (centered at (ngrid//2,ngrid//2))
-
 
     """
 

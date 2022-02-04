@@ -158,7 +158,7 @@ def make_ringrot_radians(nord=8):
             rotArray[nnum]=i/nj
     return rotArray*np.pi
 
-def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
+def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=True):
     """
     Make basic galaxy image simulation (isolated)
     Parameters:
@@ -166,17 +166,17 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
         gname:      shear distortion setup
         Id0:        index of the simulation
     """
-    ngrid       =   64
-    scale       =   0.168
+    ngrid  =   64
+    scale  =   0.168
     # Get the shear information
-    gList       =   np.array([-0.02,0.,0.02])
-    gList       =   gList[[eval(i) for i in gname.split('-')[-1]]]
+    gList  =   np.array([-0.02,0.,0.02])
+    gList  =   gList[[eval(i) for i in gname.split('-')[-1]]]
     if gname.split('-')[0]=='g1':
-        g1=gList[0]
-        g2=0.
+        g1 =    gList[0]
+        g2 =    0.
     elif gname.split('-')[0]=='g2':
-        g1=0.
-        g2=gList[0]
+        g1 =    0.
+        g2 =    gList[0]
     else:
         raise ValueError('cannot decide g1 or g2')
     logging.info('Processing for %s, and shear List is for %s.' %(gname,gList))
@@ -291,4 +291,5 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True):
     if do_write:
         gal_image.write(outFname,clobber=True)
     gc.collect()
-    return gal_image.array
+    if return_array:
+        return gal_image.array
