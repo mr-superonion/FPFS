@@ -21,6 +21,36 @@ from . import imgutil
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
+def try_numba_njit(func):
+    try:
+        import numba
+        return numba.njit(func)
+    except ImportError:
+        return func
+
+@try_numba_njit
+def prepareRlim(psf_array,sigma):
+    """
+    Get rlim, the area outside rlim is supressed by the shaplet Gaussian
+    kerenl
+    Parameters:
+        psf_array:     power of PSF or PSF array [np.ndarray]
+
+    """
+    ngrid   =   psf_array.shape[0]
+    thres   =   1.e-3
+    rlim    =   ngrid//2
+    for dist in range(ngrid//5,ngrid//2-1):
+        ave =  abs(np.exp(-dist**2./2./sigma**2.)\
+                /psf_array[ngrid//2+dist,ngrid//2])
+        ave +=  abs(np.exp(-dist**2./2./sigma**2.)\
+                /psf_array[ngrid//2,ngrid//2+dist])
+        ave =   ave/2.
+        if ave<=thres:
+            rlim=   dist
+            break
+    return rlim
+
 class fpfsTask():
     """
     A class to measure FPFS shapelet mode estimation
@@ -48,7 +78,10 @@ class fpfsTask():
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
         # shapelet scale
         self.sigma  =   max(min(sigmaPsf*beta,4.),1.)
-        self.__prepareRlim()
+        self.rlim   =   prepareRlim(self.psfPow,self.sigma)
+        self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
+        self._indY=self._indX[:,None]
+        self._ind2D=np.ix_(self._indX,self._indX)
         # Preparing shapelets (reshaped)
         nnord       =   4
         self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigma)\
@@ -62,27 +95,6 @@ class fpfsTask():
             self.stackRes=np.zeros(psfData.shape,dtype='>f8')
         else:
             self.stackRes=None
-        return
-
-    def __prepareRlim(self):
-        """
-        Get rlim, the area outside rlim is supressed by the shaplet Gaussian
-        kerenl (part of __init__)
-
-        """
-        thres   =   1.e-3
-        for dist in range(self.ngrid//5,self.ngrid//2-1):
-            ave =  abs(np.exp(-dist**2./2./self.sigma**2.)\
-                    /self.psfPow[self.ngrid//2+dist,self.ngrid//2])
-            ave +=  abs(np.exp(-dist**2./2./self.sigma**2.)\
-                    /self.psfPow[self.ngrid//2,self.ngrid//2+dist])
-            ave =   ave/2.
-            if ave<=thres:
-                self.rlim=   dist
-                break
-        self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
-        self._indY=self._indX[:,None]
-        self._ind2D=np.ix_(self._indX,self._indX)
         return
 
     def setRlim(self,rlim):
