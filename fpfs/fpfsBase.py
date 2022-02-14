@@ -66,6 +66,10 @@ class fpfsTask():
     """
     _DefaultName = "fpfsTask"
     def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85,debug=False):
+        self.base_types=[('fpfs_M00','>f8'),\
+                    ('fpfs_M22c','>f8'),\
+                    ('fpfs_M22s','>f8'),\
+                    ('fpfs_M40','>f8')]
         psfData     =   np.array(psfData,dtype='>f8')
         if noiFit is not None:
             noiFit     =   np.array(noiFit,dtype='>f8')
@@ -86,6 +90,7 @@ class fpfsTask():
         nnord       =   4
         self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigma)\
                 .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
+        self.prepare_ChiCov()
         # Only uses M00, M22 (real and img) and M40
         self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
@@ -108,6 +113,25 @@ class fpfsTask():
         self._ind2D=np.ix_(self._indX,self._indX)
         return
 
+    def prepare_ChiCov(self):
+        _chiU   =   self.chi[self._indC,self._indY,self._indX]
+        out     =   []
+        out.append(_chiU.real[0]*_chiU.real[0])
+        out.append(_chiU.real[1]*_chiU.real[1])
+        out.append(_chiU.imag[1]*_chiU.imag[1])
+        out.append(_chiU.real[2]*_chiU.real[2])
+        out.append(_chiU.real[0]*_chiU.real[1])
+        out.append(_chiU.real[0]*_chiU.imag[1])
+        out.append(_chiU.real[0]*_chiU.real[2])
+        out     =   np.stack(out)
+        self.chiCov =   out
+        self.cov_types= [('fpfs_N00N00','>f8'),\
+                    ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
+                    ('fpfs_N40N40','>f8'),\
+                    ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
+                    ('fpfs_N00N40','>f8')]
+        return
+
     def deconvolvePow(self,data,order=1.):
         """
         Deconvolve the galaxy power with the PSF power
@@ -116,7 +140,6 @@ class fpfsTask():
 
         Returns :
             Deconvolved galaxy power (truncated at rlim)
-
 
         """
         out  =   np.zeros(data.shape,dtype=np.float64)
@@ -138,15 +161,10 @@ class fpfsTask():
         # Moments
         M       =   np.sum(data[None,self._indY,self._indX]\
                     *self.chi[self._indC,self._indY,self._indX],axis=(1,2))
-        types   =   [('fpfs_M00','>f8'),\
-                    ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-                    ('fpfs_M40','>f8')\
-                    ]
         out     =   np.array((M.real[0],\
                     M.real[1],M.imag[1],\
-                    M.real[2]),dtype=types)
+                    M.real[2]),dtype=self.base_types)
         return out
-
 
     def itransformCov(self,data):
         """
@@ -161,27 +179,21 @@ class fpfsTask():
 
         """
         # Moments
-        _chiU   =   self.chi[self._indC,self._indY,self._indX]
-        chiUList=   []
-        chiUList.append(_chiU.real[0]*_chiU.real[0])
-        chiUList.append(_chiU.real[1]*_chiU.real[1])
-        chiUList.append(_chiU.imag[1]*_chiU.imag[1])
-        chiUList.append(_chiU.real[2]*_chiU.real[2])
-        chiUList.append(_chiU.real[0]*_chiU.real[1])
-        chiUList.append(_chiU.real[0]*_chiU.imag[1])
-        chiUList.append(_chiU.real[0]*_chiU.real[2])
-        chiUList=   np.stack(chiUList)
         dataU   =   data[None,self._indY,self._indX]
 
-        N       =   2.*np.sum(chiUList*dataU,axis=(1,2))
-        types   =   [('fpfs_N00N00','>f8'),\
-                    ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
-                    ('fpfs_N40N40','>f8'),\
-                    ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
-                    ('fpfs_N00N40','>f8')\
-                    ]
-        out     =   np.array(tuple(N),dtype=types)
+        N       =   2.*np.sum(self.chiCov*dataU,axis=(1,2))
+        out     =   np.array(tuple(N),dtype=self.cov_types)
         return out
+
+    def itransformDet(self,data):
+        _chiU   =   self.chi
+        chiUList=   []
+        chiUList.append(_chiU.real[0])
+        chiUList.append(_chiU.real[1])
+        chiUList.append(_chiU.imag[1])
+        chiUList.append(_chiU.real[2])
+        chiUList=   np.stack(chiUList)
+        return
 
     def measure(self,galData):
         """
@@ -228,7 +240,6 @@ class fpfsTask():
 
         Parameters:
             data:    image array (centroid does not matter)
-
 
         """
         assert len(data.shape)==2

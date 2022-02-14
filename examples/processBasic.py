@@ -83,7 +83,6 @@ class processBasicDriverConfig(pexConfig.Config):
         else:
             gnm     =   'Basic'
         self.outDir  =   os.path.join('out%s-%s' %(gnm,self.noiName),'psf%s'%(psfFWHM))
-
     def validate(self):
         assert os.path.exists('noise')
         assert os.path.exists(self.galDir)
