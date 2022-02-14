@@ -88,11 +88,11 @@ class fpfsTask():
         self._ind2D=np.ix_(self._indX,self._indX)
         # Preparing shapelets (reshaped)
         nnord       =   4
+        # Only uses M00, M22 (real and img) and M40
+        self._indC  =   np.array([0,12,20])[:,None,None]
         self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigma)\
                 .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         self.prepare_ChiCov()
-        # Only uses M00, M22 (real and img) and M40
-        self._indC  =   np.array([0,12,20])[:,None,None]
         # Preparing noise Model
         self.noiModel=  noiModel
         self.noiFit =   noiFit
