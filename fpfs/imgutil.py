@@ -28,6 +28,19 @@ def try_numba_njit():
         return lambda func: func
 
 def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
+    """
+    Generate a Gaussian kernel on grids for np.fft.fft transform
+
+    Parameters:
+        ny:    		    grid size in y-direction
+        nx:    		    grid size in x-direction
+        sigma:		    scale of Gaussian in Fourier space
+        do_shift:       Whether doing
+        return_grid:    return grids or not
+
+    Returns:
+        Gaussian on grids and (if return_grid) grids for (y, x) axes.
+    """
     out = np.empty((ny,nx))
     x   = np.fft.fftfreq(nx,1/np.pi/2.)
     y   = np.fft.fftfreq(ny,1/np.pi/2.)
@@ -49,9 +62,11 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
     Parameters:
         ny:    		    grid size in y-direction
         nx:    		    grid size in x-direction
-        sigma:		    scale of Gaussian
+        sigma:		    scale of Gaussian in Fourier space
         return_grid:    return grids or not
 
+    Returns:
+        Gaussian on grids and (if return_grid) grids for (y, x) axes.
     """
     out = np.empty((ny,nx//2+1))
     x   = np.fft.rfftfreq(nx,1/np.pi/2.)
@@ -75,7 +90,6 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
 		do_shift:	    center at (0,0) or (ny/2,nx/2) [bool]
         return_grid:    return grids or not [bool]
         use_rfft:       whether use rfft or not [bool]
-
     """
     if not isinstance(ny,int):
         raise TypeError('ny should be int')
@@ -102,8 +116,6 @@ def getFouPow_new(arrayIn):
 
     Returns:
         Fourier Power (centered at (ngrid//2,ngrid//2))
-
-
     """
 
     ngrid   =   arrayIn.shape[0]
@@ -125,7 +137,6 @@ def getFouPow(arrayIn):
 
     Returns:
         Fourier Power (centered at (ngrid//2,ngrid//2))
-
     """
 
     ngrid   =   arrayIn.shape[0]
@@ -145,8 +156,6 @@ def getRnaive(arrayIn):
 
     Returns:
         Fourier Power (centered at (ngrid//2,ngrid//2))
-
-
     """
 
     arrayIn2=   np.abs(arrayIn)
@@ -158,22 +167,21 @@ def getRnaive(arrayIn):
 
 def shapelets2D(ngrid,nord,sigma):
     """
-    Generate the shapelets function
+    Generate shapelets function in Fourier space
+    (only support square stamps: ny=nx=ngrid)
 
     Parameters:
         ngrid:      number of pixels in x and y direction
         nord:       radial order of the shaplets
-        sigma:      scale of shapelets
+        sigma:      scale of shapelets in Fourier space
 
     Returns:
         2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
-
-
     """
 
     mord    =   nord
     # Set up the r and theta function
-    xy1d    =   np.fft.fftshift(np.fft.fftfreq(ngrid,d=sigma/ngrid))
+    xy1d    =   np.fft.fftshift(np.fft.fftfreq(ngrid,d=sigma/2./np.pi))
     xfunc,yfunc=np.meshgrid(xy1d,xy1d)
     rfunc   =   np.sqrt(xfunc**2.+yfunc**2.)
     gaufunc =   np.exp(-rfunc*rfunc/2.)
@@ -199,7 +207,8 @@ def shapelets2D(ngrid,nord,sigma):
             cc=math.factorial(c1)+0.
             dd=math.factorial(d1)+0.
             cc=cc/dd/np.pi
-            chi[nn,mm,:,:]=pow(-1.,d1)/sigma*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]*pow(rfunc,abs(mm))*gaufunc*eulfunc**mm
+            chi[nn,mm,:,:]=pow(-1.,d1)/sigma*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]\
+                    *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm
     return chi
 
 def fitNoiPow(ngrid,galPow,noiModel,rlim):
@@ -212,8 +221,6 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
 
     Returns:
         list:       (power after removing noise power,subtracted noise power)
-
-
     """
 
     rlim2=  int(max(ngrid*0.4,rlim))
@@ -235,11 +242,8 @@ def pcaimages(X,nmodes):
         X:          input data array
         nmodes:     number of pcs to keep
 
-
     Returns:
         list:       pc images, stds on the axis
-
-
     """
 
     assert len(X.shape)==3
@@ -269,4 +273,3 @@ def pcaimages(X,nmodes):
     out =   V.reshape((nmodes,nn2,nn1))
     eVout=  eV.T[:nmodes]
     return out,stds,eVout
-

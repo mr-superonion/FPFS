@@ -29,13 +29,15 @@ def try_numba_njit(func):
         return func
 
 @try_numba_njit
-def prepareRlim(psf_array,sigma):
+def get_Rlim(psf_array,sigma):
     """
-    Get rlim, the area outside rlim is supressed by the shaplet Gaussian
-    kerenl
+    Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel
+    in FPFS shear estimation method.
     Parameters:
         psf_array:     power of PSF or PSF array [np.ndarray]
 
+    Returns:
+        the limit radius [float]
     """
     ngrid   =   psf_array.shape[0]
     thres   =   1.e-3
@@ -76,13 +78,14 @@ class fpfsTask():
         if noiModel is not None:
             noiFit     =   np.array(noiModel,dtype='>f8')
         self.ngrid  =   psfData.shape[0]
+        self._dk    =   np.pi/self.ngrid
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF
         # size of PSF
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
         # shapelet scale
-        self.sigma  =   max(min(sigmaPsf*beta,4.),1.)
-        self.rlim   =   prepareRlim(self.psfPow,self.sigma)
+        self.sigmaPx=   max(min(sigmaPsf*beta,4.),1.)
+        self.rlim   =   get_Rlim(self.psfPow,self.sigmaPx)
         self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
@@ -90,8 +93,8 @@ class fpfsTask():
         nnord       =   4
         # Only uses M00, M22 (real and img) and M40
         self._indC  =   np.array([0,12,20])[:,None,None]
-        self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigma)\
-                .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
+        self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
+                        .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         self.prepare_ChiCov()
         # Preparing noise Model
         self.noiModel=  noiModel
@@ -130,6 +133,22 @@ class fpfsTask():
                     ('fpfs_N40N40','>f8'),\
                     ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
                     ('fpfs_N00N40','>f8')]
+        return
+
+    def prepare_ChiDet(self):
+        _chiU   =   self.chi[self._indC,self._indY,self._indX]
+        out     =   []
+        out.append(_chiU.real[0])
+        out.append(_chiU.real[1])
+        out.append(_chiU.imag[1])
+
+        out     =   np.stack(out)
+        self.chiDet =   out
+        self.cov_types= [('fpfs_N00N00','>f8'),\
+                ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
+                ('fpfs_N40N40','>f8'),\
+                ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
+                ('fpfs_N00N40','>f8')]
         return
 
     def deconvolvePow(self,data,order=1.):
