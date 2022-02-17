@@ -79,16 +79,20 @@ class fpfsTask():
         psfData     =   np.array(psfData,dtype='>f8')
         self.noise_correct=False
         if noiFit is not None:
-            self.noiFit     =   np.array(noiFit,dtype='>f8')
+            self.noiFit  =  np.array(noiFit,dtype='>f8')
             self.noise_correct=True
+        else:
+            self.noiFit  =  None
         if noiModel is not None:
-            self.noiModel   =   np.array(noiModel,dtype='>f8')
+            self.noiModel=  np.array(noiModel,dtype='>f8')
             self.noise_correct=True
+        else:
+            self.noiModel=  None
         self.ngrid  =   psfData.shape[0]
         self._dk    =   np.pi/self.ngrid
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF
-        # size of PSF
+        # scale radius of PSF
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
         # shapelet scale
         self.sigmaPx=   max(min(sigmaPsf*beta,4.),1.)
