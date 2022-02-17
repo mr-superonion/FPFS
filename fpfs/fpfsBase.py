@@ -17,9 +17,13 @@
 #
 # python lib
 
+import logging
 from . import imgutil
 import numpy as np
 import numpy.lib.recfunctions as rfn
+
+_default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
+_gsigma=3.*2*np.pi/64.
 
 def try_numba_njit(func):
     try:
@@ -34,7 +38,7 @@ def get_Rlim(psf_array,sigma):
     Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel
     in FPFS shear estimation method.
     Parameters:
-        psf_array:     power of PSF or PSF array [np.ndarray]
+    psf_array:     power of PSF or PSF array [np.ndarray]
 
     Returns:
         the limit radius [float]
@@ -57,26 +61,29 @@ class fpfsTask():
     """
     A class to measure FPFS shapelet mode estimation
     Parameters:
-        psfData:    2D array of PSF image
-        noiModel:   Models used to fit noise power function if you wish to
-                    estimate the noise power using the pixels at large k for
-                    each galaxy (in Fourier space)
-                    [default: None]
-        noiFit:     Estimated noise power function if you already have it
-                    [default: None]
+    psfData:    2D array of PSF image
+    noiModel:   Models used to fit noise power function if you wish to
+                estimate the noise power using the pixels at large k for
+                each galaxy (in Fourier space)
+                [default: None]
+    noiFit:     Estimated noise power function if you already have it
+                [default: None]
     After construction, the following attributes are available:
     """
     _DefaultName = "fpfsTask"
-    def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85,debug=False):
+    def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85,debug=False,det_gsigma=None):
         self.base_types=[('fpfs_M00','>f8'),\
                     ('fpfs_M22c','>f8'),\
                     ('fpfs_M22s','>f8'),\
                     ('fpfs_M40','>f8')]
         psfData     =   np.array(psfData,dtype='>f8')
+        self.noise_correct=False
         if noiFit is not None:
-            noiFit     =   np.array(noiFit,dtype='>f8')
+            self.noiFit     =   np.array(noiFit,dtype='>f8')
+            self.noise_correct=True
         if noiModel is not None:
-            noiFit     =   np.array(noiModel,dtype='>f8')
+            self.noiModel   =   np.array(noiModel,dtype='>f8')
+            self.noise_correct=True
         self.ngrid  =   psfData.shape[0]
         self._dk    =   np.pi/self.ngrid
         self.psfPow =   imgutil.getFouPow(psfData)
@@ -95,10 +102,20 @@ class fpfsTask():
         self._indC  =   np.array([0,12,20])[:,None,None]
         self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
-        self.prepare_ChiCov()
-        # Preparing noise Model
-        self.noiModel=  noiModel
-        self.noiFit =   noiFit
+        if self.noise_correct:
+            self.prepare_ChiCov()
+            logging.info('We will correct for noise bias')
+            if det_gsigma is not None:
+                logging.info('and correct for detection bias')
+                self.prepare_ChiDet(det_gsigma)
+                self.det_gsigma=det_gsigma
+                self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
+            else:
+                logging.info('We do not correct for detection bias')
+        else:
+            if det_gsigma is not None:
+                raise ValueError('Cannot fully correct detection bias without \
+                        noise power. Please input noise power.')
         if debug:
             self.stackRes=np.zeros(psfData.shape,dtype='>f8')
         else:
@@ -117,6 +134,9 @@ class fpfsTask():
         return
 
     def prepare_ChiCov(self):
+        """
+        prepare the basis to estimate covariance
+        """
         _chiU   =   self.chi[self._indC,self._indY,self._indX]
         out     =   []
         out.append(_chiU.real[0]*_chiU.real[0])
@@ -135,27 +155,44 @@ class fpfsTask():
                     ('fpfs_N00N40','>f8')]
         return
 
-    def prepare_ChiDet(self):
-        _chiU   =   self.chi[self._indC,self._indY,self._indX]
-        out     =   []
-        out.append(_chiU.real[0])
-        out.append(_chiU.real[1])
-        out.append(_chiU.imag[1])
-
+    def prepare_ChiDet(self,gsigma=_gsigma):
+        """
+        prepare the basis to estimate covariance for detection
+        """
+        _chiU  =    self.chi[self._indC,self._indY,self._indX]
+        gKer,(k2grid,k1grid)=imgutil.gauss_kernel(self.ngrid,self.ngrid,gsigma,\
+                        do_shift=True,return_grid=True)
+        q1Ker  =    (k1grid**2.-k2grid**2.)/gsigma**2.*gKer
+        q2Ker  =    (2.*k1grid*k2grid)/gsigma**2.*gKer
+        d1Ker  =    (-1j*k1grid)*gKer
+        d2Ker  =    (-1j*k2grid)*gKer
+        out    =    []
+        self.cov_types= []
+        for (j,i) in _default_inds:
+            y  =    j-2
+            x  =    i-2
+            r1 =    (q1Ker+x*d1Ker-y*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
+            r2 =    (q2Ker+y*d1Ker+x*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
+            r1 =    r1[self._indY,self._indX]
+            r2 =    r2[self._indY,self._indX]
+            out.append(_chiU.real[0]*r1) #x00*r1
+            out.append(_chiU.real[0]*r2) #x00*r2
+            out.append(_chiU.real[1]*r1) #x22c*r1
+            out.append(_chiU.imag[1]*r2) #x22s*r2
+            self.cov_types.append(('pdet_N00f%d%dr1'  %(j,i),'>f8'))
+            self.cov_types.append(('pdet_N00f%d%dr2'  %(j,i),'>f8'))
+            self.cov_types.append(('pdet_N22cf%d%dr1' %(j,i),'>f8'))
+            self.cov_types.append(('pdet_N22sf%d%dr2' %(j,i),'>f8'))
         out     =   np.stack(out)
         self.chiDet =   out
-        self.cov_types= [('fpfs_N00N00','>f8'),\
-                ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
-                ('fpfs_N40N40','>f8'),\
-                ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
-                ('fpfs_N00N40','>f8')]
         return
 
     def deconvolvePow(self,data,order=1.):
         """
         Deconvolve the galaxy power with the PSF power
         Parameters:
-            data :   galaxy power, centerred at middle
+        data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
+        order:  deconvolve order of PSF power
 
         Returns :
             Deconvolved galaxy power (truncated at rlim)
@@ -165,11 +202,29 @@ class fpfsTask():
         out[self._ind2D]=data[self._ind2D]/self.psfPow[self._ind2D]**order
         return out
 
+    def deconvolve2(self,data,prder=1.,frder=1.):
+        """
+        Deconvolve the galaxy power with the PSF power
+        Parameters:
+        data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
+        prder:  deconvlove order of PSF FT power
+        prder:  deconvlove order of PSF FT
+
+        Returns :
+            Deconvolved galaxy power (truncated at rlim)
+
+        """
+        out  =   np.zeros(data.shape,dtype=np.float64)
+        out[self._ind2D]=data[self._ind2D]\
+                /self.psfPow[self._ind2D]**prder\
+                /self.psfFou[self._ind2D]**frder
+        return out
+
     def itransform(self,data):
         """
         Project image onto shapelet basis vectors
         Parameters:
-            data:   image to transfer
+        data:   image to transfer
 
         Returns:
             projection in shapelet space
@@ -190,29 +245,23 @@ class fpfsTask():
         Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.
 
         Parameters:
-            data:   data to transfer
+        data:   data to transfer
 
         Returns:
             projection in shapelet space
-
-
         """
         # Moments
         dataU   =   data[None,self._indY,self._indX]
 
-        N       =   2.*np.sum(self.chiCov*dataU,axis=(1,2))
+        N       =   np.sum(self.chiCov*dataU,axis=(1,2))
         out     =   np.array(tuple(N),dtype=self.cov_types)
         return out
 
     def itransformDet(self,data):
-        _chiU   =   self.chi
-        chiUList=   []
-        chiUList.append(_chiU.real[0])
-        chiUList.append(_chiU.real[1])
-        chiUList.append(_chiU.imag[1])
-        chiUList.append(_chiU.real[2])
-        chiUList=   np.stack(chiUList)
-        return
+        dataU   =   data[None,self._indY,self._indX]
+        D       =   np.sum(self.chiDet*dataU,axis=(1,2))
+        out     =   np.array(tuple(D),dtype=self.cov_types)
+        return out
 
     def measure(self,galData):
         """
@@ -222,9 +271,7 @@ class fpfsTask():
         galData:    galaxy image [float array (list)]
 
         Returns:
-            FPFS moments
-
-
+        FPFS moments
         """
         if isinstance(galData,np.ndarray):
             assert galData.shape[-1]==galData.shape[-2]
@@ -258,23 +305,31 @@ class fpfsTask():
         Measure the FPFS moments
 
         Parameters:
-            data:    image array (centroid does not matter)
+        data:    image array (centroid does not matter)
 
         """
         assert len(data.shape)==2
         nn          =   None
+        dd          =   None
         galPow      =   imgutil.getFouPow(data)
         if self.noiModel is not None:
             self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
-        if self.noiFit is not None:
+        if self.noise_correct:
             galPow  =   galPow-self.noiFit
-            epcor   =   self.noiFit*self.noiFit+2.*self.noiFit*galPow
+            epcor   =   2.*(self.noiFit*self.noiFit+2.*self.noiFit*galPow)
             decEP   =   self.deconvolvePow(epcor,order=2.)
             nn      =   self.itransformCov(decEP)
+            if self.det_gsigma is not None:
+                _tmp=   np.fft.fftshift(np.fft.fft2(data))
+                _tmp=   2.*_tmp*self.noiFit
+                decDet= self.deconvolve2(_tmp,prder=1.,frder=1)
+                dd  =   self.itransformDet(decDet)
         decPow      =   self.deconvolvePow(galPow,order=1.)
         mm          =   self.itransform(decPow)
+        if (nn is not None) and (dd is not None):
+            mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         if nn is not None:
-            mm      =   rfn.merge_arrays([mm,nn], flatten = True, usemask = False)
+            mm      =   rfn.merge_arrays([mm,nn],flatten=True,usemask=False)
         if self.stackRes is not None:
             self.stackRes+=galPow
         return mm
@@ -284,11 +339,11 @@ def fpfsM2E(moments,const=1.,rev=False,flipsign=False):
     Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
-        moments:    input FPFS moments     [float array]
-        const:      the weighting Constant [float]
-        mcalib:     multiplicative bias [float array]
-        rev:        revise the second-order noise bias? [bool]
-        flipsign:   flip the sign of response? [bool] (if you are using the convention in paper 1, set it to True)
+    moments:    input FPFS moments     [float array]
+    const:      the weighting Constant [float]
+    mcalib:     multiplicative bias [float array]
+    rev:        revise the second-order noise bias? [bool]
+    flipsign:   flip the sign of response? [bool] (if you are using the convention in paper 1, set it to True)
 
     Returns:
         an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
@@ -356,9 +411,9 @@ def fpfsM2Err(moments,const=1.):
     moments and the moments covariances
 
     Parameters:
-        moments:    input FPFS moments     [float array]
-        const:      the weighting Constant [float]
-        mcalib:     multiplicative bias [float array]
+    moments:    input FPFS moments     [float array]
+    const:      the weighting Constant [float]
+    mcalib:     multiplicative bias [float array]
 
     Returns:
         an array of (measurement error, FPFS ellipticity, FPFS flux ratio)

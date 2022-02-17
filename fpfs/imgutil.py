@@ -107,7 +107,7 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
             raise ValueError('do not support shifting centroid if use_rfft=True')
         return _gauss_kernel_rfft(ny,nx,sigma,return_grid)
 
-def getFouPow_new(arrayIn):
+def getFouPow_rft(arrayIn):
     """
     Get Fourier power function
 
@@ -136,7 +136,7 @@ def getFouPow(arrayIn):
         arrayIn:    image array (centroid does not matter)
 
     Returns:
-        Fourier Power (centered at (ngrid//2,ngrid//2))
+        Fourier Power (set (ngrid//2,ngrid//2) as origin)
     """
 
     ngrid   =   arrayIn.shape[0]
