@@ -225,7 +225,7 @@ class fpfsTask():
             Deconvolved galaxy power (truncated at rlim)
 
         """
-        out  =   np.zeros(data.shape,dtype=np.float64)
+        out  =   np.zeros(data.shape,dtype=np.complex64)
         out[self._ind2D]=data[self._ind2D]\
                 /self.psfPow[self._ind2D]**prder\
                 /self.psfFou[self._ind2D]**frder
