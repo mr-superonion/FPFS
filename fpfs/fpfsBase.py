@@ -347,8 +347,6 @@ def fpfsM2E(moments,const=1.,rev=False,flipsign=False):
 
     Returns:
         an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
-
-
     """
     #Get weight
     weight  =   moments['fpfs_M00']+const
@@ -417,8 +415,6 @@ def fpfsM2Err(moments,const=1.):
 
     Returns:
         an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
-
-
     """
     assert 'fpfs_N00N00' in moments.dtype.names
     assert 'fpfs_N00N22c' in moments.dtype.names
