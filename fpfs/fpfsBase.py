@@ -62,6 +62,7 @@ class fpfsTask():
     A class to measure FPFS shapelet mode estimation
     Parameters:
     psfData:    2D array of PSF image
+    beta:       FPFS scale parameter
     noiModel:   Models used to fit noise power function if you wish to
                 estimate the noise power using the pixels at large k for
                 each galaxy (in Fourier space)
@@ -71,7 +72,12 @@ class fpfsTask():
     After construction, the following attributes are available:
     """
     _DefaultName = "fpfsTask"
-    def __init__(self,psfData,noiModel=None,noiFit=None,beta=0.85,debug=False,det_gsigma=None):
+    def __init__(self,psfData,beta,noiModel=None,noiFit=None,debug=False,det_gsigma=None):
+        if not isinstance(beta,(float,int)):
+            raise TypeError('Input beta should be float.')
+        if beta>=1. or beta<=0.:
+            raise ValueError('Input beta shoul be in range (0,1)')
+
         self.base_types=[('fpfs_M00','>f8'),\
                     ('fpfs_M22c','>f8'),\
                     ('fpfs_M22s','>f8'),\
@@ -115,6 +121,7 @@ class fpfsTask():
                 self.det_gsigma=det_gsigma
                 self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
             else:
+                self.det_gsigma=None
                 logging.info('We do not correct for detection bias')
         else:
             if det_gsigma is not None:
@@ -171,7 +178,7 @@ class fpfsTask():
         d1Ker  =    (-1j*k1grid)*gKer
         d2Ker  =    (-1j*k2grid)*gKer
         out    =    []
-        self.cov_types= []
+        self.det_types= []
         for (j,i) in _default_inds:
             y  =    j-2
             x  =    i-2
@@ -183,10 +190,10 @@ class fpfsTask():
             out.append(_chiU.real[0]*r2) #x00*r2
             out.append(_chiU.real[1]*r1) #x22c*r1
             out.append(_chiU.imag[1]*r2) #x22s*r2
-            self.cov_types.append(('pdet_N00f%d%dr1'  %(j,i),'>f8'))
-            self.cov_types.append(('pdet_N00f%d%dr2'  %(j,i),'>f8'))
-            self.cov_types.append(('pdet_N22cf%d%dr1' %(j,i),'>f8'))
-            self.cov_types.append(('pdet_N22sf%d%dr2' %(j,i),'>f8'))
+            self.det_types.append(('pdet_N00f%d%dr1'  %(j,i),'>f8'))
+            self.det_types.append(('pdet_N00f%d%dr2'  %(j,i),'>f8'))
+            self.det_types.append(('pdet_N22cf%d%dr1' %(j,i),'>f8'))
+            self.det_types.append(('pdet_N22sf%d%dr2' %(j,i),'>f8'))
         out     =   np.stack(out)
         self.chiDet =   out
         return
@@ -263,8 +270,8 @@ class fpfsTask():
 
     def itransformDet(self,data):
         dataU   =   data[None,self._indY,self._indX]
-        D       =   np.sum(self.chiDet*dataU,axis=(1,2))
-        out     =   np.array(tuple(D),dtype=self.cov_types)
+        D       =   np.sum(self.chiDet*dataU,axis=(1,2)).real
+        out     =   np.array(tuple(D),dtype=self.det_types)
         return out
 
     def measure(self,galData):
@@ -319,6 +326,7 @@ class fpfsTask():
         if self.noiModel is not None:
             self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
         if self.noise_correct:
+            assert self.noiFit is not None
             galPow  =   galPow-self.noiFit
             epcor   =   2.*(self.noiFit*self.noiFit+2.*self.noiFit*galPow)
             decEP   =   self.deconvolvePow(epcor,order=2.)
@@ -332,7 +340,7 @@ class fpfsTask():
         mm          =   self.itransform(decPow)
         if (nn is not None) and (dd is not None):
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
-        if nn is not None:
+        elif nn is not None:
             mm      =   rfn.merge_arrays([mm,nn],flatten=True,usemask=False)
         if self.stackRes is not None:
             self.stackRes+=galPow
