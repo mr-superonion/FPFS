@@ -184,8 +184,8 @@ class fpfsTask():
             x  =    i-2
             r1 =    (q1Ker+x*d1Ker-y*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
             r2 =    (q2Ker+y*d1Ker+x*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
-            r1 =    r1[self._indY,self._indX]
-            r2 =    r2[self._indY,self._indX]
+            r1 =    r1[self._indY,self._indX]/self.ngrid**2.
+            r2 =    r2[self._indY,self._indX]/self.ngrid**2.
             out.append(_chiU.real[0]*r1) #x00*r1
             out.append(_chiU.real[0]*r2) #x00*r2
             out.append(_chiU.real[1]*r1) #x22c*r1
