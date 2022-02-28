@@ -99,7 +99,7 @@ class fpfsTask():
         else:
             self.noiModel=  None
         self.ngrid  =   psfData.shape[0]
-        self._dk    =   np.pi/self.ngrid
+        self._dk    =   2.*np.pi/self.ngrid
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF
         # scale radius of PSF
@@ -118,15 +118,15 @@ class fpfsTask():
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         if self.noise_correct:
             self.prepare_ChiCov()
-            logging.info('We will correct for noise bias')
+            logging.info('Will correct noise bias')
             if det_gsigma is not None:
-                logging.info('and correct for detection bias')
+                logging.info('Will correct detection bias')
                 self.prepare_ChiDet(det_gsigma)
                 self.det_gsigma=det_gsigma
                 self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
             else:
                 self.det_gsigma=None
-                logging.info('We do not correct for detection bias')
+                logging.info('Do not correct for detection bias')
         else:
             if det_gsigma is not None:
                 raise ValueError('Cannot fully correct detection bias without \
