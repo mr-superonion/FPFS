@@ -8,7 +8,7 @@ def test_noiseless_gals():
     # Setup the FPFS task.
     # For noiseless galaxies, no need to input
     # model for noise power.
-    fpTask=fpfs.fpfsBase.fpfsTask(psfData)
+    fpTask=fpfs.fpfsBase.fpfsTask(psfData,beta=0.75)
 
 
     # Read GAL image
