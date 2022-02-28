@@ -38,6 +38,7 @@ def get_Rlim(psf_array,sigma):
     Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel
     in FPFS shear estimation method.
     Parameters:
+    --------------------------
     psf_array:     power of PSF or PSF array [np.ndarray]
 
     Returns:
@@ -61,6 +62,7 @@ class fpfsTask():
     """
     A class to measure FPFS shapelet mode estimation
     Parameters:
+    ------------------
     psfData:    2D array of PSF image
     beta:       FPFS scale parameter
     noiModel:   Models used to fit noise power function if you wish to
@@ -69,10 +71,12 @@ class fpfsTask():
                 [default: None]
     noiFit:     Estimated noise power function if you already have it
                 [default: None]
+    det_gsigma: Gaussian sigma for detection kernel [float, default: None]
+    deubg:      Whether debug or not [bool, default: False]
     After construction, the following attributes are available:
     """
     _DefaultName = "fpfsTask"
-    def __init__(self,psfData,beta,noiModel=None,noiFit=None,debug=False,det_gsigma=None):
+    def __init__(self,psfData,beta,noiModel=None,noiFit=None,det_gsigma=None,debug=False):
         if not isinstance(beta,(float,int)):
             raise TypeError('Input beta should be float.')
         if beta>=1. or beta<=0.:
@@ -186,14 +190,14 @@ class fpfsTask():
             r2 =    (q2Ker+y*d1Ker+x*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
             r1 =    r1[self._indY,self._indX]/self.ngrid**2.
             r2 =    r2[self._indY,self._indX]/self.ngrid**2.
-            out.append(_chiU.real[0]*r1) #x00*r1
-            out.append(_chiU.real[0]*r2) #x00*r2
-            out.append(_chiU.real[1]*r1) #x22c*r1
-            out.append(_chiU.imag[1]*r2) #x22s*r2
-            self.det_types.append(('pdet_N00f%d%dr1'  %(j,i),'>f8'))
-            self.det_types.append(('pdet_N00f%d%dr2'  %(j,i),'>f8'))
-            self.det_types.append(('pdet_N22cf%d%dr1' %(j,i),'>f8'))
-            self.det_types.append(('pdet_N22sf%d%dr2' %(j,i),'>f8'))
+            out.append(_chiU.real[0]*r1) #x00*phi1
+            out.append(_chiU.real[0]*r2) #x00*phi2
+            out.append(_chiU.real[1]*r1) #x22c*phi1
+            out.append(_chiU.imag[1]*r2) #x22s*phi2
+            self.det_types.append(('pdet_N00F%d%dr1'  %(j,i),'>f8'))
+            self.det_types.append(('pdet_N00F%d%dr2'  %(j,i),'>f8'))
+            self.det_types.append(('pdet_N22cF%d%dr1' %(j,i),'>f8'))
+            self.det_types.append(('pdet_N22sF%d%dr2' %(j,i),'>f8'))
         out     =   np.stack(out)
         self.chiDet =   out
         return
@@ -346,7 +350,7 @@ class fpfsTask():
             self.stackRes+=galPow
         return mm
 
-def fpfsM2E(moments,const=1.,rev=False,flipsign=False):
+def fpfsM2E(moments,const=1.,noirev=False,flipsign=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 
@@ -354,8 +358,8 @@ def fpfsM2E(moments,const=1.,rev=False,flipsign=False):
     moments:    input FPFS moments     [float array]
     const:      the weighting Constant [float]
     mcalib:     multiplicative bias [float array]
-    rev:        revise the second-order noise bias? [bool]
-    flipsign:   flip the sign of response? [bool] (if you are using the convention in paper 1, set it to True)
+    noirev:     revise the second-order noise bias? [bool]
+    flipsign:   flip the sign of response? [bool] (if you are using the convention in FPFSv1, set it to True)
 
     Returns:
         an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
@@ -374,7 +378,7 @@ def fpfsM2E(moments,const=1.,rev=False,flipsign=False):
     e1sqS0  =   e1sq*s0
     e2sqS0  =   e2sq*s0
 
-    if rev:
+    if noirev:
         assert 'fpfs_N00N00' in moments.dtype.names
         assert 'fpfs_N00N22c' in moments.dtype.names
         assert 'fpfs_N00N22s' in moments.dtype.names
