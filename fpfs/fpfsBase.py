@@ -38,10 +38,11 @@ def get_Rlim(psf_array,sigma):
     Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel
     in FPFS shear estimation method.
     Parameters:
-    --------------------------
+    ----
     psf_array:     power of PSF or PSF array [np.ndarray]
 
     Returns:
+    ----
         the limit radius [float]
     """
     ngrid   =   psf_array.shape[0]
@@ -60,19 +61,21 @@ def get_Rlim(psf_array,sigma):
 
 class fpfsTask():
     """
-    A class to measure FPFS shapelet mode estimation
+    A class to measure FPFS shapelet mode estimation.
     Parameters:
-    ------------------
+    ----
     psfData:    2D array of PSF image
     beta:       FPFS scale parameter
-    noiModel:   Models used to fit noise power function if you wish to
-                estimate the noise power using the pixels at large k for
-                each galaxy (in Fourier space)
+    noiModel:   Models to be used to fit noise power function using the pixels
+                at large k for each galaxy (if you wish FPFS code to estiamte
+                noise power).
                 [default: None]
-    noiFit:     Estimated noise power function if you already have it
+    noiFit:     Estimated noise power function (if you have already estimated
+                noise power)
                 [default: None]
     det_gsigma: Gaussian sigma for detection kernel [float, default: None]
     deubg:      Whether debug or not [bool, default: False]
+    ----
     After construction, the following attributes are available:
     """
     _DefaultName = "fpfsTask"
@@ -89,8 +92,13 @@ class fpfsTask():
         psfData     =   np.array(psfData,dtype='>f8')
         self.noise_correct=False
         if noiFit is not None:
-            self.noiFit  =  np.array(noiFit,dtype='>f8')
             self.noise_correct=True
+            if isinstance(noiFit,np.ndarray):
+                assert noiFit.shape==psfData.shape, \
+                'the input noise power should have the same shape with input psf image'
+                self.noiFit  =  np.array(noiFit,dtype='>f8')
+            elif isinstance(noiFit,float):
+                self.noiFit  =  np.ones(psfData.shape,dtype='>f8')*noiFit
         else:
             self.noiFit  =  None
         if noiModel is not None:
