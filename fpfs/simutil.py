@@ -1,10 +1,10 @@
 import os
 import gc
+import galsim
 import logging
 import numpy as np
 import numpy.lib.recfunctions as rfn
 try:
-    import galsim
     import fitsio
     with_hst=True
     hpInfofname     =   os.path.join(os.environ['homeWrk'],'skyMap/healpix-nside%d-nest.fits')
@@ -28,8 +28,77 @@ try:
             1744576, 1744577, 1744578, 1744579, 1744580, 1744581, 1744582,
             1744583, 1744584, 1744585, 1744586, 1744587, 1744588, 1744589,
             1744590, 1744594, 1744608, 1744609, 1744610, 1750033])
-except ImportError as error:
-    print('Do not have galsim or hst images for fpfs.simutil!')
+except (ImportError, KeyError) as error:
+    with_hst=False
+
+if with_hst:
+    class cosmoHSTGal():
+        def __init__(self,version):
+            self.hpInfo     =   fitsio.read(hpInfofname %512)
+            self.directory  =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
+            self.catName    =   'real_galaxy_catalog_25.2.fits'
+            self.finName    =   os.path.join(self.directory,'cat_used.fits')
+            if version=='252':
+                self.hpDir  =   os.path.join(self.directory,'healpix-nside512')
+            elif version=='252E':
+                _dir        =   os.path.join(os.environ['homeWrk'],\
+                            'COSMOS/galsim_train/COSMOS_25.2_extended/')
+                self.hpDir  =   os.path.join(_dir,'healpix-nside512')
+            else:
+                return
+            return
+
+        def selectHpix(self,pixId):
+            """
+            # select galaxies in one healPIX
+            """
+            indFname    =   os.path.join(self.hpDir,'%d-25.2_ind.fits' %pixId)
+            if os.path.isfile(indFname):
+                __mask  =   fitsio.read(indFname)
+            else:
+                dd      =   self.hpInfo[self.hpInfo['pix']==pixId]
+                __mask  =   (self.catused['ra']>dd['raMin'])\
+                        &(self.catused['ra']<dd['raMax'])\
+                        &(self.catused['dec']>dd['decMin'])\
+                        &(self.catused['dec']<dd['decMax'])
+            __out   =   self.catused[__mask]
+            return __out
+
+        def readHpixSample(self,pixId):
+            """
+            # select galaxies in one healPIX
+            """
+            fname   =   os.path.join(self.hpDir,'cat-%d-25.2.fits' %pixId)
+            if os.path.isfile(fname):
+                out =   fitsio.read(fname)
+            else:
+                out =   None
+            return out
+
+        def readHSTsample(self):
+            """
+            # read the HST galaxy training sample
+            """
+            if os.path.isfile(self.finName):
+                catfinal    =   fitsio.read(self.finName)
+            else:
+                cosmos_cat  =   galsim.COSMOSCatalog(self.catName,dir=self.directory)
+                # used index
+                index_use   =   cosmos_cat.orig_index
+                # used catalog
+                paracat     =   cosmos_cat.param_cat[index_use]
+                # parametric catalog
+                oricat      =   fitsio.read(cosmos_cat.real_cat.getFileName())[index_use]
+                ra          =   oricat['RA']
+                dec         =   oricat['DEC']
+                indexNew    =   np.arange(len(ra),dtype=int)
+                __tmp=np.stack([ra,dec,indexNew]).T
+                radec=np.array([tuple(__t) for __t in __tmp],dtype=[('ra','>f8'),('dec','>f8'),('index','i8')])
+                catfinal    =   rfn.merge_arrays([paracat,radec], flatten = True, usemask = False)
+                fitsio.write(self.finName,catfinal)
+            self.catused    =   catfinal
+            return
+
 # LSST Task
 try:
     import lsst.afw.math as afwMath
@@ -39,107 +108,40 @@ try:
     with_lsst=True
 except ImportError as error:
     with_lsst=False
-    print('Do not have lsst pipeline!')
 
-class cosmoHSTGal():
-    def __init__(self,version):
-        self.hpInfo     =   fitsio.read(hpInfofname %512)
-        self.directory  =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
-        self.catName    =   'real_galaxy_catalog_25.2.fits'
-        self.finName    =   os.path.join(self.directory,'cat_used.fits')
-        if version=='252':
-            self.hpDir  =   os.path.join(self.directory,'healpix-nside512')
-        elif version=='252E':
-            _dir        =   os.path.join(os.environ['homeWrk'],\
-                        'COSMOS/galsim_train/COSMOS_25.2_extended/')
-            self.hpDir  =   os.path.join(_dir,'healpix-nside512')
-        else:
-            return
-        return
-
-    def selectHpix(self,pixId):
+if with_lsst:
+    def makeHSCExposure(galData,psfData,pixScale,variance):
         """
-        # select galaxies in one healPIX
+        Generate an HSC image
         """
-        indFname    =   os.path.join(self.hpDir,'%d-25.2_ind.fits' %pixId)
-        if os.path.isfile(indFname):
-            __mask  =   fitsio.read(indFname)
-        else:
-            dd      =   self.hpInfo[self.hpInfo['pix']==pixId]
-            __mask  =   (self.catused['ra']>dd['raMin'])\
-                    &(self.catused['ra']<dd['raMax'])\
-                    &(self.catused['dec']>dd['decMin'])\
-                    &(self.catused['dec']<dd['decMax'])
-        __out   =   self.catused[__mask]
-        return __out
-
-    def readHpixSample(self,pixId):
-        """
-        # select galaxies in one healPIX
-        """
-        fname   =   os.path.join(self.hpDir,'cat-%d-25.2.fits' %pixId)
-        if os.path.isfile(fname):
-            out =   fitsio.read(fname)
-        else:
-            out =   None
-        return out
-
-    def readHSTsample(self):
-        """
-        # read the HST galaxy training sample
-        """
-        if os.path.isfile(self.finName):
-            catfinal    =   fitsio.read(self.finName)
-        else:
-            cosmos_cat  =   galsim.COSMOSCatalog(self.catName,dir=self.directory)
-            # used index
-            index_use   =   cosmos_cat.orig_index
-            # used catalog
-            paracat     =   cosmos_cat.param_cat[index_use]
-            # parametric catalog
-            oricat      =   fitsio.read(cosmos_cat.real_cat.getFileName())[index_use]
-            ra          =   oricat['RA']
-            dec         =   oricat['DEC']
-            indexNew    =   np.arange(len(ra),dtype=int)
-            __tmp=np.stack([ra,dec,indexNew]).T
-            radec=np.array([tuple(__t) for __t in __tmp],dtype=[('ra','>f8'),('dec','>f8'),('index','i8')])
-            catfinal    =   rfn.merge_arrays([paracat,radec], flatten = True, usemask = False)
-            fitsio.write(self.finName,catfinal)
-        self.catused    =   catfinal
-        return
-
-def makeHSCExposure(galData,psfData,pixScale,variance):
-    """
-    Generate an HSC image
-    """
-    if not with_lsst:
-        raise ImportError('Do not have lsstpipe!')
-    ny,nx       =   galData.shape
-    exposure    =   afwImg.ExposureF(nx,ny)
-    exposure.getMaskedImage().getImage().getArray()[:,:]=galData
-    exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
-    #Set the PSF
-    ngridPsf    =   psfData.shape[0]
-    psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-    psfLsst.getArray()[:,:]= psfData
-    psfLsst     =   psfLsst.convertD()
-    kernel      =   afwMath.FixedKernel(psfLsst)
-    kernelPSF   =   meaAlg.KernelPsf(kernel)
-    exposure.setPsf(kernelPSF)
-    #prepare the wcs
-    #Rotation
-    cdelt   =   (pixScale*afwGeom.arcseconds)
-    CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
-    #wcs
-    crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
-    #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
-    crpix   =   afwGeom.Point2D(0.0, 0.0)
-    dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-    exposure.setWcs(dataWcs)
-    #prepare the frc
-    dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
-    exposure.setPhotoCalib(dataCalib)
-    return exposure
+        if not with_lsst:
+            raise ImportError('Do not have lsstpipe!')
+        ny,nx       =   galData.shape
+        exposure    =   afwImg.ExposureF(nx,ny)
+        exposure.getMaskedImage().getImage().getArray()[:,:]=galData
+        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
+        #Set the PSF
+        ngridPsf    =   psfData.shape[0]
+        psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
+        psfLsst.getArray()[:,:]= psfData
+        psfLsst     =   psfLsst.convertD()
+        kernel      =   afwMath.FixedKernel(psfLsst)
+        kernelPSF   =   meaAlg.KernelPsf(kernel)
+        exposure.setPsf(kernelPSF)
+        #prepare the wcs
+        #Rotation
+        cdelt   =   (pixScale*afwGeom.arcseconds)
+        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
+        #wcs
+        crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
+        #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
+        crpix   =   afwGeom.Point2D(0.0, 0.0)
+        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
+        exposure.setWcs(dataWcs)
+        #prepare the frc
+        dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
+        exposure.setPhotoCalib(dataCalib)
+        return exposure
 
 
 ## For ring tests
@@ -157,6 +159,53 @@ def make_ringrot_radians(nord=8):
             nnum+=1
             rotArray[nnum]=i/nj
     return rotArray*np.pi
+
+def make_simple_sim(shear,rng:np.random.RandomState,noise:float,psf_noise:float=0.)->tuple:
+    """
+    simulate an exponential object with moffat PSF, this function is mocked from
+    https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
+
+    Parameters
+    ----
+    shear: (g1, g2)
+        The shear in each component
+    rng: np.random.RandomState
+        The random number generator
+    noise: float
+        Noise for the image
+    psf_noise: float
+        Noise for the PSF
+    Returns:
+    ----
+    im,psf_im:
+        galaxy image and PSF image
+    """
+
+    scale    =  0.263
+    psf_fwhm =  0.9
+    gal_hlr  =  0.5
+    dy, dx   =  rng.uniform(low=-scale/2, high=scale/2, size=2)
+
+    psf  =  galsim.Moffat(beta=2.5, fwhm=psf_fwhm,
+    ).shear(g1=0.02, g2=-0.01,)
+
+    obj0 =  galsim.Exponential(
+        half_light_radius=gal_hlr,
+    ).shear(
+        g1=shear[0],
+        g2=shear[1],
+    ).shift(
+        dx=dx,
+        dy=dy,
+    )
+    obj = galsim.Convolve(psf, obj0)
+
+    psf_im = psf.drawImage(scale=scale).array
+    im = obj.drawImage(scale=scale).array
+
+    psf_im +=  rng.normal(scale=psf_noise, size=psf_im.shape)
+    im     +=  rng.normal(scale=noise, size=im.shape)
+    return im,psf_im
 
 def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=True):
     """

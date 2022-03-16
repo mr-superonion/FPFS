@@ -1,5 +1,5 @@
-from setuptools import setup, find_packages
 import numpy
+from setuptools import setup, find_packages
 
 setup(
     name='fpfs',
@@ -12,6 +12,7 @@ setup(
         'numba',
         'numpy',
         'scipy',
+        'galsim',
     ],
     include_dirs=numpy.get_include(),
     packages=find_packages(),
