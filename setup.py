@@ -9,9 +9,9 @@ setup(
     author_email='mr.superonion@hotmail.com',
     python_requires='>=3.6',
     install_requires=[
+        'numba',
         'numpy',
         'scipy',
-        'matplotlib',
     ],
     include_dirs=numpy.get_include(),
     packages=find_packages(),

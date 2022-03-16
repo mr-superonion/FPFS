@@ -17,6 +17,7 @@
 #
 # python lib
 
+import numba
 import logging
 from . import imgutil
 import numpy as np
@@ -25,14 +26,7 @@ import numpy.lib.recfunctions as rfn
 _default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
 _gsigma=3.*2*np.pi/64.
 
-def try_numba_njit(func):
-    try:
-        import numba
-        return numba.njit(func)
-    except ImportError:
-        return func
-
-@try_numba_njit
+@numba.njit
 def get_Rlim(psf_array,sigma):
     """
     Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel
@@ -84,7 +78,8 @@ class fpfsTask():
             raise TypeError('Input beta should be float.')
         if beta>=1. or beta<=0.:
             raise ValueError('Input beta shoul be in range (0,1)')
-
+        self.ngrid  =   psfData.shape[0]
+        self._dk    =   2.*np.pi/self.ngrid
         self.base_types=[('fpfs_M00','>f8'),\
                     ('fpfs_M22c','>f8'),\
                     ('fpfs_M22s','>f8'),\
@@ -98,7 +93,7 @@ class fpfsTask():
                 'the input noise power should have the same shape with input psf image'
                 self.noiFit  =  np.array(noiFit,dtype='>f8')
             elif isinstance(noiFit,float):
-                self.noiFit  =  np.ones(psfData.shape,dtype='>f8')*noiFit
+                self.noiFit  =  np.ones(psfData.shape,dtype='>f8')*noiFit*(self.ngrid)**2.
         else:
             self.noiFit  =  None
         if noiModel is not None:
@@ -106,8 +101,6 @@ class fpfsTask():
             self.noise_correct=True
         else:
             self.noiModel=  None
-        self.ngrid  =   psfData.shape[0]
-        self._dk    =   2.*np.pi/self.ngrid
         self.psfPow =   imgutil.getFouPow(psfData)
         # Preparing PSF
         # scale radius of PSF
