@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='fpfs',
-    version='2.0.1',
+    version='2.0.2',
     description='FPFS shear estimator',
     author='Xiangchong Li et al.',
     author_email='mr.superonion@hotmail.com',
@@ -18,4 +18,5 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
+    url = "https://github.com/mr-superonion/FPFS/",
 )
