@@ -1,7 +1,5 @@
 # `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 
-Document: https://fpfs.readthedocs.io/en/latest/
-
 ## Installation
 
 ```shell
