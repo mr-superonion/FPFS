@@ -160,52 +160,66 @@ def make_ringrot_radians(nord=8):
             rotArray[nnum]=i/nj
     return rotArray*np.pi
 
-def make_simple_sim(shear,rng:np.random.RandomState,noise:float,psf_noise:float=0.)->tuple:
-    """
-    simulate an exponential object with moffat PSF, this function is mocked from
-    https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
+class sim_test():
+    def __init__(self,shear,rng:np.random.RandomState)->None:
+        """
+        simulate an exponential object with moffat PSF, this class has the same observational setup as
+        https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
+        Parameters
+        ----
+        shear: (g1, g2)
+            The shear in each component
+        rng: np.random.RandomState
+            The random number generator
+        """
+        self.rng=   rng
+        scale   =   0.263
+        psf_fwhm=   0.9
+        gal_hlr =   0.5
 
-    Parameters
-    ----
-    shear: (g1, g2)
-        The shear in each component
-    rng: np.random.RandomState
-        The random number generator
-    noise: float
-        Noise for the image
-    psf_noise: float
-        Noise for the PSF
-    Returns:
-    ----
-    im,psf_im:
-        galaxy image and PSF image
-    """
+        dy, dx  =   self.rng.uniform(low=-scale/2, high=scale/2, size=2)
+        psf     =   galsim.Moffat(beta=2.5, fwhm=psf_fwhm,
+        ).shear(g1=0.02, g2=-0.01,)
 
-    scale    =  0.263
-    psf_fwhm =  0.9
-    gal_hlr  =  0.5
-    dy, dx   =  rng.uniform(low=-scale/2, high=scale/2, size=2)
+        obj0    =   galsim.Exponential(
+            half_light_radius=gal_hlr,
+        ).shear(
+            g1  =   shear[0],
+            g2  =   shear[1],
+        ).shift(
+            dx  =   dx,
+            dy  =   dy,
+        )
+        obj     =   galsim.Convolve(psf, obj0)
 
-    psf  =  galsim.Moffat(beta=2.5, fwhm=psf_fwhm,
-    ).shear(g1=0.02, g2=-0.01,)
+        # define the psf and psf here which will be repeatedly used
+        self.psf=   psf.drawImage(scale=scale).array
+        self.img=   obj.drawImage(scale=scale).array
+        return
 
-    obj0 =  galsim.Exponential(
-        half_light_radius=gal_hlr,
-    ).shear(
-        g1=shear[0],
-        g2=shear[1],
-    ).shift(
-        dx=dx,
-        dy=dy,
-    )
-    obj = galsim.Convolve(psf, obj0)
+    def make_image(self,noise:float,psf_noise:float=0.) ->tuple[np.ndarray,np.ndarray]:
+        """
 
-    psf_im = psf.drawImage(scale=scale).array
-    im = obj.drawImage(scale=scale).array
-
-    psf_im +=  rng.normal(scale=psf_noise, size=psf_im.shape)
-    im     +=  rng.normal(scale=noise, size=im.shape)
-    return im,psf_im
+        Parameters
+        ----
+        noise: float
+            Noise for the image
+        psf_noise: float
+            Noise for the PSF
+        Returns:
+        ----
+        im,psf_im:
+            galaxy image and PSF image
+        """
+        if noise>1e-10:
+            img =   self.img+self.rng.normal(scale=noise,size=self.img.shape)
+        else:
+            img =   self.img
+        if psf_noise>1e-10:
+            psf =   self.psf+self.rng.normal(scale=psf_noise, size=self.psf.shape)
+        else:
+            psf =   self.psf
+        return img,psf
 
 def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=True):
     """
@@ -342,3 +356,61 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
     gc.collect()
     if return_array:
         return gal_image.array
+
+def make_gal_ssbg(shear,psf,rng,r1,r0=20.)->np.ndarray:
+    """
+    simulate an exponential object with moffat PSF, given a SNR (r0) and
+    a source background noise ratio (r0)
+    Parameters
+    ----
+    shear:  (g1, g2)
+        The shear in each component
+    rng:    np.random.RandomState
+        The random number generator
+    r1:     float
+        The source background noise variance ratio
+    r0:     float
+        The SNR of galaxy
+    psf:    galsim.Moffat, e.g.,
+        galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.01,)
+    """
+    rng     =   rng
+    scale   =   0.263
+    gal_hlr =   0.5
+
+    dy, dx  =   rng.uniform(low=-scale/2, high=scale/2, size=2)
+
+    obj0    =   galsim.Exponential(
+        half_light_radius=gal_hlr,
+    ).shear(
+        g1  =   shear[0],
+        g2  =   shear[1],
+    ).shift(
+        dx  =   dx,
+        dy  =   dy,
+    )
+    obj     =   galsim.Convolve(psf, obj0)
+
+    # define the psf and psf here which will be repeatedly used
+    psf     =   psf.drawImage(scale=scale).array
+    # galaxy image:
+    img     =   obj.drawImage(scale=scale).array
+    ngrid   =   img.shape[0]
+    # noise image:
+    noimg   =   rng.normal(scale=1.,size=img.shape)
+    # get the current flux using the 5x5 substamps centered at the stamp's center
+    flux_tmp=   np.sum(img[ngrid//2-2:ngrid//2+3,ngrid//2-2:ngrid//2+3])
+    # the current (expectation of) total noise std on the 5x5 substamps is 5 since for each
+    # pixel, the expecatation value of variance is 1; therefore, the expectation value of variance is 25...
+    std_tmp =   5
+    # normalize both the galaxy image and noise image so that they will have
+    # flux=1 and variance=1 (expectation value) in the 5x5 substamps
+    img     =   img/flux_tmp
+    noimg   =   noimg/std_tmp
+    # now we can determine the flux and background variance using equation (3)
+    F       =   r0**2.*(1+r1)/r1
+    B       =   F/r1
+    img     =   img*F
+    noimg   =   noimg*np.sqrt(B)
+    img     =   img+noimg
+    return img
