@@ -11,7 +11,7 @@ pip install ./
 ## Demos
 
 [demo1](https://github.com/mr-superonion/FPFS/blob/master/notebook/demos/demo1.ipynb)
-simulate noisy galaxies with different SNRs and process the galaxies with FPFS
+simulates noisy galaxies with different SNRs and process the galaxies with FPFS
 shear estimator.
 
 
