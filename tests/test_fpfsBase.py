@@ -31,9 +31,9 @@ def analyze_FPFS(rng:np.random.RandomState, input_shear:np.ndarray, num_gals:int
             num_tmp=1
         else:
             num_tmp=num_gals
+        start= time.time()
         results =   []
         for _ in range(num_tmp):
-            start = time.time()
             gal =   testTask.make_image(noise=noi_stds[i],psf_noise=noi_psf)[0]
             ngrid=  gal.shape[0]
             beg =   ngrid//2-rcut
@@ -41,11 +41,9 @@ def analyze_FPFS(rng:np.random.RandomState, input_shear:np.ndarray, num_gals:int
             gal =   gal[beg:end,beg:end]
             modes=  fpTask.measure(gal)
             results.append(modes)
-            end =   time.time()
-            print(end - start)
-            del gal,modes,start,end
-            gc.collect()
-
+            del gal,modes,beg,end,ngrid
+        end =   time.time()
+        print('%.5f seconds to process %d galaxies' %(end-start,num_tmp))
         mms =   rfn.stack_arrays(results,usemask=False)
         ells=   fpfs.fpfsBase.fpfsM2E(mms,const=2000,noirev=False)
         del mms,results
@@ -58,7 +56,7 @@ def analyze_FPFS(rng:np.random.RandomState, input_shear:np.ndarray, num_gals:int
 
 def test_noisy_gals(noi_std:float=0.) -> None:
     rng     =   np.random.RandomState(212)
-    num_gals=   1000
+    num_gals=   10000
     shear,shear_err=analyze_FPFS(rng,np.array([0.03, 0.00]),num_gals,noi_std)
     thres   =   max(2.*shear_err,1e-5)
     assert np.all(np.abs(shear-0.03)<thres)
