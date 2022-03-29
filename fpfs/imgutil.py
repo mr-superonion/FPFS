@@ -138,32 +138,28 @@ def getFouPow(arrayIn: np.ndarray) -> np.ndarray:
 
     Parameters:
     -----
-    arrayIn:    array_like
+    arrayIn:    np.ndarray
                 image array (centroid does not matter)
 
-    Returns:
+    Returns:    np.ndarray
     ----
-    galpow:     array_like
-                Fourier Power (centered at (ngrid//2,ngrid//2))
+        Fourier Power (centered at (ngrid//2,ngrid//2))
     """
+    out =   np.fft.fftshift(np.abs(np.fft.fft2(arrayIn))**2.).astype(np.float64)
+    return out
 
-    ngrid   =   arrayIn.shape[0]
-    galpow  =   np.empty((ngrid,ngrid),dtype=np.float64)
-    # Get power function and subtract noise power
-    galpow[:,:]  =   np.abs(np.fft.fft2(arrayIn))**2.
-    galpow  =   np.fft.fftshift(galpow)
-    return galpow
-
-def getRnaive(arrayIn):
+def getRnaive(arrayIn:np.ndarray)->float:
     """
     A naive way to estimate Radius.
     Note, this naive estimation is heavily influenced by noise.
 
     Parameters:
-        arrayIn:    image array (centroid does not matter)
+    ----
+    arrayIn:    image array (centroid does not matter)
 
-    Returns:
-        Fourier Power (centered at (ngrid//2,ngrid//2))
+    Returns:    float
+    ----
+        effective radius
     """
 
     arrayIn2=   np.abs(arrayIn)
@@ -219,16 +215,20 @@ def shapelets2D(ngrid,nord,sigma):
                     *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm
     return chi
 
-def fitNoiPow(ngrid,galPow,noiModel,rlim):
+def fitNoiPow(ngrid,galPow,noiModel,rlim)->np.ndarray:
     """
-    Fit the noise power from observed galaxy power and remove it
+    Fit the noise power from observed galaxy power
 
     Parameters:
-        ngrid:      number of pixels in x and y direction
-        galPow:     galaxy Fourier power function
+    ----
+    ngrid:  int
+        number of pixels in x and y direction
+    galPow: np.ndarray
+        galaxy Fourier power function
 
-    Returns:
-        list:       (power after removing noise power,subtracted noise power)
+    Returns:    np.ndarray
+    ----
+        noise power
     """
 
     rlim2=  int(max(ngrid*0.4,rlim))
@@ -239,7 +239,7 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
     vl  =   galPow[mask]
     nl  =   noiModel[:,mask]
     par =   np.linalg.lstsq(nl.T,vl,rcond=None)[0]
-    noiSub=np.sum(par[:,None,None]*noiModel,axis=0)
+    noiSub= np.sum(par[:,None,None]*noiModel,axis=0)
     return noiSub
 
 def pcaimages(X,nmodes):
@@ -247,11 +247,15 @@ def pcaimages(X,nmodes):
     Estimate the principal components of array list X
 
     Parameters:
-        X:          input data array
-        nmodes:     number of pcs to keep
+    ----
+    X:  np.ndarray
+        input data array
+    nmodes:     int
+        number of pcs to keep
 
-    Returns:
-        list:       pc images, stds on the axis
+    Returns:    list
+    ----
+        pc images, stds on the axis
     """
 
     assert len(X.shape)==3

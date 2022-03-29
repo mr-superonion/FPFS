@@ -60,17 +60,21 @@ class fpfsTask():
 
     Parameters:
     ----
-    psfData:    2D array of PSF image
-    beta:       FPFS scale parameter
-    noiModel:   Models to be used to fit noise power function using the pixels
-                at large k for each galaxy (if you wish FPFS code to estiamte
-                noise power).
-                [default: None]
-    noiFit:     Estimated noise power function (if you have already estimated
-                noise power)
-                [default: None]
-    det_gsigma: Gaussian sigma for detection kernel [float, default: None]
-    deubg:      Whether debug or not [bool, default: False]
+    psfData:    np.ndarray
+        an average PSF image used to initialize the task
+    beta:       float
+        FPFS scale parameter
+    noiModel:   np.ndarray
+        Models to be used to fit noise power function using the pixels at large
+        k for each galaxy (if you wish FPFS code to estiamte noise power).
+        [default: None]
+    noiFit:     np.ndarray
+        Estimated noise power function (if you have already estimated noise
+        power) [default: None]
+    det_rsigma: np.ndarray
+        Gaussian sigma for detection kernel [default: None]
+    deubg:      bool
+        Whether debug or not [default: False]
     """
     _DefaultName = "fpfsTask"
     def __init__(self,psfData,beta,noiModel=None,noiFit=None,det_gsigma=None,debug=False):
@@ -94,14 +98,18 @@ class fpfsTask():
                 self.noiFit  =  np.array(noiFit,dtype='>f8')
             elif isinstance(noiFit,float):
                 self.noiFit  =  np.ones(psfData.shape,dtype='>f8')*noiFit*(self.ngrid)**2.
+            else:
+                raise TypeError('noiFit should be either np.ndarray or float')
         else:
-            self.noiFit  =  None
+            self.noiFit  =  0.
+        self.noiFit0=   self.noiFit
         if noiModel is not None:
-            self.noiModel=  np.array(noiModel,dtype='>f8')
             self.noise_correct=True
+            self.noiModel=  np.array(noiModel,dtype='>f8')
         else:
             self.noiModel=  None
         self.psfPow =   imgutil.getFouPow(psfData)
+        self.psfPow0=   self.psfPow
         # Preparing PSF
         # scale radius of PSF
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
@@ -133,9 +141,27 @@ class fpfsTask():
                 raise ValueError('Cannot fully correct detection bias without \
                         noise power. Please input noise power.')
         if debug:
-            self.stackRes=np.zeros(psfData.shape,dtype='>f8')
+            self.stackPow=np.zeros(psfData.shape,dtype='>f8')
         else:
-            self.stackRes=None
+            self.stackPow=None
+        return
+
+    def reset_psfPow(self):
+        """
+        reset psf power to the average PSF used to initialize the task
+        """
+        self.psfPow=self.psfPow0
+        # we do not ned to reset psfFou since that is only used for detection
+        # (detection only uses average PSF)
+        return
+
+    def reset_noiFit(self):
+        """
+        reset noiFit to the one used to initialize the task
+        """
+        self.noiFit=self.noiFit0
+        # we do not ned to reset psfFou since that is only used for detection
+        # (detection only uses average PSF)
         return
 
     def setRlim(self,rlim):
@@ -215,7 +241,6 @@ class fpfsTask():
         Returns :
         ----
             Deconvolved galaxy power (truncated at rlim)
-
         """
         out  =   np.zeros(data.shape,dtype=np.float64)
         out[self._ind2D]=data[self._ind2D]/self.psfPow[self._ind2D]**order
@@ -234,7 +259,6 @@ class fpfsTask():
         Returns :
         ----
             Deconvolved galaxy power (truncated at rlim)
-
         """
         out  =   np.zeros(data.shape,dtype=np.complex64)
         out[self._ind2D]=data[self._ind2D]\
@@ -286,18 +310,23 @@ class fpfsTask():
         out     =   np.array(tuple(D),dtype=self.det_types)
         return out
 
-    def measure(self,galData):
+    def measure(self,galData,psfPow=None,noiFit=None):
         """
         Measure the FPFS moments
 
         Parameters:
         ----
-        galData:    galaxy image
+        galData:    np.ndarray | list
+            galaxy image
 
-        Returns:
+        Returns:    np.ndarray
         ----
             FPFS moments
         """
+        if psfPow is not None:
+            self.psfPow=psfPow
+        if noiFit is not None:
+            self.noiFit=noiFit
         if isinstance(galData,np.ndarray):
             assert galData.shape[-1]==galData.shape[-2]
             if len(galData.shape) == 2:
@@ -325,33 +354,34 @@ class fpfsTask():
         else:
             raise TypeError("Input galaxy data has wrong type (neither list nor ndarray).")
 
-    def __measure(self,data):
+    def __measure(self,data)->np.ndarray:
         """
         Measure the FPFS moments
 
         Parameters:
         ----
-        data:    image array (centroid does not matter)
+        data:   np.ndarray
+            image array (centroid does not matter)
 
-        Returns:
+        Returns: np.ndarray
         ----
             FPFS moments
         """
-        assert len(data.shape)==2
         nn          =   None
         dd          =   None
         galPow      =   imgutil.getFouPow(data)
         if self.noiModel is not None:
-            self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+            noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+        else:
+            noiFit  =   self.noiFit
         if self.noise_correct:
-            assert self.noiFit is not None
-            galPow  =   galPow-self.noiFit
-            epcor   =   2.*(self.noiFit*self.noiFit+2.*self.noiFit*galPow)
+            galPow  =   galPow-noiFit*1.
+            epcor   =   2.*(noiFit*noiFit+2.*galPow*noiFit)
             decEP   =   self.deconvolvePow(epcor,order=2.)
             nn      =   self.itransformCov(decEP)
             if self.det_gsigma is not None:
                 _tmp=   np.fft.fftshift(np.fft.fft2(data))
-                _tmp=   2.*_tmp*self.noiFit
+                _tmp=   2.*_tmp*noiFit
                 decDet= self.deconvolve2(_tmp,prder=1.,frder=1)
                 dd  =   self.itransformDet(decDet)
         decPow      =   self.deconvolvePow(galPow,order=1.)
@@ -360,8 +390,8 @@ class fpfsTask():
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         elif nn is not None:
             mm      =   rfn.merge_arrays([mm,nn],flatten=True,usemask=False)
-        if self.stackRes is not None:
-            self.stackRes+=galPow
+        if self.stackPow is not None:
+            self.stackPow+=galPow
         return mm
 
 def fpfsM2E(moments,const=1.,noirev=False,flipsign=False):
