@@ -2,7 +2,6 @@
 ----
 
 ## Installation
-----
 
 For stable version:
 ```shell
@@ -15,8 +14,9 @@ cd FPFS
 pip install -e .
 ```
 
-## Demos
 ----
+
+## Demos
 
 ### Isolated galaxies
 [demo1](https://github.com/mr-superonion/FPFS/blob/master/notebook/demos/demo1.ipynb)
@@ -31,8 +31,10 @@ estimates shear under a more realistic situation with *PSF errors*.
 ### blended galaxies
 TBD
 
+----
 
 ## Reference
-----
 + [version 2.0](https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract)
 + [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
+
+----
