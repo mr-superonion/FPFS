@@ -132,7 +132,7 @@ def getFouPow_rft(arrayIn: np.ndarray) -> np.ndarray:
     galpow[:,ngrid//2:]   =  tmp[:,:-1]
     return galpow
 
-def getFouPow(arrayIn: np.ndarray) -> np.ndarray:
+def getFouPow(arrayIn: np.ndarray, noiPow=None) -> np.ndarray:
     """
     Get Fourier power function
 
@@ -146,6 +146,10 @@ def getFouPow(arrayIn: np.ndarray) -> np.ndarray:
         Fourier Power (centered at (ngrid//2,ngrid//2))
     """
     out =   np.fft.fftshift(np.abs(np.fft.fft2(arrayIn))**2.).astype(np.float64)
+    if isinstance(noiPow,float):
+        out =   out-np.ones(arrayIn.shape)*noiPow*arrayIn.size
+    elif isinstance(noiPow,np.ndarray):
+        out =   out-noiPow
     return out
 
 def getRnaive(arrayIn:np.ndarray)->float:
@@ -285,3 +289,20 @@ def pcaimages(X,nmodes):
     out =   V.reshape((nmodes,nn2,nn1))
     eVout=  eV.T[:nmodes]
     return out,stds,eVout
+
+def cut_img(img:np.ndarray,rcut:float)->np.ndarray:
+    """
+    cutout img into postage stamp with width=2rcut
+    Parameters:
+    ----
+    img:    np.ndarray
+        input image
+    rcut:   float
+        cutout radius
+    Returns: np.ndarray
+    ----
+    """
+    ngrid   =   img.shape[0]
+    beg     =   ngrid//2-rcut
+    end     =   beg+2*rcut
+    return img[beg:end,beg:end]

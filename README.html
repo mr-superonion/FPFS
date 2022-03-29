@@ -19,24 +19,32 @@
   <![endif]-->
 </head>
 <body>
-<h1
-id="fpfs-fourier-power-function-shaplets-a-fast-accurate-shear-estimator"><code>FPFS</code>:
-Fourier Power Function Shaplets (A fast, accurate shear estimator)</h1>
-<h2 id="installation">Installation</h2>
+<h2
+id="fpfs-fourier-power-function-shaplets-a-fast-accurate-shear-estimator">#
+<code>FPFS</code>: Fourier Power Function Shaplets (A fast, accurate
+shear estimator)</h2>
+<h2 id="installation">## Installation</h2>
+<p>For stable version:</p>
+<pre class="shell"><code>pip install FPFS</code></pre>
+<p>Or clone the repository:</p>
 <pre class="shell"><code>git clone https://github.com/mr-superonion/FPFS.git
 cd FPFS
-pip install ./</code></pre>
-<h2 id="demos">Demos</h2>
+pip install -e .</code></pre>
+<h2 id="demos">## Demos</h2>
+<h3 id="isolated-galaxies">Isolated galaxies</h3>
 <p><a
 href="https://github.com/mr-superonion/FPFS/blob/master/notebook/demos/demo1.ipynb">demo1</a>
-simulates noisy galaxies with different SNRs and process the galaxies
+simulates noisy galaxies with different SNRs and processes the galaxies
 with FPFS shear estimator. + fpfs.simutil.sim_test: a wrapper of galsim
 to simulate galaxies for simple tests; + fpfs.fpfsBase.fpfsTask: a task
 to process galaxy images and measure shear.</p>
 <p><a
 href="https://github.com/mr-superonion/FPFS/blob/master/notebook/demos/demo2.ipynb">demo2</a>
-More realistic situation with PSF errors.</p>
-<h2 id="reference">Reference</h2>
+estimates shear under a more realistic situation with <em>PSF
+errors</em>.</p>
+<h3 id="blended-galaxies">blended galaxies</h3>
+<p>TBD</p>
+<h2 id="reference">## Reference</h2>
 <ul>
 <li><a
 href="https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract">version
