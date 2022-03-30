@@ -5,8 +5,14 @@
 
 For stable version:
 ```shell
-pip install FPFS
+pip install fpfs
 ```
+or
+
+```shell
+conda install -c conda-forge fpfs
+```
+
 Or clone the repository:
 ```shell
 git clone https://github.com/mr-superonion/FPFS.git
