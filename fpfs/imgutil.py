@@ -107,7 +107,7 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
             raise ValueError('do not support shifting centroid if use_rfft=True')
         return _gauss_kernel_rfft(ny,nx,sigma,return_grid)
 
-def getFouPow_rft(arrayIn: np.ndarray) -> np.ndarray:
+def getFouPow_rft(arrayIn: np.ndarray)->np.ndarray:
     """
     Get Fourier power function
 
@@ -132,7 +132,7 @@ def getFouPow_rft(arrayIn: np.ndarray) -> np.ndarray:
     galpow[:,ngrid//2:]   =  tmp[:,:-1]
     return galpow
 
-def getFouPow(arrayIn: np.ndarray, noiPow=None) -> np.ndarray:
+def getFouPow(arrayIn: np.ndarray, noiPow=None)->np.ndarray:
     """
     Get Fourier power function
 

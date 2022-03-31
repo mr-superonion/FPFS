@@ -215,7 +215,7 @@ class sim_test():
         self.img=   obj.drawImage(scale=scale).array
         return
 
-    def make_image(self,noise:float,psf_noise:float=0.) ->tuple[np.ndarray,np.ndarray]:
+    def make_image(self,noise:float,psf_noise:float=0.):
         """
 
         Parameters
