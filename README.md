@@ -7,11 +7,6 @@ For stable version:
 ```shell
 pip install fpfs
 ```
-or
-
-```shell
-conda install -c conda-forge fpfs
-```
 
 Or clone the repository:
 ```shell
