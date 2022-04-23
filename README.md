@@ -36,6 +36,7 @@ TBD
 
 ## Reference
 + [version 2.0](https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract)
+    Scripts used to produce plots for this paper can be found [here](https://github.com/mr-superonion/FPFS/tree/master/notebook/paper-FPFS2021)
 + [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
 
 ----
