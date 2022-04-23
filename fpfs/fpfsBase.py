@@ -71,7 +71,7 @@ class fpfsTask():
     noiFit:     np.ndarray
         Estimated noise power function (if you have already estimated noise
         power) [default: None]
-    det_rsigma: np.ndarray
+    det_gsigma: np.ndarray
         Gaussian sigma for detection kernel [default: None]
     deubg:      bool
         Whether debug or not [default: False]

@@ -32,13 +32,15 @@ def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
     Generate a Gaussian kernel on grids for np.fft.fft transform
 
     Parameters:
-        ny:    		    grid size in y-direction
-        nx:    		    grid size in x-direction
-        sigma:		    scale of Gaussian in Fourier space
-        do_shift:       Whether doing
-        return_grid:    return grids or not
+    ----
+    ny:    		    grid size in y-direction
+    nx:    		    grid size in x-direction
+    sigma:		    scale of Gaussian in Fourier space
+    do_shift:       Whether doing
+    return_grid:    return grids or not
 
     Returns:
+    ----
         Gaussian on grids and (if return_grid) grids for (y, x) axes.
     """
     out = np.empty((ny,nx))
@@ -60,12 +62,14 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
     Generate a Gaussian kernel on grids for np.fft.rfft transform
 
     Parameters:
-        ny:    		    grid size in y-direction
-        nx:    		    grid size in x-direction
-        sigma:		    scale of Gaussian in Fourier space
-        return_grid:    return grids or not
+    ----
+    ny:    		    grid size in y-direction
+    nx:    		    grid size in x-direction
+    sigma:		    scale of Gaussian in Fourier space
+    return_grid:    return grids or not
 
     Returns:
+    ----
         Gaussian on grids and (if return_grid) grids for (y, x) axes.
     """
     out = np.empty((ny,nx//2+1))
@@ -82,14 +86,18 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
 def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
     """
     Generate a Gaussian kernel in Fourier space on grids
-
     Parameters:
-        ny:    		    grid size in y-direction
-        nx:    		    grid size in x-direction
-		sigma:		    scale of Gaussian
-		do_shift:	    center at (0,0) or (ny/2,nx/2) [bool]
-        return_grid:    return grids or not [bool]
-        use_rfft:       whether use rfft or not [bool]
+    ----
+    ny:    		    grid size in y-direction
+    nx:    		    grid size in x-direction
+    sigma:		    scale of Gaussian in Fourier space
+    do_shift:	    center at (0,0) or (ny/2,nx/2) [bool]
+    return_grid:    return grids or not [bool]
+    use_rfft:       whether use rfft or not [bool]
+
+    Returns:
+    ----
+    out:            Gaussian kernel
     """
     if not isinstance(ny,int):
         raise TypeError('ny should be int')
@@ -110,27 +118,24 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
 def getFouPow_rft(arrayIn: np.ndarray)->np.ndarray:
     """
     Get Fourier power function
-
     Parameters:
     -----
-    arrayIn:    array_like
-                image array (centroid does not matter)
+    arrayIn:    image array (centroid does not matter)
 
     Returns:
     ----
-    galpow:     array_like
-                Fourier Power
+    galpow:     Fourier Power
     """
 
     ngrid   =   arrayIn.shape[0]
     tmp     =   np.abs(np.fft.rfft2(arrayIn))**2.
     tmp     =   np.fft.fftshift(tmp,axes=0)
     # Get power function and subtract noise power
-    galpow  =   np.empty((ngrid,ngrid),dtype=np.float64)
+    foupow  =   np.empty((ngrid,ngrid),dtype=np.float64)
     tmp2    =   np.roll(np.flip(tmp),axis=0,shift=1)
-    galpow[:,:ngrid//2+1] =  tmp2
-    galpow[:,ngrid//2:]   =  tmp[:,:-1]
-    return galpow
+    foupow[:,:ngrid//2+1] =  tmp2
+    foupow[:,ngrid//2:]   =  tmp[:,:-1]
+    return foupow
 
 def getFouPow(arrayIn: np.ndarray, noiPow=None)->np.ndarray:
     """
@@ -161,9 +166,9 @@ def getRnaive(arrayIn:np.ndarray)->float:
     ----
     arrayIn:    image array (centroid does not matter)
 
-    Returns:    float
+    Returns:
     ----
-        effective radius
+    sigma:      effective radius
     """
 
     arrayIn2=   np.abs(arrayIn)
@@ -179,12 +184,14 @@ def shapelets2D(ngrid,nord,sigma):
     (only support square stamps: ny=nx=ngrid)
 
     Parameters:
-        ngrid:      number of pixels in x and y direction
-        nord:       radial order of the shaplets
-        sigma:      scale of shapelets in Fourier space
+    ----
+    ngrid:      number of pixels in x and y direction
+    nord:       radial order of the shaplets
+    sigma:      scale of shapelets in Fourier space
 
     Returns:
-        2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
+    ----
+    chi:        2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
     """
 
     mord    =   nord
@@ -225,14 +232,12 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim)->np.ndarray:
 
     Parameters:
     ----
-    ngrid:  int
-        number of pixels in x and y direction
-    galPow: np.ndarray
-        galaxy Fourier power function
+    ngrid:  number of pixels in x and y direction
+    galPow: galaxy Fourier power function
 
-    Returns:    np.ndarray
+    Returns:
     ----
-        noise power
+    noiSub: noise power to be subtracted
     """
 
     rlim2=  int(max(ngrid*0.4,rlim))
@@ -252,12 +257,10 @@ def pcaimages(X,nmodes):
 
     Parameters:
     ----
-    X:  np.ndarray
-        input data array
-    nmodes:     int
-        number of pcs to keep
+    X:      input data array
+    nmodes: number of pcs to keep
 
-    Returns:    list
+    Returns:
     ----
         pc images, stds on the axis
     """
@@ -295,14 +298,15 @@ def cut_img(img:np.ndarray,rcut:float)->np.ndarray:
     cutout img into postage stamp with width=2rcut
     Parameters:
     ----
-    img:    np.ndarray
-        input image
-    rcut:   float
-        cutout radius
+    img:    input image
+    rcut:   cutout radius
+
     Returns: np.ndarray
     ----
+    out:    stamps (cut-out)
     """
     ngrid   =   img.shape[0]
     beg     =   ngrid//2-rcut
     end     =   beg+2*rcut
-    return img[beg:end,beg:end]
+    out     =   img[beg:end,beg:end]
+    return out
