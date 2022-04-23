@@ -179,25 +179,20 @@ def make_ringrot_radians(nord=8):
     return rotArray*np.pi
 
 class sim_test():
-    def __init__(self,shear,rng:np.random.RandomState)->None:
+    def __init__(self,shear,rng,scale=0.263,psf_fwhm=0.9,gal_hlr=0.5):
         """
         simulate an exponential object with moffat PSF, this class has the same observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
         Parameters
         ----
-        shear: (g1, g2)
-            The shear in each component
-        rng: np.random.RandomState
-            The random number generator
+        shear:  (g1, g2),The shear in each component
+        rng:    The random number generator
         """
         self.rng=   rng
-        scale   =   0.263
-        psf_fwhm=   0.9
-        gal_hlr =   0.5
 
         dy, dx  =   self.rng.uniform(low=-scale/2, high=scale/2, size=2)
-        psf     =   galsim.Moffat(beta=2.5, fwhm=psf_fwhm,
-        ).shear(g1=0.02, g2=-0.01,)
+        psf     =   galsim.Moffat(beta=3.5,fwhm=psf_fwhm,trunc=psf_fwhm*4.,
+        ).shear(g1=0.02, g2=-0.02,)
 
         obj0    =   galsim.Exponential(
             half_light_radius=gal_hlr,
@@ -217,17 +212,14 @@ class sim_test():
 
     def make_image(self,noise:float,psf_noise:float=0.):
         """
-
         Parameters
         ----
-        noise: float
-            Noise for the image
-        psf_noise: float
-            Noise for the PSF
+        noise:      Noise for the image
+        psf_noise:  Noise for the PSF
+
         Returns:
         ----
-        im,psf_im:
-            galaxy image and PSF image
+        im,psf_im:  galaxy image and PSF image
         """
         if noise>1e-10:
             img =   self.img+self.rng.normal(scale=noise,size=self.img.shape)
@@ -243,9 +235,10 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
     """
     Make basic galaxy image simulation (isolated)
     Parameters:
-        outDir:     output directory
-        gname:      shear distortion setup
-        Id0:        index of the simulation
+    ----
+    outDir:     output directory
+    gname:      shear distortion setup
+    Id0:        index of the simulation
     """
     ngrid  =   64
     scale  =   0.168
@@ -279,25 +272,22 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     if 'small' not in outDir:
         # use parametric galaxies
-        if 'Shift' in outDir:
-            logging.info('Galaxies will be randomly shifted')
-        elif 'Center' in outDir:
-            logging.info('Galaxies will be located at (ngrid//2,ngrid//2)')
-        else:
-            logging.info('Galaxies will be located at (ngrid//2-0.5,ngrid//2-0.5)')
         rotArray    =   make_ringrot_radians(7) #2**7*8=1024 groups
         logging.info('We have %d rotation realizations' %len(rotArray))
-        irot        =   Id0//8     # we only use 80000 galaxies
+        irot        =   Id0//8
         if irot>= len(rotArray):
             logging.info('galaxy image index greater than %d' %len(rotArray*8))
             return
         ang         =   rotArray[irot]*galsim.radians
+        # Id=0...7
+        # we use 80000 galsim galaxies repeatedly
         Id          =   int(Id0%8)
         logging.info('Making Basic Simulation. ID: %d, GID: %d.' %(Id0,Id))
         logging.info('The rotating angle is %.2f degree.' %rotArray[irot])
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],\
                         'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
+        assert os.path.isdir(directory), 'cannot find galsim galaxies'
         catName     =   'real_galaxy_catalog_25.2.fits'
         cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
@@ -306,6 +296,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
         # catalog
         cosmo252=   cosmoHSTGal('252')
         cosmo252.readHSTsample()
+        # Id=0...7
         hscCat  =   cosmo252.catused[Id*nx*ny:(Id+1)*nx*ny]
         for i,ss  in enumerate(hscCat):
             ix  =   i%nx
@@ -318,15 +309,19 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
             if 'Shift' in outDir:
-                # This shift ensure that the offset to (0,0) is statistically a
-                # symmetric top-hat square
-                dx = ud()*scale
-                dy = ud()*scale
+                # Galaxies is randomly shifted
+                # This shift ensure that the offset to (ngrid//2,ngrid//2) is an isotropic circle
+                dx = (ud()+0.5)*scale
+                dy = (ud()+0.5)*scale
                 gal= gal.shift(dx,dy)
             elif 'Center' in outDir:
+                # Galaxies is located at (ngrid//2,ngrid//2)
                 dx = 0.5*scale
                 dy = 0.5*scale
                 gal= gal.shift(dx,dy)
+            else:
+                #Galaxies is located at (ngrid//2-0.5,ngrid//2-0.5))
+                pass
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
             # draw galaxy
             sub_img =   gal_image[b]
@@ -381,16 +376,12 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.)->np.ndarray:
     a source background noise ratio (r0)
     Parameters
     ----
-    shear:  (g1, g2)
-        The shear in each component
-    rng:    np.random.RandomState
-        The random number generator
-    r1:     float
-        The source background noise variance ratio
-    r0:     float
-        The SNR of galaxy
+    shear:  (g1, g2),The shear in each component
+    rng:    The random number generator
+    r1:     The source background noise variance ratio
+    r0:     The SNR of galaxy
     psf:    galsim.Moffat, e.g.,
-        galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.01,)
+            galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.01,)
     """
     rng     =   rng
     scale   =   0.263

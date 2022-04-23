@@ -17,3 +17,4 @@ dist
 *.pdf
 *.synctex.gz
 *.egg-info
+pip-wheel*
