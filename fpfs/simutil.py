@@ -197,7 +197,7 @@ class sim_test():
         self.rng=   rng
 
         dy, dx  =   self.rng.uniform(low=-scale/2, high=scale/2, size=2)
-        psf     =   galsim.Moffat(beta=3.5,fwhm=psf_fwhm,trunc=psf_fwhm*4.,
+        psf     =   galsim.Moffat(beta=2.5,fwhm=psf_fwhm,
         ).shear(g1=0.02, g2=-0.02,)
 
         obj0    =   galsim.Exponential(
@@ -237,7 +237,7 @@ class sim_test():
             psf =   self.psf
         return img,psf
 
-def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=True):
+def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=False):
     """
     Make basic galaxy image simulation (isolated)
     Parameters:
@@ -246,8 +246,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
     gname:          shear distortion setup
     Id0:            index of the simulation
     ny, nx:         number of galaxies in y,x direction
-    do_write:       whether write output [bool]
-    return_array:   whether return galaxy array [bool]
+    do_write:       whether write output [bool, default: True]
+    return_array:   whether return galaxy array [bool, default: False]
     """
     ngrid  =   64
     scale  =   0.168
@@ -281,7 +281,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
             return fitsio.read(outFname)
         else:
             return None
-    ud      =   galsim.UniformDeviate(Id0)
+    ud      =   galsim.UniformDeviate(Id0+212)
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     if 'basic' in outDir:
         rotArray    =   make_ringrot_radians(7)
@@ -299,7 +299,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
         # we use 80000 galsim galaxies repeatedly
         cgid    =   int(Id0%8)
         logging.info('Making Basic Simulation. ID: %d, cosmos GID: %d.' %(Id0,cgid))
-        logging.info('The rotating angle is %.2f radians.' %ang)
+        logging.info('The rotating angle is %.2f radians.' %rotArray[irot])
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],\
                         'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
@@ -385,6 +385,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
         gc.collect()
     else:
         raise ValueError("outDir should cotain 'basic' or 'small'!!")
+    del ud
     if do_write:
         gal_image.write(outFname,clobber=True)
     if return_array:

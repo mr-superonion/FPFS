@@ -5,7 +5,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 
 def analyze_FPFS(rng:np.random.RandomState, input_shear:np.ndarray, num_gals:int,\
-        noi_stds,noi_psf=1e-9) -> tuple[np.ndarray,np.ndarray]:
+        noi_stds,noi_psf=1e-9):
     noi_stds=   np.array(noi_stds)
     if len(noi_stds.shape)==0:
         noi_stds=np.array([noi_stds])
@@ -54,7 +54,7 @@ def analyze_FPFS(rng:np.random.RandomState, input_shear:np.ndarray, num_gals:int
         y_err.append(shear_err)
     return np.array(y), np.array(y_err)
 
-def test_noisy_gals(noi_std:float=0.) -> None:
+def test_noisy_gals(noi_std:float=0.):
     rng     =   np.random.RandomState(212)
     num_gals=   10000
     shear,shear_err=analyze_FPFS(rng,np.array([0.03, 0.00]),num_gals,noi_std)
