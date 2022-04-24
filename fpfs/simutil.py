@@ -129,9 +129,19 @@ except ImportError as error:
     with_lsst=False
 
 if with_lsst:
-    def makeHSCExposure(galData,psfData,pixScale,variance):
+    def makeLsstExposure(galData,psfData,pixScale,variance):
         """
-        Generate an HSC image
+        make an LSST exposure object
+        Parameters:
+        ----
+        galData:    array of galaxy image
+        psfData:    array of PSF image
+        pixScale:   pixel scale
+        variance:   noise variance
+
+        Returns:
+        ----
+        exposure:   LSST exposure object
         """
         if not with_lsst:
             raise ImportError('Do not have lsstpipe!')
@@ -189,7 +199,7 @@ class sim_test():
         """
         simulate an exponential object with moffat PSF, this class has the same observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
-        Parameters
+        Parameters:
         ----
         shear:  (g1, g2),The shear in each component
         rng:    The random number generator
@@ -218,7 +228,7 @@ class sim_test():
 
     def make_image(self,noise:float,psf_noise:float=0.):
         """
-        Parameters
+        Parameters:
         ----
         noise:      Noise for the image
         psf_noise:  Noise for the PSF
@@ -293,8 +303,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
         if irot>= len(rotArray):
             logging.info('galaxy image index greater than %d' %len(rotArray*8))
         ang     =   rotArray[irot]*galsim.radians
-        dila    =   1.+(ud()-0.5)*0.1
-        logging.info('%s' %dila)
+        rescale =   1.+(ud()-0.5)*0.1
+        logging.info('%s' %rescale)
         # cosmos group ID =0...7
         # we use 80000 galsim galaxies repeatedly
         cgid    =   int(Id0%8)
@@ -321,9 +331,13 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
             # each galaxy
             gal =   cosmos_cat.makeGalaxy(gal_type='parametric',\
                     index=ss['index'],gsparams=bigfft)
-            gal =   gal.dilate(dila)
+            # rescale the radius by 'rescale' and keep surface brightness the same
+            gal =   gal.expand(rescale)
+            # rotate by 'ang'
             gal =   gal.rotate(ang)
+            # accounting for zeropoint difference between COSMOS HST and HSC
             gal =   gal*flux_scaling
+            # shear distortion
             gal =   gal.shear(g1=g1,g2=g2)
             if 'Shift' in outDir:
                 # Galaxies is randomly shifted
