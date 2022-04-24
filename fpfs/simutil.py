@@ -167,7 +167,12 @@ def make_ringrot_radians(nord=8):
     """
     Generate rotation angle array for ring test
     Parameters:
-        nord:   up to 1/2**nord*pi rotation
+    ----
+    nord:       up to 1/2**nord*pi rotation
+
+    Returns:
+    ----
+    rotArray:   rotation array [radians]
     """
     rotArray=   np.zeros(2**nord)
     nnum    =   0
@@ -176,7 +181,8 @@ def make_ringrot_radians(nord=8):
         for i in range(1,nj,2):
             nnum+=1
             rotArray[nnum]=i/nj
-    return rotArray*np.pi
+    rotArray=rotArray*np.pi
+    return rotArray
 
 class sim_test():
     def __init__(self,shear,rng,scale=0.263,psf_fwhm=0.9,gal_hlr=0.5):
@@ -236,9 +242,12 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
     Make basic galaxy image simulation (isolated)
     Parameters:
     ----
-    outDir:     output directory
-    gname:      shear distortion setup
-    Id0:        index of the simulation
+    outDir:         output directory
+    gname:          shear distortion setup
+    Id0:            index of the simulation
+    ny, nx:         number of galaxies in y,x direction
+    do_write:       whether write output [bool]
+    return_array:   whether return galaxy array [bool]
     """
     ngrid  =   64
     scale  =   0.168
@@ -253,7 +262,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
         g2 =    gList[0]
     else:
         raise ValueError('cannot decide g1 or g2')
-    logging.info('Processing for %s, and shear List is for %s.' %(gname,gList))
+    logging.info('Processing for %s, and shears for four redshift bins are %s.' %(gname,gList))
     # PSF
     psfFWHM =   eval(outDir.split('_psf')[-1])/100.
     logging.info('The FWHM for PSF is: %s arcsec'%psfFWHM)
@@ -265,25 +274,32 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
     gal_image.setOrigin(0,0)
     outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
     if os.path.exists(outFname):
-        logging.info('Already have the outcome')
-        return
-
+        logging.info('Already have the outcome.')
+        if do_write:
+            logging.info('Nothing to write.')
+        if return_array:
+            return fitsio.read(outFname)
+        else:
+            return None
     ud      =   galsim.UniformDeviate(Id0)
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
-    if 'small' not in outDir:
-        # use parametric galaxies
-        rotArray    =   make_ringrot_radians(7) #2**7*8=1024 groups
+    if 'basic' in outDir:
+        rotArray    =   make_ringrot_radians(7)
+        # 2**7*8=1024 galaxy ID
+        # 2**7 different rotations and dilations
+        # for each galaxy ID 10000 parametric galaxies
         logging.info('We have %d rotation realizations' %len(rotArray))
         irot        =   Id0//8
         if irot>= len(rotArray):
             logging.info('galaxy image index greater than %d' %len(rotArray*8))
-            return
-        ang         =   rotArray[irot]*galsim.radians
-        # Id=0...7
+        ang     =   rotArray[irot]*galsim.radians
+        dila    =   1.+(ud()-0.5)*0.1
+        logging.info('%s' %dila)
+        # cosmos group ID =0...7
         # we use 80000 galsim galaxies repeatedly
-        Id          =   int(Id0%8)
-        logging.info('Making Basic Simulation. ID: %d, GID: %d.' %(Id0,Id))
-        logging.info('The rotating angle is %.2f degree.' %rotArray[irot])
+        cgid    =   int(Id0%8)
+        logging.info('Making Basic Simulation. ID: %d, cosmos GID: %d.' %(Id0,cgid))
+        logging.info('The rotating angle is %.2f radians.' %ang)
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],\
                         'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
@@ -296,8 +312,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
         # catalog
         cosmo252=   cosmoHSTGal('252')
         cosmo252.readHSTsample()
-        # Id=0...7
-        hscCat  =   cosmo252.catused[Id*nx*ny:(Id+1)*nx*ny]
+        # cgid=0...7
+        hscCat  =   cosmo252.catused[cgid*nx*ny:(cgid+1)*nx*ny]
         for i,ss  in enumerate(hscCat):
             ix  =   i%nx
             iy  =   i//nx
@@ -305,6 +321,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
             # each galaxy
             gal =   cosmos_cat.makeGalaxy(gal_type='parametric',\
                     index=ss['index'],gsparams=bigfft)
+            gal =   gal.dilate(dila)
             gal =   gal.rotate(ang)
             gal =   gal*flux_scaling
             gal =   gal.shear(g1=g1,g2=g2)
@@ -327,11 +344,11 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
             sub_img =   gal_image[b]
             gal.drawImage(sub_img,add_to_image=True)
             del gal,b,sub_img
-            gc.collect()
         del hscCat,cosmos_cat,cosmo252,psfInt
         gc.collect()
-    else:
+    elif 'small' in outDir:
         # use galaxies with random knots
+        # we only support three versions of small galaxies with different radius
         irr =   eval(outDir.split('_psf')[0].split('small')[-1])
         if irr==0:
             radius  =0.07
@@ -340,7 +357,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
         elif irr==2:
             radius  =0.20
         else:
-            raise ValueError('Something wrong with the outDir!')
+            raise ValueError('Something wrong with the outDir! we only support'
+                    'three versions of small galaxies')
         logging.info('Making Small Simulation with Random Knots.' )
         logging.info('Radius: %s, ID: %s.' %(radius,Id0) )
         npoints =   20
@@ -364,9 +382,11 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Tru
                 gal.drawImage(sub_img,add_to_image=True)
                 del gal,b,sub_img
                 gc.collect()
+        gc.collect()
+    else:
+        raise ValueError("outDir should cotain 'basic' or 'small'!!")
     if do_write:
         gal_image.write(outFname,clobber=True)
-    gc.collect()
     if return_array:
         return gal_image.array
 

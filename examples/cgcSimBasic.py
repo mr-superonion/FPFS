@@ -30,63 +30,30 @@ import numpy as np
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
 
-from lsst.pipe.base import TaskRunner
-from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool
+from lsst.pipe.base import TaskRunner
+from lsst.utils.timer import timeMethod
+from lsst.ctrl.pool.parallel import BatchPoolTask
 
 class cgcSimBasicBatchConfig(pexConfig.Config):
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
     def validate(self):
         pexConfig.Config.validate(self)
+
 class cgcSimBasicRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
         minIndex    =  parsedCmd.minIndex
         maxIndex    =  parsedCmd.maxIndex
         return [(ref, kwargs) for ref in range(minIndex,maxIndex)]
-def unpickle(factory, args, kwargs):
-    """Unpickle something by calling a factory"""
-    return factory(*args, **kwargs)
+
 class cgcSimBasicBatchTask(BatchPoolTask):
     ConfigClass = cgcSimBasicBatchConfig
     RunnerClass = cgcSimBasicRunner
     _DefaultName = "cgcSimBasicBatch"
-    def __reduce__(self):
-        """Pickler"""
-        return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
-                parentTask=self._parentTask, log=self.log))
     def __init__(self,**kwargs):
         BatchPoolTask.__init__(self, **kwargs)
-        return
-
-    @pipeBase.timeMethod
-    def runDataRef(self,index):
-        self.log.info('begining for group %d' %(index))
-        #Prepare the storeSet
-        pool    =   Pool("cgcSimBasicBatch")
-        pool.cacheClear()
-        # expDir  =   "galaxy_basic_psf60"
-        # expDir  =   "small0_psf60"
-        expDir  =   "galaxy_basicCenter_psf60"
-        if not os.path.isdir(expDir):
-            os.mkdir(expDir)
-        pool.storeSet(expDir=expDir)
-        fieldList=np.arange(200*index,200*(index+1))
-        pool.map(self.process,fieldList)
-        return
-
-    @pipeBase.timeMethod
-    def process(self,cache,Id):
-        #Prepare the pool
-        p2List=['0000','2222']
-        # p1List=['g1','g2']
-        p1List=['g1']
-        pendList=['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
-        for pp in pendList:
-            fpfs.simutil.make_basic_sim(cache.expDir,pp,Id)
-            gc.collect()
-        self.log.info('finish ID: %d' %(Id))
         return
 
     @classmethod
@@ -100,18 +67,37 @@ class cgcSimBasicBatchTask(BatchPoolTask):
                         default=1,
                         help='maximum group number')
         return parser
-    @classmethod
-    def writeConfig(self, butler, clobber=False, doBackup=False):
-        pass
-    def writeSchemas(self, butler, clobber=False, doBackup=False):
-        pass
-    def writeMetadata(self, dataRef):
-        pass
-    def writeEupsVersions(self, butler, clobber=False, doBackup=False):
-        pass
+
+    @timeMethod
+    def runDataRef(self,index):
+        self.log.info('begining for group %d' %(index))
+        #Prepare the storeSet
+        pool    =   Pool("cgcSimBasicBatch")
+        pool.cacheClear()
+        # expDir  =   "galaxy_basic_psf60"
+        # expDir  =   "small0_psf60"
+        expDir  =   "galaxy_basic2Center_psf60"
+        if not os.path.isdir(expDir):
+            os.mkdir(expDir)
+        pool.storeSet(expDir=expDir)
+        fieldList=np.arange(200*index,200*(index+1))
+        pool.map(self.process,fieldList)
+        return
+
+    @timeMethod
+    def process(self,cache,Id):
+        #Prepare the pool
+        p2List=['0000','2222']
+        # p1List=['g1','g2']
+        p1List=['g1']
+        pendList=['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
+        for pp in pendList:
+            fpfs.simutil.make_basic_sim(cache.expDir,pp,Id)
+            gc.collect()
+        self.log.info('finish ID: %d' %(Id))
+        return
+
     def _getConfigName(self):
-        return None
-    def _getEupsVersionsName(self):
         return None
     def _getMetadataName(self):
         return None
