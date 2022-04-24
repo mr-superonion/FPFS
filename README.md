@@ -41,7 +41,7 @@ TBD
     bias (including Kaiser flow and ellipticity-flux measurement error correlation).
     Scripts used to produce plots in the paper can be found
     [here](https://github.com/mr-superonion/FPFS/tree/master/notebook/paper-FPFS2021).
-+ [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
++ [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract):
     This paper builds up the FPFS formalism based on
     [Fourier_Quad](https://arxiv.org/abs/1312.5514) and
     [Shapelets](https://arxiv.org/abs/astro-ph/0408445).
