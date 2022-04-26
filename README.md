@@ -14,7 +14,7 @@ git clone https://github.com/mr-superonion/FPFS.git
 cd FPFS
 pip install -e .
 ```
-
+Documentation for FPFS modules can be found [here](https://fpfs.readthedocs.io/en/latest/)
 ----
 
 ## Demos
