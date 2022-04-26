@@ -1,7 +1,3 @@
-sphinx
-sphinx_rtd_theme
-sphinxcontrib-napoleon
-readthedocs-sphinx-search
 fpfs
 numpy
 scipy

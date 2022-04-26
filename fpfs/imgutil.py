@@ -66,7 +66,8 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
         return_grid:    return grids or not
 
     Returns:
-        Gaussian on grids and (if return_grid) grids for (y, x) axes.
+        out:            Gaussian on grids and (if return_grid) grids for (y, x) axes.
+        (Y,X)           Grids
     """
     out = np.empty((ny,nx//2+1))
     x   = np.fft.rfftfreq(nx,1/np.pi/2.)
@@ -115,10 +116,10 @@ def getFouPow_rft(arrayIn: np.ndarray)->np.ndarray:
     Get Fourier power function
 
     Parameters:
-        arrayIn:    image array (centroid does not matter)
+        arrayIn:        image array (centroid does not matter)
 
     Returns:
-        galpow:     Fourier Power
+        galpow:         Fourier Power
     """
 
     ngrid   =   arrayIn.shape[0]
@@ -136,10 +137,10 @@ def getFouPow(arrayIn: np.ndarray, noiPow=None)->np.ndarray:
     Get Fourier power function
 
     Parameters:
-        arrayIn:    image array (centroid does not matter) [np.ndarray]
+        arrayIn:        image array (centroid does not matter) [np.ndarray]
 
     Returns:
-        out:        Fourier Power (centered at (ngrid//2,ngrid//2)) [ndarray]
+        out:            Fourier Power (centered at (ngrid//2,ngrid//2)) [ndarray]
     """
     out =   np.fft.fftshift(np.abs(np.fft.fft2(arrayIn))**2.).astype(np.float64)
     if isinstance(noiPow,float):
@@ -154,10 +155,10 @@ def getRnaive(arrayIn:np.ndarray)->float:
     Note, this naive estimation is heavily influenced by noise.
 
     Parameters:
-        arrayIn:    image array (centroid does not matter)
+        arrayIn:        image array (centroid does not matter)
 
     Returns:
-        sigma:      effective radius
+        sigma:          effective radius
     """
 
     arrayIn2=   np.abs(arrayIn)
@@ -173,12 +174,12 @@ def shapelets2D(ngrid,nord,sigma):
     (only support square stamps: ny=nx=ngrid)
 
     Parameters:
-        ngrid:      number of pixels in x and y direction
-        nord:       radial order of the shaplets
-        sigma:      scale of shapelets in Fourier space
+        ngrid:          number of pixels in x and y direction
+        nord:           radial order of the shaplets
+        sigma:          scale of shapelets in Fourier space
 
     Returns:
-        chi:        2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
+        chi:            2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
     """
 
     mord    =   nord
@@ -218,11 +219,11 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim)->np.ndarray:
     Fit the noise power from observed galaxy power
 
     Parameters:
-        ngrid:  number of pixels in x and y direction
-        galPow: galaxy Fourier power function
+        ngrid:      number of pixels in x and y direction
+        galPow:     galaxy Fourier power function
 
     Returns:
-        noiSub: noise power to be subtracted
+        noiSub:     noise power to be subtracted
     """
 
     rlim2=  int(max(ngrid*0.4,rlim))
@@ -241,13 +242,13 @@ def pcaimages(X,nmodes):
     Estimate the principal components of array list X
 
     Parameters:
-        X:      input data array
-        nmodes: number of pcs to keep
+        X:              input data array
+        nmodes:         number of pcs to keep
 
     Returns:
-        out:    pc images,
-        stds:   stds on the axis
-        eVout:  eigen values
+        out:            pc images,
+        stds:           stds on the axis
+        eVout:          eigen values
     """
 
     assert len(X.shape)==3
@@ -278,16 +279,16 @@ def pcaimages(X,nmodes):
     eVout=  eV.T[:nmodes]
     return out,stds,eVout
 
-def cut_img(img:np.ndarray,rcut:float)->np.ndarray:
+def cut_img(img,rcut):
     """
     cutout img into postage stamp with width=2rcut
 
     Parameters:
-        img:    input image
-        rcut:   cutout radius
+        img:            input image
+        rcut:           cutout radius
 
-    Returns: np.ndarray
-        out:    stamps (cut-out)
+    Returns:
+        out:            stamps (cut-out)
     """
     ngrid   =   img.shape[0]
     beg     =   ngrid//2-rcut

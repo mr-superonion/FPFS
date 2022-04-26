@@ -199,8 +199,8 @@ class sim_test():
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
 
         Parameters:
-            shear:  (g1, g2),The shear in each component
-            rng:    The random number generator
+            shear:          (g1, g2),The shear in each component
+            rng:            The random number generator
         """
         self.rng=   rng
 
