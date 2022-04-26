@@ -1,8 +1,8 @@
 fpfs package
 ============
 
-Submodules
-----------
+.. include:: macros.hrst
+
 
 fpfs.fpfsBase module
 --------------------
