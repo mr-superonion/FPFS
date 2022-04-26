@@ -394,76 +394,114 @@ class fpfsTask():
             self.stackPow+=galPow
         return mm
 
-def fpfsM2E(moments,const=1.,noirev=False,flipsign=False):
+def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
     ----
-    moments:    input FPFS moments     [float array]
-    const:      the weighting Constant [float]
-    mcalib:     multiplicative bias [float array]
-    noirev:     revise the second-order noise bias? [bool]
-    flipsign:   flip the sign of response? [bool] (if you are using the convention in FPFSv1, set it to True)
+    moments:    input FPFS moments     [ndarray]
+    const:      the _wing Constant [float (default:1)]
+    noirev:     revise the second-order noise bias? [bool (default: False)]
+    dets:       input detection array  [ndarray (default: None)]
+    flipsign:   flip the sign of response? [bool] (if you are using the
+                convention in Li et. al (2018), set it to True)
 
     Returns:
     ----
-        an array of (FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio, and FPFS selection response)
+    out:        an array of (FPFS ellipticities, FPFS ellipticity response,
+                FPFS flux ratio, and FPFS selection response)
     """
-    #Get weight
-    weight  =   moments['fpfs_M00']+const
+    types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
+                ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
+    # response for selections (2 shear components for each)
+    #Get inverse weight
+    _w      =   moments['fpfs_M00']+const
     #Ellipticity
-    e1      =   moments['fpfs_M22c']/weight
-    e2      =   moments['fpfs_M22s']/weight
+    e1      =   moments['fpfs_M22c']/_w
+    e2      =   moments['fpfs_M22s']/_w
     e1sq    =   e1*e1
     e2sq    =   e2*e2
     #FPFS flux ratio
-    s0      =   moments['fpfs_M00']/weight
-    s4      =   moments['fpfs_M40']/weight
+    s0      =   moments['fpfs_M00']/_w
+    s4      =   moments['fpfs_M40']/_w
     #FPFS sel Respose (part1)
     e1sqS0  =   e1sq*s0
     e2sqS0  =   e2sq*s0
+
+    # prepare the shear response for detection operation
+    if dets is not None:
+        dDict=  {}
+        for (j,i) in _default_inds:
+            types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
+            types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
+            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
+            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
+    else:
+        dDict=  None
 
     if noirev:
         assert 'fpfs_N00N00' in moments.dtype.names
         assert 'fpfs_N00N22c' in moments.dtype.names
         assert 'fpfs_N00N22s' in moments.dtype.names
-        ratio=  moments['fpfs_N00N00']/weight**2.
+        ratio=  moments['fpfs_N00N00']/_w**2.
+
+        # correction for detection shear response
+        if dDict is not None:
+            assert 'pdet_N22cV22r1' in dets.dtype.names
+            assert 'pdet_N22sV22r2' in dets.dtype.names
+            for (j,i) in _default_inds:
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
+                    -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
+                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
+                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
+                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
+                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
+                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
+
         e1  =   (e1+moments['fpfs_N00N22c']\
-                /weight**2.)/(1+ratio)
+                /_w**2.)/(1+ratio)
         e2  =   (e2+moments['fpfs_N00N22s']\
-                /weight**2.)/(1+ratio)
-        e1sq=   (e1sq-moments['fpfs_N22cN22c']/weight**2.\
-                +4.*e1*moments['fpfs_N00N22c']/weight**2.)\
+                /_w**2.)/(1+ratio)
+        e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
+                +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
                 /(1.+3*ratio)
-        e2sq=   (e2sq-moments['fpfs_N22sN22s']/weight**2.\
-                +4.*e2*moments['fpfs_N00N22s']/weight**2.)\
+        e2sq=   (e2sq-moments['fpfs_N22sN22s']/_w**2.\
+                +4.*e2*moments['fpfs_N00N22s']/_w**2.)\
                 /(1.+3*ratio)
         s0  =   (s0+moments['fpfs_N00N00']\
-                /weight**2.)/(1+ratio)
+                /_w**2.)/(1+ratio)
         s4  =   (s4+moments['fpfs_N00N40']\
-                /weight**2.)/(1+ratio)
+                /_w**2.)/(1+ratio)
 
-        e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/weight**2.\
-                -s0*moments['fpfs_N22cN22c']/weight**2.)/(1+6.*ratio)
-        e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/weight**2.\
-                -s0*moments['fpfs_N22sN22s']/weight**2.)/(1+6.*ratio)
+        # correction for selection (by s0) shear response
+        e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
+                -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
+        e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
+                -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
+
+    out  =   np.array(np.zeros(moments.size),dtype=types)
+    if dDict is not None:
+        for (j,i) in _default_inds:
+            out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
+            out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
+        del dDict
 
     eSq     =   e1sq+e2sq
     eSqS0   =   e1sqS0+e2sqS0
     #Response factor
-    RE      =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
-    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),\
-                ('fpfs_s0','>f8'), ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
-    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
-    ellDat['fpfs_e1']   =   e1
-    ellDat['fpfs_e2']   =   e2
+    RE   =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
+    out['fpfs_e1']   =   e1
+    out['fpfs_e2']   =   e2
     # In Li et. al (2018) there is a minus sign difference
-    ellDat['fpfs_RE']   =   RE*(2.*flipsign.real-1.)
-    ellDat['fpfs_s0']   =   s0
-    ellDat['fpfs_eSquare']  =   eSq
-    ellDat['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
-    return ellDat
+    out['fpfs_RE']   =   RE*(2.*flipsign.real-1.)
+    out['fpfs_s0']   =   s0
+    out['fpfs_eSquare']  =   eSq
+    out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
+    return out
 
 def fpfsM2Err(moments,const=1.):
     """
