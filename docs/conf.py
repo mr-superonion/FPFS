@@ -16,15 +16,13 @@
 
 
 # -- Project information -----------------------------------------------------
-import fpfs
 
 project = 'FPFS'
 copyright = '2022, Xiangchong Li'
 author = 'Xiangchong Li'
 
 # The full version, including alpha/beta/rc tags
-release = fpfs.__version__
-
+release = "2.0.3"
 
 # -- General configuration ---------------------------------------------------
 
