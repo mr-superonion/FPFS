@@ -246,12 +246,16 @@ class fpfsTask():
         Deconvolve the galaxy power with the PSF power
 
         Parameters:
-            data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
-            prder:  deconvlove order of PSF FT power
-            prder:  deconvlove order of PSF FT
+            data :
+                galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
+            prder:
+                deconvlove order of PSF FT power
+            frder:
+                deconvlove order of PSF FT
 
         Returns:
-            out:    Deconvolved galaxy power (truncated at rlim)
+            out:
+                Deconvolved galaxy power (truncated at rlim)
         """
         out  =   np.zeros(data.shape,dtype=np.complex64)
         out[self._ind2D]=data[self._ind2D]\
@@ -264,10 +268,12 @@ class fpfsTask():
         Project image onto shapelet basis vectors
 
         Parameters:
-            data:   image to transfer
+            data:
+                image to transfer
 
         Returns:
-            out:    projection in shapelet space
+            out:
+                projection in shapelet space
         """
 
         # Moments
@@ -283,10 +289,12 @@ class fpfsTask():
         Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.
 
         Parameters:
-            data:   data to transfer
+            data:
+                data to transfer
 
         Returns:
-            out:    projection in shapelet space
+            out:
+                projection in shapelet space
         """
         # Moments
         dataU   =   data[None,self._indY,self._indX]
@@ -306,10 +314,12 @@ class fpfsTask():
         Measure the FPFS moments
 
         Parameters:
-            galData:    galaxy image [ndarray | list]
+            galData:
+                galaxy image [ndarray | list]
 
         Returns:
-            out:        FPFS moments [ndarray]
+            out:
+                FPFS moments [ndarray]
         """
         if psfPow is not None:
             self.psfPow=psfPow
@@ -347,10 +357,12 @@ class fpfsTask():
         Measure the FPFS moments
 
         Parameters:
-            data:  image array (centroid does not matter) [np.ndarray]
+            data:
+                image array (centroid does not matter) [np.ndarray]
 
         Returns:
-            mm:    FPFS moments [ndarray]
+            mm:
+                FPFS moments [ndarray]
         """
         nn          =   None
         dd          =   None
@@ -385,13 +397,13 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
 
     Parameters:
         moments:
-            input FPFS moments     [ndarray]
+            input FPFS moments [ndarray]
         const:
             the _wing Constant [float (default:1)]
         noirev:
             revise the second-order noise bias? [bool (default: False)]
         dets:
-            input detection array  [ndarray (default: None)]
+            input detection array [ndarray (default: None)]
         flipsign:
             flip the sign of response? [bool] (if you are using the
             convention in Li et. al (2018), set it to True)
@@ -499,7 +511,7 @@ def fpfsM2Err(moments,const=1.):
 
     Parameters:
         moments:
-            input FPFS moments     [float array]
+            input FPFS moments [float array]
         const:
             the weighting Constant [float]
         mcalib:

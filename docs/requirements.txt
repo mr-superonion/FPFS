@@ -1,6 +1,7 @@
-sphinx==4.2.0
-sphinx_rtd_theme==1.0.0
-readthedocs-sphinx-search==0.1.1
+sphinx
+sphinx_rtd_theme
+sphinxcontrib-napoleon
+readthedocs-sphinx-search
 fpfs
 numpy
 scipy
