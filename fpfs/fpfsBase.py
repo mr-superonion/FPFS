@@ -33,12 +33,10 @@ def get_Rlim(psf_array,sigma):
     in FPFS shear estimation method.
 
     Parameters:
-    ----
-    psf_array:     power of PSF or PSF array [np.ndarray]
+        psf_array:      power of PSF or PSF array [np.ndarray]
 
     Returns:
-    ----
-        the limit radius [float]
+        rlim:           the limit radius [float]
     """
     ngrid   =   psf_array.shape[0]
     thres   =   1.e-3
@@ -59,22 +57,21 @@ class fpfsTask():
     A class to measure FPFS shapelet mode estimation.
 
     Parameters:
-    ----
-    psfData:    np.ndarray
-        an average PSF image used to initialize the task
-    beta:       float
-        FPFS scale parameter
-    noiModel:   np.ndarray
-        Models to be used to fit noise power function using the pixels at large
-        k for each galaxy (if you wish FPFS code to estiamte noise power).
-        [default: None]
-    noiFit:     np.ndarray
-        Estimated noise power function (if you have already estimated noise
-        power) [default: None]
-    det_gsigma: np.ndarray
-        Gaussian sigma for detection kernel [default: None]
-    deubg:      bool
-        Whether debug or not [default: False]
+        psfData:
+            an average PSF image used to initialize the task [ndarray]
+        beta:
+            FPFS scale parameter [float]
+        noiModel:
+            Models to be used to fit noise power function using the pixels at
+            large k for each galaxy (if you wish FPFS code to estiamte
+            noise power). [default: None]
+        noiFit:
+            Estimated noise power function (if you have already estimated noise
+            power) [default: None]
+        det_gsigma:
+            Gaussian sigma for detection kernel [default: None]
+        deubg:
+            Whether debug or not [default: False]
     """
     _DefaultName = "fpfsTask"
     def __init__(self,psfData,beta,noiModel=None,noiFit=None,det_gsigma=None,debug=False):
@@ -234,13 +231,11 @@ class fpfsTask():
         Deconvolve the galaxy power with the PSF power
 
         Parameters:
-        ----
-        data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
-        order:  deconvolve order of PSF power
+            data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
+            order:  deconvolve order of PSF power
 
         Returns :
-        ----
-            Deconvolved galaxy power (truncated at rlim)
+            out:    Deconvolved galaxy power (truncated at rlim)
         """
         out  =   np.zeros(data.shape,dtype=np.float64)
         out[self._ind2D]=data[self._ind2D]/self.psfPow[self._ind2D]**order
@@ -251,14 +246,12 @@ class fpfsTask():
         Deconvolve the galaxy power with the PSF power
 
         Parameters:
-        ----
-        data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
-        prder:  deconvlove order of PSF FT power
-        prder:  deconvlove order of PSF FT
+            data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
+            prder:  deconvlove order of PSF FT power
+            prder:  deconvlove order of PSF FT
 
-        Returns :
-        ----
-            Deconvolved galaxy power (truncated at rlim)
+        Returns:
+            out:    Deconvolved galaxy power (truncated at rlim)
         """
         out  =   np.zeros(data.shape,dtype=np.complex64)
         out[self._ind2D]=data[self._ind2D]\
@@ -271,12 +264,10 @@ class fpfsTask():
         Project image onto shapelet basis vectors
 
         Parameters:
-        ----
-        data:   image to transfer
+            data:   image to transfer
 
         Returns:
-        ----
-            projection in shapelet space
+            out:    projection in shapelet space
         """
 
         # Moments
@@ -292,10 +283,10 @@ class fpfsTask():
         Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.
 
         Parameters:
-        data:   data to transfer
+            data:   data to transfer
 
         Returns:
-            projection in shapelet space
+            out:    projection in shapelet space
         """
         # Moments
         dataU   =   data[None,self._indY,self._indX]
@@ -315,13 +306,10 @@ class fpfsTask():
         Measure the FPFS moments
 
         Parameters:
-        ----
-        galData:    np.ndarray | list
-            galaxy image
+            galData:    galaxy image [ndarray | list]
 
-        Returns:    np.ndarray
-        ----
-            FPFS moments
+        Returns:
+            out:        FPFS moments [ndarray]
         """
         if psfPow is not None:
             self.psfPow=psfPow
@@ -359,13 +347,10 @@ class fpfsTask():
         Measure the FPFS moments
 
         Parameters:
-        ----
-        data:   np.ndarray
-            image array (centroid does not matter)
+            data:  image array (centroid does not matter) [np.ndarray]
 
-        Returns: np.ndarray
-        ----
-            FPFS moments
+        Returns:
+            mm:    FPFS moments [ndarray]
         """
         nn          =   None
         dd          =   None
@@ -399,18 +384,22 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
-    ----
-    moments:    input FPFS moments     [ndarray]
-    const:      the _wing Constant [float (default:1)]
-    noirev:     revise the second-order noise bias? [bool (default: False)]
-    dets:       input detection array  [ndarray (default: None)]
-    flipsign:   flip the sign of response? [bool] (if you are using the
-                convention in Li et. al (2018), set it to True)
+        moments:
+            input FPFS moments     [ndarray]
+        const:
+            the _wing Constant [float (default:1)]
+        noirev:
+            revise the second-order noise bias? [bool (default: False)]
+        dets:
+            input detection array  [ndarray (default: None)]
+        flipsign:
+            flip the sign of response? [bool] (if you are using the
+            convention in Li et. al (2018), set it to True)
 
     Returns:
-    ----
-    out:        an array of (FPFS ellipticities, FPFS ellipticity response,
-                FPFS flux ratio, and FPFS selection response)
+        out:
+            an array of (FPFS ellipticities, FPFS ellipticity response,
+            FPFS flux ratio, and FPFS selection response)
     """
     types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
                 ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
@@ -509,14 +498,16 @@ def fpfsM2Err(moments,const=1.):
     moments and the moments covariances
 
     Parameters:
-    ----
-    moments:    input FPFS moments     [float array]
-    const:      the weighting Constant [float]
-    mcalib:     multiplicative bias [float array]
+        moments:
+            input FPFS moments     [float array]
+        const:
+            the weighting Constant [float]
+        mcalib:
+            multiplicative bias [float array]
 
     Returns:
-    ----
-        an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
+        errDat:
+            an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
     """
     assert 'fpfs_N00N00' in moments.dtype.names
     assert 'fpfs_N00N22c' in moments.dtype.names

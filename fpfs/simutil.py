@@ -132,16 +132,15 @@ if with_lsst:
     def makeLsstExposure(galData,psfData,pixScale,variance):
         """
         make an LSST exposure object
+
         Parameters:
-        ----
-        galData:    array of galaxy image
-        psfData:    array of PSF image
-        pixScale:   pixel scale
-        variance:   noise variance
+            galData:    array of galaxy image
+            psfData:    array of PSF image
+            pixScale:   pixel scale
+            variance:   noise variance
 
         Returns:
-        ----
-        exposure:   LSST exposure object
+            exposure:   LSST exposure object
         """
         if not with_lsst:
             raise ImportError('Do not have lsstpipe!')
@@ -176,13 +175,12 @@ if with_lsst:
 def make_ringrot_radians(nord=8):
     """
     Generate rotation angle array for ring test
+
     Parameters:
-    ----
-    nord:       up to 1/2**nord*pi rotation
+        nord:       up to 1/2**nord*pi rotation
 
     Returns:
-    ----
-    rotArray:   rotation array [radians]
+        rotArray:   rotation array [radians]
     """
     rotArray=   np.zeros(2**nord)
     nnum    =   0
@@ -199,10 +197,10 @@ class sim_test():
         """
         simulate an exponential object with moffat PSF, this class has the same observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
+
         Parameters:
-        ----
-        shear:  (g1, g2),The shear in each component
-        rng:    The random number generator
+            shear:  (g1, g2),The shear in each component
+            rng:    The random number generator
         """
         self.rng=   rng
 
@@ -228,14 +226,15 @@ class sim_test():
 
     def make_image(self,noise:float,psf_noise:float=0.):
         """
+        generate a galaxy image
+
         Parameters:
-        ----
-        noise:      Noise for the image
-        psf_noise:  Noise for the PSF
+            noise:      Noise for the image
+            psf_noise:  Noise for the PSF
 
         Returns:
-        ----
-        im,psf_im:  galaxy image and PSF image
+            im:         galaxy image
+            psf_im:     PSF image
         """
         if noise>1e-10:
             img =   self.img+self.rng.normal(scale=noise,size=self.img.shape)
@@ -250,14 +249,14 @@ class sim_test():
 def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=False):
     """
     Make basic galaxy image simulation (isolated)
+
     Parameters:
-    ----
-    outDir:         output directory
-    gname:          shear distortion setup
-    Id0:            index of the simulation
-    ny, nx:         number of galaxies in y,x direction
-    do_write:       whether write output [bool, default: True]
-    return_array:   whether return galaxy array [bool, default: False]
+        outDir:         output directory
+        gname:          shear distortion setup
+        Id0:            index of the simulation
+        ny, nx:         number of galaxies in y,x direction
+        do_write:       whether write output [bool, default: True]
+        return_array:   whether return galaxy array [bool, default: False]
     """
     ngrid  =   64
     scale  =   0.168
@@ -409,8 +408,8 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.)->np.ndarray:
     """
     simulate an exponential object with moffat PSF, given a SNR (r0) and
     a source background noise ratio (r0)
-    Parameters
-    ----
+
+    Parameters:
     shear:  (g1, g2),The shear in each component
     rng:    The random number generator
     r1:     The source background noise variance ratio

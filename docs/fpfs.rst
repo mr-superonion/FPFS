@@ -1,34 +1,37 @@
-FPFS package
+fpfs package
 ============
 
-fpfs.fpfsBase
+Submodules
+----------
+
+fpfs.fpfsBase module
 --------------------
 
 .. automodule:: fpfs.fpfsBase
-    :members:
-    :undoc-members:
-   r:show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-fpfs.imgutil
+fpfs.imgutil module
 -------------------
 
 .. automodule:: fpfs.imgutil
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
-fpfs.simutil
+fpfs.simutil module
 -------------------
 
 .. automodule:: fpfs.simutil
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
 
 .. automodule:: fpfs
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
