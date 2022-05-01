@@ -23,7 +23,7 @@ from . import imgutil
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-_default_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
+det_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
 _gsigma=3.*2*np.pi/64.
 
 @numba.njit
@@ -57,34 +57,32 @@ class fpfsTask():
     A class to measure FPFS shapelet mode estimation.
 
     Parameters:
-        psfData:
-            an average PSF image used to initialize the task [ndarray]
-        beta:
-            FPFS scale parameter [float]
-        noiModel:
+        psfData:    ndarray
+            an average PSF image used to initialize the task
+        beta:       float
+            FPFS scale parameter
+        nnord:      int
+            the highest order of Shapelets radial components [default: 4]
+        noiModel:   ndarray
             Models to be used to fit noise power function using the pixels at
             large k for each galaxy (if you wish FPFS code to estiamte
             noise power). [default: None]
-        noiFit:
+        noiFit:     ndarray
             Estimated noise power function (if you have already estimated noise
             power) [default: None]
-        det_gsigma:
+        det_gsigma: float
             Gaussian sigma for detection kernel [default: None]
-        deubg:
+        deubg:      bool
             Whether debug or not [default: False]
     """
     _DefaultName = "fpfsTask"
-    def __init__(self,psfData,beta,noiModel=None,noiFit=None,det_gsigma=None,debug=False):
+    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,det_gsigma=None,debug=False):
         if not isinstance(beta,(float,int)):
             raise TypeError('Input beta should be float.')
         if beta>=1. or beta<=0.:
             raise ValueError('Input beta shoul be in range (0,1)')
         self.ngrid  =   psfData.shape[0]
         self._dk    =   2.*np.pi/self.ngrid
-        self.base_types=[('fpfs_M00','>f8'),\
-                    ('fpfs_M22c','>f8'),\
-                    ('fpfs_M22s','>f8'),\
-                    ('fpfs_M40','>f8')]
         psfData     =   np.array(psfData,dtype='>f8')
         self.noise_correct=False
         if noiFit is not None:
@@ -117,17 +115,24 @@ class fpfsTask():
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
         # Preparing shapelets (reshaped)
-        nnord       =   4
-        # Only uses M00, M22 (real and img) and M40
-        self._indC  =   np.array([0,12,20])[:,None,None]
-        self.chi    =   imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
+        ## nm = m*(nnord+1)+n
+        if nnord == 4:
+            # This setup is for shear response only
+            # Only uses M00, M20, M22 (real and img) and M40, M42
+            self._indC  =   np.array([0,10,12,20,22])[:,None,None]
+        elif nnord== 6:
+            # This setup is able to derive kappa response
+            # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
+            self._indC =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
+        chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
+        self.prepare_ChiDeri(chi)
         if self.noise_correct:
-            self.prepare_ChiCov()
+            self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
             if det_gsigma is not None:
                 logging.info('Will correct detection bias')
-                self.prepare_ChiDet(det_gsigma)
+                self.prepare_ChiDet(chi,det_gsigma)
                 self.det_gsigma=det_gsigma
                 self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
             else:
@@ -172,19 +177,47 @@ class fpfsTask():
         self._ind2D=np.ix_(self._indX,self._indX)
         return
 
-    def prepare_ChiCov(self):
+    def prepare_ChiDeri(self,chi):
+        """
+        prepare the basis to estimate Derivatives
+        Parameters:
+            chi:        ndarray
+                2D shapelet basis
+        """
+        _chiU   =   chi[self._indC,self._indY,self._indX]
+        out     =   []
+        out.append(_chiU.real[0])
+        out.append(_chiU.real[1])
+        out.append(_chiU.real[2]);out.append(_chiU.imag[2])
+        out.append(_chiU.real[3])
+        out.append(_chiU.real[4]);out.append(_chiU.imag[4])
+        out     =   np.stack(out)
+        self.chiD =   out
+        self.deri_types=[
+                    ('fpfs_M00','>f8'),\
+                    ('fpfs_M20','>f8'),\
+                    ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
+                    ('fpfs_M40','>f8'),\
+                    ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
+                    ]
+        return
+
+    def prepare_ChiCov(self,chi):
         """
         prepare the basis to estimate covariance
+        Parameters:
+            chi:        ndarray
+                2D shapelet basis
         """
-        _chiU   =   self.chi[self._indC,self._indY,self._indX]
+        _chiU   =   chi[self._indC,self._indY,self._indX]
         out     =   []
         out.append(_chiU.real[0]*_chiU.real[0])
-        out.append(_chiU.real[1]*_chiU.real[1])
-        out.append(_chiU.imag[1]*_chiU.imag[1])
         out.append(_chiU.real[2]*_chiU.real[2])
-        out.append(_chiU.real[0]*_chiU.real[1])
-        out.append(_chiU.real[0]*_chiU.imag[1])
+        out.append(_chiU.imag[2]*_chiU.imag[2])
+        out.append(_chiU.real[3]*_chiU.real[3])
         out.append(_chiU.real[0]*_chiU.real[2])
+        out.append(_chiU.real[0]*_chiU.imag[2])
+        out.append(_chiU.real[0]*_chiU.real[3])
         out     =   np.stack(out)
         self.chiCov =   out
         self.cov_types= [('fpfs_N00N00','>f8'),\
@@ -194,11 +227,16 @@ class fpfsTask():
                     ('fpfs_N00N40','>f8')]
         return
 
-    def prepare_ChiDet(self,gsigma=_gsigma):
+    def prepare_ChiDet(self,chi,gsigma=_gsigma):
         """
         prepare the basis to estimate covariance for detection
+        Parameters:
+            chi:        ndarray
+                2D shapelet basis
+            gsigma:     float
+                smoothing size
         """
-        _chiU  =    self.chi[self._indC,self._indY,self._indX]
+        _chiU  =    chi[self._indC,self._indY,self._indX]
         gKer,(k2grid,k1grid)=imgutil.gauss_kernel(self.ngrid,self.ngrid,gsigma,\
                         do_shift=True,return_grid=True)
         q1Ker  =    (k1grid**2.-k2grid**2.)/gsigma**2.*gKer
@@ -207,17 +245,17 @@ class fpfsTask():
         d2Ker  =    (-1j*k2grid)*gKer
         out    =    []
         self.det_types= []
-        for (j,i) in _default_inds:
+        for (j,i) in det_inds:
             y  =    j-2
             x  =    i-2
             r1 =    (q1Ker+x*d1Ker-y*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
             r2 =    (q2Ker+y*d1Ker+x*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
             r1 =    r1[self._indY,self._indX]/self.ngrid**2.
             r2 =    r2[self._indY,self._indX]/self.ngrid**2.
-            out.append(_chiU.real[0]*r1) #x00*phi1
-            out.append(_chiU.real[0]*r2) #x00*phi2
-            out.append(_chiU.real[1]*r1) #x22c*phi1
-            out.append(_chiU.imag[1]*r2) #x22s*phi2
+            out.append(_chiU.real[0]*r1) #x00*phi;1
+            out.append(_chiU.real[0]*r2) #x00*phi;2
+            out.append(_chiU.real[2]*r1) #x22c*phi;1
+            out.append(_chiU.imag[2]*r2) #x22s*phi;2
             self.det_types.append(('pdet_N00F%d%dr1'  %(j,i),'>f8'))
             self.det_types.append(('pdet_N00F%d%dr2'  %(j,i),'>f8'))
             self.det_types.append(('pdet_N22cF%d%dr1' %(j,i),'>f8'))
@@ -268,20 +306,18 @@ class fpfsTask():
         Project image onto shapelet basis vectors
 
         Parameters:
-            data:
+            data:   ndarray
                 image to transfer
 
         Returns:
-            out:
+            out:    ndarray
                 projection in shapelet space
         """
 
         # Moments
-        M       =   np.sum(data[None,self._indY,self._indX]\
-                    *self.chi[self._indC,self._indY,self._indX],axis=(1,2))
-        out     =   np.array((M.real[0],\
-                    M.real[1],M.imag[1],\
-                    M.real[2]),dtype=self.base_types)
+        _       =   np.sum(data[None,self._indY,self._indX]\
+                    *self.chiD,axis=(1,2))
+        out     =   np.array(tuple(_),dtype=self.deri_types)
         return out
 
     def itransformCov(self,data):
@@ -289,24 +325,23 @@ class fpfsTask():
         Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.
 
         Parameters:
-            data:
+            data:   ndarray
                 data to transfer
 
         Returns:
-            out:
+            out:    ndarray
                 projection in shapelet space
         """
         # Moments
-        dataU   =   data[None,self._indY,self._indX]
-
-        N       =   np.sum(self.chiCov*dataU,axis=(1,2))
-        out     =   np.array(tuple(N),dtype=self.cov_types)
+        _       =   np.sum(data[None,self._indY,self._indX]\
+                    *self.chiCov,axis=(1,2))
+        out     =   np.array(tuple(_),dtype=self.cov_types)
         return out
 
     def itransformDet(self,data):
-        dataU   =   data[None,self._indY,self._indX]
-        D       =   np.sum(self.chiDet*dataU,axis=(1,2)).real
-        out     =   np.array(tuple(D),dtype=self.det_types)
+        _       =   np.sum(data[None,self._indY,self._indX]*\
+                    self.chiDet,axis=(1,2)).real
+        out     =   np.array(tuple(_),dtype=self.det_types)
         return out
 
     def measure(self,galData,psfPow=None,noiFit=None):
@@ -433,7 +468,7 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     # prepare the shear response for detection operation
     if dets is not None:
         dDict=  {}
-        for (j,i) in _default_inds:
+        for (j,i) in det_inds:
             types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
             types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
             dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
@@ -451,7 +486,7 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
         if dDict is not None:
             assert 'pdet_N22cV22r1' in dets.dtype.names
             assert 'pdet_N22sV22r2' in dets.dtype.names
-            for (j,i) in _default_inds:
+            for (j,i) in det_inds:
                 dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
                     -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
                     +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
@@ -486,7 +521,7 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
 
     out  =   np.array(np.zeros(moments.size),dtype=types)
     if dDict is not None:
-        for (j,i) in _default_inds:
+        for (j,i) in det_inds:
             out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
             out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
         del dDict
