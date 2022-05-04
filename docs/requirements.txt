@@ -1,5 +1,6 @@
+pytest
+flake8
 numpy
 scipy
 numba
 galsim
-fpfs
