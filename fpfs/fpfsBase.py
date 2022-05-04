@@ -37,13 +37,13 @@ def get_Rlim(psf_array,sigma):
     in FPFS shear estimation method.
 
     Parameters:
-        psf_array (ndarray):    power of PSF or PSF array
+        psf_array (ndarray):    PSF's Fourier power or Fourier transform
 
     Returns:
         rlim (float):           the limit radius
     """
     ngrid   =   psf_array.shape[0]
-    thres   =   1.e-3
+    thres   =   1.e-5
     rlim    =   ngrid//2
     for dist in range(ngrid//5,ngrid//2-1):
         ave =  abs(np.exp(-dist**2./2./sigma**2.)\
@@ -85,7 +85,8 @@ class fpfsTask():
             raise ValueError('Input beta shoul be in range (0,1)')
         self.ngrid  =   psfData.shape[0]
         self._dk    =   2.*np.pi/self.ngrid
-        psfData     =   np.array(psfData,dtype='>f8')
+
+        # Preparing noise
         self.noise_correct=False
         if noiFit is not None:
             self.noise_correct=True
@@ -99,17 +100,20 @@ class fpfsTask():
                 raise TypeError('noiFit should be either np.ndarray or float')
         else:
             self.noiFit  =  0.
-        self.noiFit0=   self.noiFit
         if noiModel is not None:
             self.noise_correct=True
             self.noiModel=  np.array(noiModel,dtype='>f8')
         else:
             self.noiModel=  None
-        self.psfPow =   imgutil.getFouPow(psfData)
-        self.psfPow0=   self.psfPow
+        self.noiFit0=   self.noiFit
+
         # Preparing PSF
-        # scale radius of PSF
-        sigmaPsf    =   imgutil.getRnaive(self.psfPow)
+        psfData     =   np.array(psfData,dtype='>f8')
+        self.psfFou =   np.fft.fftshift(np.fft.fft2(psfData))
+        self.psfFou0=   self.psfFou.copy()
+        self.psfPow =   imgutil.getFouPow(psfData)
+        # scale radius of PSF's Fourier transform (in units of pixel)
+        sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
         # shapelet scale
         sigmaPx=   max(min(sigmaPsf*beta,4.),1.)
         self.rlim   =   get_Rlim(self.psfPow,sigmaPx)
@@ -118,7 +122,8 @@ class fpfsTask():
         self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
-        # Preparing shapelets (reshaped)
+
+        # Preparing shapelet basis
         ## nm = m*(nnord+1)+n
         if nnord == 4:
             # This setup is for shear response only
@@ -136,20 +141,24 @@ class fpfsTask():
         self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
 
         if self.noise_correct:
+            logging.info('We correct noise bias')
             self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
         del chi
+
+        # others
         if debug:
             self.stackPow=np.zeros(psfData.shape,dtype='>f8')
         else:
             self.stackPow=None
         return
 
-    def reset_psfPow(self):
+    def reset_psf(self):
         """
         reset psf power to the average PSF used to initialize the task
         """
-        self.psfPow=self.psfPow0
+        self.psfFou= self.psfFou0
+        self.psfPow= np.conjugate(self.psfFou)*self.psfFou
         # we do not ned to reset psfFou since that is only used for detection
         # (detection only uses average PSF)
         return
@@ -263,39 +272,22 @@ class fpfsTask():
             r2 =    (q2Ker+y*d1Ker+x*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
             r1 =    r1[self._indY,self._indX]/self.ngrid**2.
             r2 =    r2[self._indY,self._indX]/self.ngrid**2.
-            out.append(_chiU.real[0]*r1) #x00*phi;1
-            out.append(_chiU.real[0]*r2) #x00*phi;2
-            out.append(_chiU.real[2]*r1) #x22c*phi;1
-            out.append(_chiU.imag[2]*r2) #x22s*phi;2
+            out.append(_.real[0]*r1) #x00*phi;1
+            out.append(_.real[0]*r2) #x00*phi;2
+            out.append(_.real[2]*r1) #x22c*phi;1
+            out.append(_.imag[2]*r2) #x22s*phi;2
             self.det_types.append(('pdet_N00F%d%dr1'  %(j,i),'>f8'))
             self.det_types.append(('pdet_N00F%d%dr2'  %(j,i),'>f8'))
             self.det_types.append(('pdet_N22cF%d%dr1' %(j,i),'>f8'))
             self.det_types.append(('pdet_N22sF%d%dr2' %(j,i),'>f8'))
+        del _
         out     =   np.stack(out)
         self.chiDet =   out
         return
 
-    def deconvolvePow(self,data,order=1.):
+    def deconvolve(self,data,prder=1.,frder=1.):
         """
-        Deconvolve the galaxy power with the PSF power
-
-        Parameters:
-            data (ndarray):
-                galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
-            order (int):
-                deconvolve order of PSF power
-
-        Returns :
-            out (ndarray):
-                Deconvolved galaxy power (truncated at rlim)
-        """
-        out  =   np.zeros(data.shape,dtype=np.float64)
-        out[self._ind2D]=data[self._ind2D]/self.psfPow[self._ind2D]**order
-        return out
-
-    def deconvolve2(self,data,prder=1.,frder=1.):
-        """
-        Deconvolve the galaxy power with the PSF power
+        Deconvolve input data with the PSF or PSF power
 
         Parameters:
             data (ndarray):
@@ -328,7 +320,7 @@ class fpfsTask():
 
         # Moments
         _       =   np.sum(data[None,self._indY,self._indX]\
-                    *self.chiD,axis=(1,2))
+                    *self.chiD,axis=(1,2)).real
         out     =   np.array(tuple(_),dtype=self.deri_types)
         return out
 
@@ -344,7 +336,7 @@ class fpfsTask():
         """
         # Moments
         _       =   np.sum(data[None,self._indY,self._indX]\
-                    *self.chiCov,axis=(1,2))
+                    *self.chiCov,axis=(1,2)).real
         out     =   np.array(tuple(_),dtype=self.cov_types)
         return out
 
@@ -354,7 +346,7 @@ class fpfsTask():
         out     =   np.array(tuple(_),dtype=self.det_types)
         return out
 
-    def measure(self,galData,psfPow=None,noiFit=None):
+    def measure(self,galData,psfFou=None,noiFit=None):
         """
         Measure the FPFS moments
 
@@ -364,8 +356,9 @@ class fpfsTask():
         Returns:
             out (ndarray):              FPFS moments
         """
-        if psfPow is not None:
-            self.psfPow=psfPow
+        if psfFou is not None:
+            self.psfFou= psfFou
+            self.psfPow= (np.conjugate(psfFou)*psfFou).real
         if noiFit is not None:
             self.noiFit=noiFit
         if isinstance(galData,np.ndarray):
@@ -395,7 +388,7 @@ class fpfsTask():
         else:
             raise TypeError("Input galaxy data has wrong type (neither list nor ndarray).")
 
-    def __measure(self,data)->np.ndarray:
+    def __measure(self,data):
         """
         Measure the FPFS moments
 
@@ -429,7 +422,32 @@ class fpfsTask():
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
 
         if self.stackPow is not None:
+            galPow  =   imgutil.getFouPow(data)
             self.stackPow+=galPow
+            return np.empty(1)
+        galFou  =   np.fft.fftshift(np.fft.fft2(data))
+        decG    =   self.deconvolve(galFou,prder=0.,frder=1)
+        mm      =   self.itransform(decG)
+        del decG
+
+        nn          =   None # photon noise covariance array
+        dd          =   None # detection covariance array
+
+        if self.noise_correct:
+            # do noise covariance estimation
+            if self.noiModel is not None:
+                # fit the noise power from the galaxy power
+                galPow  =   imgutil.getFouPow(data)
+                noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+                del galPow
+            else:
+                # use the input noise power
+                noiFit  =   self.noiFit
+            decNp   =   self.deconvolve(noiFit,prder=1,frder=0)
+            nn      =   self.itransformCov(decNp)
+            dd      =   self.itransformDet(decNp)
+            del decNp
+            mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
 
 def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
