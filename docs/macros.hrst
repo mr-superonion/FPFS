@@ -1,2 +1,3 @@
 .. |ndarray| replace:: :class:`numpy.ndarray`
+.. |randState| replace:: :class:`np.random.RandomState`
 

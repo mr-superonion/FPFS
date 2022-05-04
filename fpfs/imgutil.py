@@ -19,13 +19,6 @@
 
 import numpy as np
 
-def try_numba_njit():
-    try:
-        import numba
-        return numba.njit
-    except ImportError:
-        return lambda func: func
-
 def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
     """
     Generate a Gaussian kernel on grids for np.fft.fft transform
@@ -149,7 +142,7 @@ def getFouPow(arrayIn: np.ndarray, noiPow=None):
         out =   out-noiPow
     return out
 
-def getRnaive(arrayIn:np.ndarray):
+def getRnaive(arrayIn):
     """
     A naive way to estimate Radius.
     Note, this naive estimation is heavily influenced by noise.
