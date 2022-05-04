@@ -207,15 +207,17 @@ class fpfsTask():
             out.append(_chiU.real[2]);out.append(_chiU.imag[2]) # x22c,s
             out.append(_chiU.real[3]) # x40
             out.append(_chiU.real[4]);out.append(_chiU.imag[4]) # x42c,s
+            out.append(_chiU.real[5]) # x60
             self.deri_types=[
                         ('fpfs_M00','>f8'),\
                         ('fpfs_M20','>f8'),\
                         ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
                         ('fpfs_M40','>f8'),\
-                        ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
+                        ('fpfs_M42c','>f8'),('fpfs_M42s','>f8'),\
+                        ('fpfs_M60','>f8')
                         ]
-            # Wait Zhi Shen to implement higher order shapelets
-            pass
+            # # Wait Zhi Shen to implement higher order shapelets
+            # pass
         self.chiD =   out
         return
 
