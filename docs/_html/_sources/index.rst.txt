@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 FPFS: A fast, accurate shear estimator
-======================================
+================================
 
 .. toctree::
     :maxdepth: 2

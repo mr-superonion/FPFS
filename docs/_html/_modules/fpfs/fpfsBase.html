@@ -1,0 +1,737 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fpfs.fpfsBase &#8212; FPFS 2.0.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinxdoc.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">FPFS 2.0.3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">fpfs.fpfsBase</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for fpfs.fpfsBase</h1><div class="highlight"><pre>
+<span></span><span class="c1"># FPFS shear estimator</span>
+<span class="c1"># Copyright 20210905 Xiangchong Li.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the LSST License Statement and</span>
+<span class="c1"># the GNU General Public License along with this program.  If not,</span>
+<span class="c1"># see &lt;http://www.lsstcorp.org/LegalNotices/&gt;.</span>
+<span class="c1">#</span>
+<span class="c1"># python lib</span>
+
+<span class="kn">import</span> <span class="nn">numba</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">imgutil</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numpy.lib.recfunctions</span> <span class="k">as</span> <span class="nn">rfn</span>
+
+<span class="n">_default_inds</span><span class="o">=</span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">),(</span><span class="mi">2</span><span class="p">,</span><span class="mi">1</span><span class="p">),(</span><span class="mi">2</span><span class="p">,</span><span class="mi">2</span><span class="p">),(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">),(</span><span class="mi">3</span><span class="p">,</span><span class="mi">2</span><span class="p">)]</span>
+<span class="n">_gsigma</span><span class="o">=</span><span class="mf">3.</span><span class="o">*</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">64.</span>
+
+<div class="viewcode-block" id="get_Rlim"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.get_Rlim">[docs]</a><span class="nd">@numba</span><span class="o">.</span><span class="n">njit</span>
+<span class="k">def</span> <span class="nf">get_Rlim</span><span class="p">(</span><span class="n">psf_array</span><span class="p">,</span><span class="n">sigma</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel</span>
+<span class="sd">    in FPFS shear estimation method.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        psf_array:      power of PSF or PSF array [np.ndarray]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        rlim:           the limit radius [float]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ngrid</span>   <span class="o">=</span>   <span class="n">psf_array</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">thres</span>   <span class="o">=</span>   <span class="mf">1.e-3</span>
+    <span class="n">rlim</span>    <span class="o">=</span>   <span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span>
+    <span class="k">for</span> <span class="n">dist</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">5</span><span class="p">,</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">ave</span> <span class="o">=</span>  <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dist</span><span class="o">**</span><span class="mf">2.</span><span class="o">/</span><span class="mf">2.</span><span class="o">/</span><span class="n">sigma</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span>\
+                <span class="o">/</span><span class="n">psf_array</span><span class="p">[</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">dist</span><span class="p">,</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">ave</span> <span class="o">+=</span>  <span class="nb">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">dist</span><span class="o">**</span><span class="mf">2.</span><span class="o">/</span><span class="mf">2.</span><span class="o">/</span><span class="n">sigma</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span>\
+                <span class="o">/</span><span class="n">psf_array</span><span class="p">[</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="p">,</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="n">dist</span><span class="p">])</span>
+        <span class="n">ave</span> <span class="o">=</span>   <span class="n">ave</span><span class="o">/</span><span class="mf">2.</span>
+        <span class="k">if</span> <span class="n">ave</span><span class="o">&lt;=</span><span class="n">thres</span><span class="p">:</span>
+            <span class="n">rlim</span><span class="o">=</span>   <span class="n">dist</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">rlim</span></div>
+
+<div class="viewcode-block" id="fpfsTask"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask">[docs]</a><span class="k">class</span> <span class="nc">fpfsTask</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A class to measure FPFS shapelet mode estimation.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        psfData:</span>
+<span class="sd">            an average PSF image used to initialize the task [ndarray]</span>
+<span class="sd">        beta:</span>
+<span class="sd">            FPFS scale parameter [float]</span>
+<span class="sd">        noiModel:</span>
+<span class="sd">            Models to be used to fit noise power function using the pixels at</span>
+<span class="sd">            large k for each galaxy (if you wish FPFS code to estiamte</span>
+<span class="sd">            noise power). [default: None]</span>
+<span class="sd">        noiFit:</span>
+<span class="sd">            Estimated noise power function (if you have already estimated noise</span>
+<span class="sd">            power) [default: None]</span>
+<span class="sd">        det_gsigma:</span>
+<span class="sd">            Gaussian sigma for detection kernel [default: None]</span>
+<span class="sd">        deubg:</span>
+<span class="sd">            Whether debug or not [default: False]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_DefaultName</span> <span class="o">=</span> <span class="s2">&quot;fpfsTask&quot;</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">psfData</span><span class="p">,</span><span class="n">beta</span><span class="p">,</span><span class="n">noiModel</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">noiFit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">det_gsigma</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">debug</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">beta</span><span class="p">,(</span><span class="nb">float</span><span class="p">,</span><span class="nb">int</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Input beta should be float.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">beta</span><span class="o">&gt;=</span><span class="mf">1.</span> <span class="ow">or</span> <span class="n">beta</span><span class="o">&lt;=</span><span class="mf">0.</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Input beta shoul be in range (0,1)&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span>  <span class="o">=</span>   <span class="n">psfData</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dk</span>    <span class="o">=</span>   <span class="mf">2.</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_types</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;fpfs_M00&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_M22c&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_M22s&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_M40&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)]</span>
+        <span class="n">psfData</span>     <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">psfData</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noise_correct</span><span class="o">=</span><span class="kc">False</span>
+        <span class="k">if</span> <span class="n">noiFit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">noise_correct</span><span class="o">=</span><span class="kc">True</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">noiFit</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+                <span class="k">assert</span> <span class="n">noiFit</span><span class="o">.</span><span class="n">shape</span><span class="o">==</span><span class="n">psfData</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> \
+                <span class="s1">&#39;the input noise power should have the same shape with input psf image&#39;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span>  <span class="o">=</span>  <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">noiFit</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">noiFit</span><span class="p">,</span><span class="nb">float</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span>  <span class="o">=</span>  <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">psfData</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)</span><span class="o">*</span><span class="n">noiFit</span><span class="o">*</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">)</span><span class="o">**</span><span class="mf">2.</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;noiFit should be either np.ndarray or float&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span>  <span class="o">=</span>  <span class="mf">0.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noiFit0</span><span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span>
+        <span class="k">if</span> <span class="n">noiModel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">noise_correct</span><span class="o">=</span><span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">noiModel</span><span class="o">=</span>  <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">noiModel</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">noiModel</span><span class="o">=</span>  <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span> <span class="o">=</span>   <span class="n">imgutil</span><span class="o">.</span><span class="n">getFouPow</span><span class="p">(</span><span class="n">psfData</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">psfPow0</span><span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span>
+        <span class="c1"># Preparing PSF</span>
+        <span class="c1"># scale radius of PSF</span>
+        <span class="n">sigmaPsf</span>    <span class="o">=</span>   <span class="n">imgutil</span><span class="o">.</span><span class="n">getRnaive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span><span class="p">)</span>
+        <span class="c1"># shapelet scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigmaPx</span><span class="o">=</span>   <span class="nb">max</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">sigmaPsf</span><span class="o">*</span><span class="n">beta</span><span class="p">,</span><span class="mf">4.</span><span class="p">),</span><span class="mf">1.</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rlim</span>   <span class="o">=</span>   <span class="n">get_Rlim</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">sigmaPx</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rlim</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">rlim</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">[:,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">)</span>
+        <span class="c1"># Preparing shapelets (reshaped)</span>
+        <span class="n">nnord</span>       <span class="o">=</span>   <span class="mi">4</span>
+        <span class="c1"># Only uses M00, M22 (real and img) and M40</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indC</span>  <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">,</span><span class="mi">12</span><span class="p">,</span><span class="mi">20</span><span class="p">])[:,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chi</span>    <span class="o">=</span>   <span class="n">imgutil</span><span class="o">.</span><span class="n">shapelets2D</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">,</span><span class="n">nnord</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">sigmaPx</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_dk</span><span class="p">)</span>\
+                        <span class="o">.</span><span class="n">reshape</span><span class="p">(((</span><span class="n">nnord</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">))</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_correct</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prepare_ChiCov</span><span class="p">()</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Will correct noise bias&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">det_gsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Will correct detection bias&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">prepare_ChiDet</span><span class="p">(</span><span class="n">det_gsigma</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">det_gsigma</span><span class="o">=</span><span class="n">det_gsigma</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">psfFou</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft2</span><span class="p">(</span><span class="n">psfData</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">det_gsigma</span><span class="o">=</span><span class="kc">None</span>
+                <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Do not correct for detection bias&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">det_gsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Cannot fully correct detection bias without </span><span class="se">\</span>
+<span class="s1">                        noise power. Please input noise power.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">debug</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stackPow</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">psfData</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stackPow</span><span class="o">=</span><span class="kc">None</span>
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="fpfsTask.reset_psfPow"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.reset_psfPow">[docs]</a>    <span class="k">def</span> <span class="nf">reset_psfPow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        reset psf power to the average PSF used to initialize the task</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">psfPow0</span>
+        <span class="c1"># we do not ned to reset psfFou since that is only used for detection</span>
+        <span class="c1"># (detection only uses average PSF)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="fpfsTask.reset_noiFit"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.reset_noiFit">[docs]</a>    <span class="k">def</span> <span class="nf">reset_noiFit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        reset noiFit to the one used to initialize the task</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">noiFit0</span>
+        <span class="c1"># we do not ned to reset psfFou since that is only used for detection</span>
+        <span class="c1"># (detection only uses average PSF)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="fpfsTask.setRlim"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.setRlim">[docs]</a>    <span class="k">def</span> <span class="nf">setRlim</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">rlim</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        set rlim, the area outside rlim is supressed by the shaplet Gaussian</span>
+<span class="sd">        kerenl</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rlim</span><span class="o">=</span>   <span class="n">rlim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">rlim</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">rlim</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">[:,</span><span class="kc">None</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="fpfsTask.prepare_ChiCov"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.prepare_ChiCov">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_ChiCov</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        prepare the basis to estimate covariance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_chiU</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">chi</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indC</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span>
+        <span class="n">out</span>     <span class="o">=</span>   <span class="p">[]</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">out</span>     <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chiCov</span> <span class="o">=</span>   <span class="n">out</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cov_types</span><span class="o">=</span> <span class="p">[(</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_N22cN22c&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;fpfs_N22sN22s&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_N40N40&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_N00N40&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)]</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="fpfsTask.prepare_ChiDet"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.prepare_ChiDet">[docs]</a>    <span class="k">def</span> <span class="nf">prepare_ChiDet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">gsigma</span><span class="o">=</span><span class="n">_gsigma</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        prepare the basis to estimate covariance for detection</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">_chiU</span>  <span class="o">=</span>    <span class="bp">self</span><span class="o">.</span><span class="n">chi</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indC</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span>
+        <span class="n">gKer</span><span class="p">,(</span><span class="n">k2grid</span><span class="p">,</span><span class="n">k1grid</span><span class="p">)</span><span class="o">=</span><span class="n">imgutil</span><span class="o">.</span><span class="n">gauss_kernel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">,</span><span class="n">gsigma</span><span class="p">,</span>\
+                        <span class="n">do_shift</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">return_grid</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">q1Ker</span>  <span class="o">=</span>    <span class="p">(</span><span class="n">k1grid</span><span class="o">**</span><span class="mf">2.</span><span class="o">-</span><span class="n">k2grid</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="n">gsigma</span><span class="o">**</span><span class="mf">2.</span><span class="o">*</span><span class="n">gKer</span>
+        <span class="n">q2Ker</span>  <span class="o">=</span>    <span class="p">(</span><span class="mf">2.</span><span class="o">*</span><span class="n">k1grid</span><span class="o">*</span><span class="n">k2grid</span><span class="p">)</span><span class="o">/</span><span class="n">gsigma</span><span class="o">**</span><span class="mf">2.</span><span class="o">*</span><span class="n">gKer</span>
+        <span class="n">d1Ker</span>  <span class="o">=</span>    <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="n">k1grid</span><span class="p">)</span><span class="o">*</span><span class="n">gKer</span>
+        <span class="n">d2Ker</span>  <span class="o">=</span>    <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="n">k2grid</span><span class="p">)</span><span class="o">*</span><span class="n">gKer</span>
+        <span class="n">out</span>    <span class="o">=</span>    <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">det_types</span><span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">_default_inds</span><span class="p">:</span>
+            <span class="n">y</span>  <span class="o">=</span>    <span class="n">j</span><span class="o">-</span><span class="mi">2</span>
+            <span class="n">x</span>  <span class="o">=</span>    <span class="n">i</span><span class="o">-</span><span class="mi">2</span>
+            <span class="n">r1</span> <span class="o">=</span>    <span class="p">(</span><span class="n">q1Ker</span><span class="o">+</span><span class="n">x</span><span class="o">*</span><span class="n">d1Ker</span><span class="o">-</span><span class="n">y</span><span class="o">*</span><span class="n">d2Ker</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="p">(</span><span class="n">k1grid</span><span class="o">*</span><span class="n">x</span><span class="o">+</span><span class="n">k2grid</span><span class="o">*</span><span class="n">y</span><span class="p">))</span>
+            <span class="n">r2</span> <span class="o">=</span>    <span class="p">(</span><span class="n">q2Ker</span><span class="o">+</span><span class="n">y</span><span class="o">*</span><span class="n">d1Ker</span><span class="o">+</span><span class="n">x</span><span class="o">*</span><span class="n">d2Ker</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="mi">1</span><span class="n">j</span><span class="o">*</span><span class="p">(</span><span class="n">k1grid</span><span class="o">*</span><span class="n">x</span><span class="o">+</span><span class="n">k2grid</span><span class="o">*</span><span class="n">y</span><span class="p">))</span>
+            <span class="n">r1</span> <span class="o">=</span>    <span class="n">r1</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="o">**</span><span class="mf">2.</span>
+            <span class="n">r2</span> <span class="o">=</span>    <span class="n">r2</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="o">**</span><span class="mf">2.</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">r1</span><span class="p">)</span> <span class="c1">#x00*phi1</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">r2</span><span class="p">)</span> <span class="c1">#x00*phi2</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">r1</span><span class="p">)</span> <span class="c1">#x22c*phi1</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_chiU</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">r2</span><span class="p">)</span> <span class="c1">#x22s*phi2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">det_types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;pdet_N00F</span><span class="si">%d%d</span><span class="s1">r1&#39;</span>  <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">),</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">det_types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;pdet_N00F</span><span class="si">%d%d</span><span class="s1">r2&#39;</span>  <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">),</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">det_types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;pdet_N22cF</span><span class="si">%d%d</span><span class="s1">r1&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">),</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">det_types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;pdet_N22sF</span><span class="si">%d%d</span><span class="s1">r2&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">),</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">))</span>
+        <span class="n">out</span>     <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chiDet</span> <span class="o">=</span>   <span class="n">out</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="fpfsTask.deconvolvePow"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.deconvolvePow">[docs]</a>    <span class="k">def</span> <span class="nf">deconvolvePow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">order</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deconvolve the galaxy power with the PSF power</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            data :  galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin</span>
+<span class="sd">            order:  deconvolve order of PSF power</span>
+
+<span class="sd">        Returns :</span>
+<span class="sd">            out:    Deconvolved galaxy power (truncated at rlim)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span>  <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span><span class="o">**</span><span class="n">order</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="fpfsTask.deconvolve2"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.deconvolve2">[docs]</a>    <span class="k">def</span> <span class="nf">deconvolve2</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">,</span><span class="n">prder</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span><span class="n">frder</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Deconvolve the galaxy power with the PSF power</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            data :</span>
+<span class="sd">                galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin</span>
+<span class="sd">            prder:</span>
+<span class="sd">                deconvlove order of PSF FT power</span>
+<span class="sd">            frder:</span>
+<span class="sd">                deconvlove order of PSF FT</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            out:</span>
+<span class="sd">                Deconvolved galaxy power (truncated at rlim)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span>  <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">complex64</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span>\
+                <span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span><span class="o">**</span><span class="n">prder</span>\
+                <span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">psfFou</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_ind2D</span><span class="p">]</span><span class="o">**</span><span class="n">frder</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="fpfsTask.itransform"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.itransform">[docs]</a>    <span class="k">def</span> <span class="nf">itransform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Project image onto shapelet basis vectors</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            data:</span>
+<span class="sd">                image to transfer</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            out:</span>
+<span class="sd">                projection in shapelet space</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Moments</span>
+        <span class="n">M</span>       <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span>\
+                    <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">chi</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_indC</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">],</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+        <span class="n">out</span>     <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">((</span><span class="n">M</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>\
+                    <span class="n">M</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">M</span><span class="o">.</span><span class="n">imag</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>\
+                    <span class="n">M</span><span class="o">.</span><span class="n">real</span><span class="p">[</span><span class="mi">2</span><span class="p">]),</span><span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">base_types</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="fpfsTask.itransformCov"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.itransformCov">[docs]</a>    <span class="k">def</span> <span class="nf">itransformCov</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            data:</span>
+<span class="sd">                data to transfer</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            out:</span>
+<span class="sd">                projection in shapelet space</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Moments</span>
+        <span class="n">dataU</span>   <span class="o">=</span>   <span class="n">data</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span>
+
+        <span class="n">N</span>       <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chiCov</span><span class="o">*</span><span class="n">dataU</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span>
+        <span class="n">out</span>     <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">N</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cov_types</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="fpfsTask.itransformDet"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.itransformDet">[docs]</a>    <span class="k">def</span> <span class="nf">itransformDet</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">):</span>
+        <span class="n">dataU</span>   <span class="o">=</span>   <span class="n">data</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indY</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">_indX</span><span class="p">]</span>
+        <span class="n">D</span>       <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">chiDet</span><span class="o">*</span><span class="n">dataU</span><span class="p">,</span><span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">real</span>
+        <span class="n">out</span>     <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">D</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">det_types</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="fpfsTask.measure"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsTask.measure">[docs]</a>    <span class="k">def</span> <span class="nf">measure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">galData</span><span class="p">,</span><span class="n">psfPow</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">noiFit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Measure the FPFS moments</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            galData:</span>
+<span class="sd">                galaxy image [ndarray | list]</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            out:</span>
+<span class="sd">                FPFS moments [ndarray]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">psfPow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">psfPow</span><span class="o">=</span><span class="n">psfPow</span>
+        <span class="k">if</span> <span class="n">noiFit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span><span class="o">=</span><span class="n">noiFit</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">galData</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="n">galData</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">==</span><span class="n">galData</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">galData</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="c1"># single galaxy</span>
+                <span class="n">out</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">__measure</span><span class="p">(</span><span class="n">galData</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">out</span>
+            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">galData</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="o">==</span><span class="mi">3</span><span class="p">:</span>
+                <span class="n">results</span><span class="o">=</span><span class="p">[]</span>
+                <span class="k">for</span> <span class="n">gal</span> <span class="ow">in</span> <span class="n">galData</span><span class="p">:</span>
+                    <span class="n">_g</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__measure</span><span class="p">(</span><span class="n">gal</span><span class="p">)</span>
+                    <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_g</span><span class="p">)</span>
+                <span class="n">out</span> <span class="o">=</span>   <span class="n">rfn</span><span class="o">.</span><span class="n">stack_arrays</span><span class="p">(</span><span class="n">results</span><span class="p">,</span><span class="n">usemask</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">out</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Input galaxy data has wrong ndarray shape.&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">galData</span><span class="p">,</span><span class="nb">list</span><span class="p">):</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">galData</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span>
+            <span class="c1"># list of galaxies</span>
+            <span class="n">results</span><span class="o">=</span><span class="p">[]</span>
+            <span class="k">for</span> <span class="n">gal</span> <span class="ow">in</span> <span class="n">galData</span><span class="p">:</span>
+                <span class="n">_g</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">__measure</span><span class="p">(</span><span class="n">gal</span><span class="p">)</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_g</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span>   <span class="n">rfn</span><span class="o">.</span><span class="n">stack_arrays</span><span class="p">(</span><span class="n">results</span><span class="p">,</span><span class="n">usemask</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;Input galaxy data has wrong type (neither list nor ndarray).&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__measure</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">data</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Measure the FPFS moments</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            data:</span>
+<span class="sd">                image array (centroid does not matter) [np.ndarray]</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            mm:</span>
+<span class="sd">                FPFS moments [ndarray]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nn</span>          <span class="o">=</span>   <span class="kc">None</span>
+        <span class="n">dd</span>          <span class="o">=</span>   <span class="kc">None</span>
+        <span class="n">galPow</span>      <span class="o">=</span>   <span class="n">imgutil</span><span class="o">.</span><span class="n">getFouPow</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">noiModel</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">noiFit</span>  <span class="o">=</span>   <span class="n">imgutil</span><span class="o">.</span><span class="n">fitNoiPow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ngrid</span><span class="p">,</span><span class="n">galPow</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">noiModel</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">rlim</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">noiFit</span>  <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">noiFit</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">noise_correct</span><span class="p">:</span>
+            <span class="n">galPow</span>  <span class="o">=</span>   <span class="n">galPow</span><span class="o">-</span><span class="n">noiFit</span><span class="o">*</span><span class="mf">1.</span>
+            <span class="n">epcor</span>   <span class="o">=</span>   <span class="mf">2.</span><span class="o">*</span><span class="p">(</span><span class="n">noiFit</span><span class="o">*</span><span class="n">noiFit</span><span class="o">+</span><span class="mf">2.</span><span class="o">*</span><span class="n">galPow</span><span class="o">*</span><span class="n">noiFit</span><span class="p">)</span>
+            <span class="n">decEP</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">deconvolvePow</span><span class="p">(</span><span class="n">epcor</span><span class="p">,</span><span class="n">order</span><span class="o">=</span><span class="mf">2.</span><span class="p">)</span>
+            <span class="n">nn</span>      <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">itransformCov</span><span class="p">(</span><span class="n">decEP</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">det_gsigma</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">_tmp</span><span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fftshift</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">fft</span><span class="o">.</span><span class="n">fft2</span><span class="p">(</span><span class="n">data</span><span class="p">))</span>
+                <span class="n">_tmp</span><span class="o">=</span>   <span class="mf">2.</span><span class="o">*</span><span class="n">_tmp</span><span class="o">*</span><span class="n">noiFit</span>
+                <span class="n">decDet</span><span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">deconvolve2</span><span class="p">(</span><span class="n">_tmp</span><span class="p">,</span><span class="n">prder</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span><span class="n">frder</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">dd</span>  <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">itransformDet</span><span class="p">(</span><span class="n">decDet</span><span class="p">)</span>
+        <span class="n">decPow</span>      <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">deconvolvePow</span><span class="p">(</span><span class="n">galPow</span><span class="p">,</span><span class="n">order</span><span class="o">=</span><span class="mf">1.</span><span class="p">)</span>
+        <span class="n">mm</span>          <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">itransform</span><span class="p">(</span><span class="n">decPow</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">nn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">dd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">mm</span>      <span class="o">=</span>   <span class="n">rfn</span><span class="o">.</span><span class="n">merge_arrays</span><span class="p">([</span><span class="n">mm</span><span class="p">,</span><span class="n">nn</span><span class="p">,</span><span class="n">dd</span><span class="p">],</span><span class="n">flatten</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">usemask</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">nn</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mm</span>      <span class="o">=</span>   <span class="n">rfn</span><span class="o">.</span><span class="n">merge_arrays</span><span class="p">([</span><span class="n">mm</span><span class="p">,</span><span class="n">nn</span><span class="p">],</span><span class="n">flatten</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">usemask</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stackPow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stackPow</span><span class="o">+=</span><span class="n">galPow</span>
+        <span class="k">return</span> <span class="n">mm</span></div>
+
+<div class="viewcode-block" id="fpfsM2E"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsM2E">[docs]</a><span class="k">def</span> <span class="nf">fpfsM2E</span><span class="p">(</span><span class="n">moments</span><span class="p">,</span><span class="n">const</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span><span class="n">noirev</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="n">dets</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">flipsign</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Estimate FPFS ellipticities from fpfs moments</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        moments:</span>
+<span class="sd">            input FPFS moments [ndarray]</span>
+<span class="sd">        const:</span>
+<span class="sd">            the _wing Constant [float (default:1)]</span>
+<span class="sd">        noirev:</span>
+<span class="sd">            revise the second-order noise bias? [bool (default: False)]</span>
+<span class="sd">        dets:</span>
+<span class="sd">            input detection array [ndarray (default: None)]</span>
+<span class="sd">        flipsign:</span>
+<span class="sd">            flip the sign of response? [bool] (if you are using the</span>
+<span class="sd">            convention in Li et. al (2018), set it to True)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        out:</span>
+<span class="sd">            an array of (FPFS ellipticities, FPFS ellipticity response,</span>
+<span class="sd">            FPFS flux ratio, and FPFS selection response)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">types</span>   <span class="o">=</span>   <span class="p">[(</span><span class="s1">&#39;fpfs_e1&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;fpfs_e2&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>      <span class="p">(</span><span class="s1">&#39;fpfs_RE&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                <span class="p">(</span><span class="s1">&#39;fpfs_s0&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)</span> <span class="p">,</span> <span class="p">(</span><span class="s1">&#39;fpfs_eSquare&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span> <span class="p">(</span><span class="s1">&#39;fpfs_RS&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)]</span>
+    <span class="c1"># response for selections (2 shear components for each)</span>
+    <span class="c1">#Get inverse weight</span>
+    <span class="n">_w</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M00&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">const</span>
+    <span class="c1">#Ellipticity</span>
+    <span class="n">e1</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span>
+    <span class="n">e2</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span>
+    <span class="n">e1sq</span>    <span class="o">=</span>   <span class="n">e1</span><span class="o">*</span><span class="n">e1</span>
+    <span class="n">e2sq</span>    <span class="o">=</span>   <span class="n">e2</span><span class="o">*</span><span class="n">e2</span>
+    <span class="c1">#FPFS flux ratio</span>
+    <span class="n">s0</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span>
+    <span class="n">s4</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M40&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span>
+    <span class="c1">#FPFS sel Respose (part1)</span>
+    <span class="n">e1sqS0</span>  <span class="o">=</span>   <span class="n">e1sq</span><span class="o">*</span><span class="n">s0</span>
+    <span class="n">e2sqS0</span>  <span class="o">=</span>   <span class="n">e2sq</span><span class="o">*</span><span class="n">s0</span>
+
+    <span class="c1"># prepare the shear response for detection operation</span>
+    <span class="k">if</span> <span class="n">dets</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dDict</span><span class="o">=</span>  <span class="p">{}</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">_default_inds</span><span class="p">:</span>
+            <span class="n">types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">),</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">))</span>
+            <span class="n">types</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">),</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">))</span>
+            <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">=</span><span class="n">e1</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>
+            <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">=</span><span class="n">e2</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dDict</span><span class="o">=</span>  <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">noirev</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N00&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+        <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N22c&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+        <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N22s&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+        <span class="n">ratio</span><span class="o">=</span>  <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span>
+
+        <span class="c1"># correction for detection shear response</span>
+        <span class="k">if</span> <span class="n">dDict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="s1">&#39;pdet_N22cV22r1&#39;</span> <span class="ow">in</span> <span class="n">dets</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+            <span class="k">assert</span> <span class="s1">&#39;pdet_N22sV22r2&#39;</span> <span class="ow">in</span> <span class="n">dets</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">_default_inds</span><span class="p">:</span>
+                <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">=</span><span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>\
+                    <span class="o">-</span><span class="mf">1.</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_N22cV</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">/</span><span class="n">_w</span>\
+                    <span class="o">+</span><span class="mf">1.</span><span class="o">*</span><span class="n">e1</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_N00V</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">/</span><span class="n">_w</span>\
+                    <span class="o">+</span><span class="mf">1.</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>
+                <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">=</span><span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ratio</span><span class="p">)</span>
+                <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">=</span><span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>\
+                    <span class="o">-</span><span class="mf">1.</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_N22sV</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">/</span><span class="n">_w</span>\
+                    <span class="o">+</span><span class="mf">1.</span><span class="o">*</span><span class="n">e2</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_N00V</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">/</span><span class="n">_w</span>\
+                    <span class="o">+</span><span class="mf">1.</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="o">*</span><span class="n">dets</span><span class="p">[</span><span class="s1">&#39;pdet_v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>
+                <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">=</span><span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ratio</span><span class="p">)</span>
+
+        <span class="n">e1</span>  <span class="o">=</span>   <span class="p">(</span><span class="n">e1</span><span class="o">+</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">]</span>\
+                <span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ratio</span><span class="p">)</span>
+        <span class="n">e2</span>  <span class="o">=</span>   <span class="p">(</span><span class="n">e2</span><span class="o">+</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">]</span>\
+                <span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ratio</span><span class="p">)</span>
+        <span class="n">e1sq</span><span class="o">=</span>   <span class="p">(</span><span class="n">e1sq</span><span class="o">-</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N22cN22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span>\
+                <span class="o">+</span><span class="mf">4.</span><span class="o">*</span><span class="n">e1</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span>\
+                <span class="o">/</span><span class="p">(</span><span class="mf">1.</span><span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="p">)</span>
+        <span class="n">e2sq</span><span class="o">=</span>   <span class="p">(</span><span class="n">e2sq</span><span class="o">-</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N22sN22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span>\
+                <span class="o">+</span><span class="mf">4.</span><span class="o">*</span><span class="n">e2</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span>\
+                <span class="o">/</span><span class="p">(</span><span class="mf">1.</span><span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="p">)</span>
+        <span class="n">s0</span>  <span class="o">=</span>   <span class="p">(</span><span class="n">s0</span><span class="o">+</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span>\
+                <span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ratio</span><span class="p">)</span>
+        <span class="n">s4</span>  <span class="o">=</span>   <span class="p">(</span><span class="n">s4</span><span class="o">+</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N40&#39;</span><span class="p">]</span>\
+                <span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">ratio</span><span class="p">)</span>
+
+        <span class="c1"># correction for selection (by s0) shear response</span>
+        <span class="n">e1sqS0</span><span class="o">=</span> <span class="p">(</span><span class="n">e1sqS0</span><span class="o">+</span><span class="mf">3.</span><span class="o">*</span><span class="n">e1sq</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span>\
+                <span class="o">-</span><span class="n">s0</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N22cN22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mf">6.</span><span class="o">*</span><span class="n">ratio</span><span class="p">)</span>
+        <span class="n">e2sqS0</span><span class="o">=</span> <span class="p">(</span><span class="n">e2sqS0</span><span class="o">+</span><span class="mf">3.</span><span class="o">*</span><span class="n">e2sq</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span>\
+                <span class="o">-</span><span class="n">s0</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N22sN22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">_w</span><span class="o">**</span><span class="mf">2.</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="mf">6.</span><span class="o">*</span><span class="n">ratio</span><span class="p">)</span>
+
+    <span class="n">out</span>  <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">moments</span><span class="o">.</span><span class="n">size</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="n">types</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">dDict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)</span> <span class="ow">in</span> <span class="n">_default_inds</span><span class="p">:</span>
+            <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e1v</span><span class="si">%d%d</span><span class="s1">r1&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>
+            <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span> <span class="o">=</span> <span class="n">dDict</span><span class="p">[</span><span class="s1">&#39;fpfs_e2v</span><span class="si">%d%d</span><span class="s1">r2&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">j</span><span class="p">,</span><span class="n">i</span><span class="p">)]</span>
+        <span class="k">del</span> <span class="n">dDict</span>
+
+    <span class="n">eSq</span>     <span class="o">=</span>   <span class="n">e1sq</span><span class="o">+</span><span class="n">e2sq</span>
+    <span class="n">eSqS0</span>   <span class="o">=</span>   <span class="n">e1sqS0</span><span class="o">+</span><span class="n">e2sqS0</span>
+    <span class="c1">#Response factor</span>
+    <span class="n">RE</span>   <span class="o">=</span>   <span class="mf">1.</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">s0</span><span class="o">-</span><span class="n">s4</span><span class="o">+</span><span class="n">e1sq</span><span class="o">+</span><span class="n">e2sq</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_e1&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">e1</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_e2&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">e2</span>
+    <span class="c1"># In Li et. al (2018) there is a minus sign difference</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_RE&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">RE</span><span class="o">*</span><span class="p">(</span><span class="mf">2.</span><span class="o">*</span><span class="n">flipsign</span><span class="o">.</span><span class="n">real</span><span class="o">-</span><span class="mf">1.</span><span class="p">)</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_s0&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">s0</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_eSquare&#39;</span><span class="p">]</span>  <span class="o">=</span>   <span class="n">eSq</span>
+    <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fpfs_RS&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="p">(</span><span class="n">eSq</span><span class="o">-</span><span class="n">eSqS0</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">2.</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="fpfsM2Err"><a class="viewcode-back" href="../../fpfs.html#fpfs.fpfsBase.fpfsM2Err">[docs]</a><span class="k">def</span> <span class="nf">fpfsM2Err</span><span class="p">(</span><span class="n">moments</span><span class="p">,</span><span class="n">const</span><span class="o">=</span><span class="mf">1.</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Estimate FPFS measurement errors from the fpfs</span>
+<span class="sd">    moments and the moments covariances</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        moments:</span>
+<span class="sd">            input FPFS moments [float array]</span>
+<span class="sd">        const:</span>
+<span class="sd">            the weighting Constant [float]</span>
+<span class="sd">        mcalib:</span>
+<span class="sd">            multiplicative bias [float array]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        errDat:</span>
+<span class="sd">            an array of (measurement error, FPFS ellipticity, FPFS flux ratio)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N00&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+    <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N22c&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+    <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N22s&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+    <span class="k">assert</span> <span class="s1">&#39;fpfs_N00N40&#39;</span> <span class="ow">in</span> <span class="n">moments</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span>
+
+    <span class="c1">#Get weight</span>
+    <span class="n">weight</span>  <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M00&#39;</span><span class="p">]</span><span class="o">+</span><span class="n">const</span>
+    <span class="c1">#FPFS Ellipticity</span>
+    <span class="n">e1</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span>
+    <span class="n">e2</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span>
+    <span class="c1">#FPFS flux ratio</span>
+    <span class="n">s0</span>      <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_M00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span>
+    <span class="n">e1sq</span>    <span class="o">=</span>   <span class="n">e1</span><span class="o">*</span><span class="n">e1</span>
+    <span class="n">e2sq</span>    <span class="o">=</span>   <span class="n">e2</span><span class="o">*</span><span class="n">e2</span>
+    <span class="n">s0sq</span>    <span class="o">=</span>   <span class="n">s0</span><span class="o">*</span><span class="n">s0</span>
+    <span class="n">ratio</span>   <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>
+
+    <span class="n">e1Err</span>    <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N22cN22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">4.</span><span class="o">*</span><span class="n">e1</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="o">*</span><span class="n">e1sq</span>
+    <span class="n">e2Err</span>    <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N22sN22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">4.</span><span class="o">*</span><span class="n">e2</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="o">*</span><span class="n">e2sq</span>
+    <span class="n">s0Err</span>    <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">4.</span><span class="o">*</span><span class="n">s0</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+             <span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="o">*</span><span class="n">s0sq</span>
+
+    <span class="n">e1s0Cov</span> <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">2.</span><span class="o">*</span><span class="n">s0</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22c&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">2.</span><span class="o">*</span><span class="n">e1</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="o">*</span><span class="n">e1</span><span class="o">*</span><span class="n">s0</span>
+
+    <span class="n">e2s0Cov</span> <span class="o">=</span>   <span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">2.</span><span class="o">*</span><span class="n">s0</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N22s&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">-</span><span class="mf">2.</span><span class="o">*</span><span class="n">e2</span><span class="o">*</span><span class="n">moments</span><span class="p">[</span><span class="s1">&#39;fpfs_N00N00&#39;</span><span class="p">]</span><span class="o">/</span><span class="n">weight</span><span class="o">**</span><span class="mf">2.</span>\
+            <span class="o">+</span><span class="mi">3</span><span class="o">*</span><span class="n">ratio</span><span class="o">*</span><span class="n">e2</span><span class="o">*</span><span class="n">s0</span>
+
+    <span class="n">types</span>   <span class="o">=</span>   <span class="p">[(</span><span class="s1">&#39;fpfs_e1Err&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;fpfs_e2Err&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;fpfs_s0Err&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),</span>\
+                    <span class="p">(</span><span class="s1">&#39;fpfs_e1s0Cov&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;fpfs_e2s0Cov&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">)]</span>
+    <span class="n">errDat</span>  <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">moments</span><span class="p">)),</span><span class="n">dtype</span><span class="o">=</span><span class="n">types</span><span class="p">)</span>
+    <span class="n">errDat</span><span class="p">[</span><span class="s1">&#39;fpfs_e1Err&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">e1Err</span>
+    <span class="n">errDat</span><span class="p">[</span><span class="s1">&#39;fpfs_e2Err&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">e2Err</span>
+    <span class="n">errDat</span><span class="p">[</span><span class="s1">&#39;fpfs_s0Err&#39;</span><span class="p">]</span>   <span class="o">=</span>   <span class="n">s0Err</span>
+    <span class="n">errDat</span><span class="p">[</span><span class="s1">&#39;fpfs_e1s0Cov&#39;</span><span class="p">]</span> <span class="o">=</span>   <span class="n">e1s0Cov</span>
+    <span class="n">errDat</span><span class="p">[</span><span class="s1">&#39;fpfs_e2s0Cov&#39;</span><span class="p">]</span> <span class="o">=</span>   <span class="n">e2s0Cov</span>
+    <span class="k">return</span> <span class="n">errDat</span></div>
+
+<span class="c1">#def fpfsM2E_v3(moments,const=1.,mcalib=0.):</span>
+<span class="c1">#    &quot;&quot;&quot;</span>
+<span class="c1">#    (This is for higher order shapelest moments</span>
+<span class="c1">#    but the implementation of this function is unfinished)</span>
+<span class="c1">#    # Estimate FPFS ellipticities from fpfs moments</span>
+
+<span class="c1">#    Parameters:</span>
+<span class="c1">#    moments:    input FPFS moments</span>
+<span class="c1">#    const:      the weighting Constant</span>
+<span class="c1">#    mcalib:     multiplicative biases</span>
+
+<span class="c1">#    Returns:</span>
+<span class="c1">#       an array of FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1">#    &quot;&quot;&quot;</span>
+<span class="c1">#    #Get weight</span>
+<span class="c1">#    weight  =   moments[&#39;fpfs_M20&#39;]+const</span>
+<span class="c1">#    #FPFS flux</span>
+<span class="c1">#    flux    =   moments[&#39;fpfs_M00&#39;]/weight</span>
+<span class="c1">#    #Ellipticity</span>
+<span class="c1">#    e1      =   moments[&#39;fpfs_M22c&#39;]/weight</span>
+<span class="c1">#    e2      =   moments[&#39;fpfs_M22s&#39;]/weight</span>
+<span class="c1">#    e41     =   moments[&#39;fpfs_M42c&#39;]/weight</span>
+<span class="c1">#    e42     =   moments[&#39;fpfs_M42s&#39;]/weight</span>
+<span class="c1">#    #Response factor</span>
+<span class="c1">#    R1      =   1./np.sqrt(2.)*(moments[&#39;fpfs_M00&#39;]-moments[&#39;fpfs_M40&#39;])/weight+np.sqrt(6)*(e1*e41)</span>
+<span class="c1">#    R2      =   1./np.sqrt(2.)*(moments[&#39;fpfs_M00&#39;]-moments[&#39;fpfs_M40&#39;])/weight+np.sqrt(6)*(e2*e42)</span>
+<span class="c1">#    RE      =   (R1+R2)/2.</span>
+<span class="c1">#    types   =   [(&#39;fpfs_e1&#39;,&#39;&gt;f8&#39;),(&#39;fpfs_e2&#39;,&#39;&gt;f8&#39;),(&#39;fpfs_RE&#39;,&#39;&gt;f8&#39;),(&#39;fpfs_flux&#39;,&#39;&gt;f8&#39;)]</span>
+<span class="c1">#    ellDat  =   np.array(np.zeros(moments.size),dtype=types)</span>
+<span class="c1">#    ellDat[&#39;fpfs_e1&#39;]=e1</span>
+<span class="c1">#    ellDat[&#39;fpfs_e2&#39;]=e2</span>
+<span class="c1">#    ellDat[&#39;fpfs_RE&#39;]=RE</span>
+<span class="c1">#    ellDat[&#39;fpfs_flux&#39;]=flux</span>
+<span class="c1">#    return ellDat</span>
+
+<span class="c1">#class fpfsTestNoi():</span>
+<span class="c1">#    _DefaultName = &quot;fpfsTestNoi&quot;</span>
+<span class="c1">#    def __init__(self,ngrid,noiModel=None,noiFit=None):</span>
+<span class="c1">#        self.ngrid  =   ngrid</span>
+<span class="c1">#        # Preparing noise Model</span>
+<span class="c1">#        self.noiModel=  noiModel</span>
+<span class="c1">#        self.noiFit =   noiFit</span>
+<span class="c1">#        self.rlim   =   int(ngrid//4)</span>
+<span class="c1">#        return</span>
+
+<span class="c1">#    def test(self,galData):</span>
+<span class="c1">#        &quot;&quot;&quot;</span>
+<span class="c1">#        # test the noise subtraction</span>
+
+<span class="c1">#        Parameters:</span>
+<span class="c1">#        galData:    galaxy image [float array (list)]</span>
+
+<span class="c1">#        Returns:</span>
+<span class="c1">#        out :   FPFS moments</span>
+<span class="c1">#</span>
+<span class="c1">#</span>
+<span class="c1">#        &quot;&quot;&quot;</span>
+<span class="c1">#        if isinstance(galData,np.ndarray):</span>
+<span class="c1">#            # single galaxy</span>
+<span class="c1">#            out =   self.__test(galData)</span>
+<span class="c1">#            return out</span>
+<span class="c1">#        elif isinstance(galData,list):</span>
+<span class="c1">#            assert isinstance(galData[0],np.ndarray)</span>
+<span class="c1">#            # list of galaxies</span>
+<span class="c1">#            results=[]</span>
+<span class="c1">#            for gal in galData:</span>
+<span class="c1">#                _g=self.__test(gal)</span>
+<span class="c1">#                results.append(_g)</span>
+<span class="c1">#            out =   np.stack(results)</span>
+<span class="c1">#            return out</span>
+
+<span class="c1">#    def __test(self,data):</span>
+<span class="c1">#        &quot;&quot;&quot;</span>
+<span class="c1">#        # test the noise subtraction</span>
+
+<span class="c1">#        Parameters:</span>
+<span class="c1">#        data:    image array (centroid does not matter)</span>
+<span class="c1">#        &quot;&quot;&quot;</span>
+<span class="c1">#        assert len(data.shape)==2</span>
+<span class="c1">#        galPow  =   imgutil.getFouPow(data)</span>
+<span class="c1">#        if (self.noiFit is not None) or (self.noiModel is not None):</span>
+<span class="c1">#            if self.noiModel is not None:</span>
+<span class="c1">#                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)</span>
+<span class="c1">#            galPow  =   galPow-self.noiFit</span>
+<span class="c1">#        return galPow</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">FPFS 2.0.3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">fpfs.fpfsBase</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Xiangchong Li.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.4.0.
+    </div>
+  </body>
+</html>

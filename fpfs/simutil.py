@@ -134,10 +134,10 @@ if with_lsst:
         make an LSST exposure object
 
         Parameters:
-            galData:    array of galaxy image
-            psfData:    array of PSF image
-            pixScale:   pixel scale
-            variance:   noise variance
+            galData (ndarray):  array of galaxy image
+            psfData (ndarray):  array of PSF image
+            pixScale (float):   pixel scale
+            variance (float):   noise variance
 
         Returns:
             exposure:   LSST exposure object
@@ -177,10 +177,12 @@ def make_ringrot_radians(nord=8):
     Generate rotation angle array for ring test
 
     Parameters:
-        nord:       up to 1/2**nord*pi rotation
+        nord (int):
+            up to 1/2**nord*pi rotation
 
     Returns:
-        rotArray:   rotation array [radians]
+        rotArray (ndarray):
+            rotation array [in units of radians]
     """
     rotArray=   np.zeros(2**nord)
     nnum    =   0
@@ -251,12 +253,20 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
     Make basic galaxy image simulation (isolated)
 
     Parameters:
-        outDir:         output directory
-        gname:          shear distortion setup
-        Id0:            index of the simulation
-        ny, nx:         number of galaxies in y,x direction
-        do_write:       whether write output [bool, default: True]
-        return_array:   whether return galaxy array [bool, default: False]
+        outDir (str):
+            output directory
+        gname (str):
+            shear distortion setup
+        Id0 (int):
+            index of the simulation
+        ny (int):
+            number of galaxies in y direction
+        nx (int):
+            number of galaxies in x direction
+        do_write (bool):
+            whether write output [default: True]
+        return_array (bool):
+            whether return galaxy array [default: False]
     """
     ngrid  =   64
     scale  =   0.168
@@ -404,20 +414,27 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
     if return_array:
         return gal_image.array
 
-def make_gal_ssbg(shear,psf,rng,r1,r0=20.)->np.ndarray:
+def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
     """
     simulate an exponential object with moffat PSF, given a SNR (r0) and
     a source background noise ratio (r0)
 
     Parameters:
-    shear:  (g1, g2),The shear in each component
-    rng:    The random number generator
-    r1:     The source background noise variance ratio
-    r0:     The SNR of galaxy
-    psf:    galsim.Moffat, e.g.,
+        shear (tuple):
+           (g1, g2),The shear in each component
+        rng ():
+            The random number generator
+        r1  (float):
+            The source background noise variance ratio
+        r0  (float):
+            The SNR of galaxy
+        psf (galsim.Moffat):
             galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.01,)
+
+    Returns:
+       img (ndarray):
+            noisy image array
     """
-    rng     =   rng
     scale   =   0.263
     gal_hlr =   0.5
 

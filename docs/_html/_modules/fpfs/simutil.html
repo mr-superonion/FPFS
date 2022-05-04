@@ -1,0 +1,539 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fpfs.simutil &#8212; FPFS 2.0.3 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinxdoc.css" />
+    <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">FPFS 2.0.3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">fpfs.simutil</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for fpfs.simutil</h1><div class="highlight"><pre>
+<span></span><span class="c1"># FPFS shear estimator</span>
+<span class="c1"># Copyright 20210905 Xiangchong Li.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is free software: you can redistribute it and/or modify</span>
+<span class="c1"># it under the terms of the GNU General Public License as published by</span>
+<span class="c1"># the Free Software Foundation, either version 3 of the License, or</span>
+<span class="c1"># (at your option) any later version.</span>
+<span class="c1">#</span>
+<span class="c1"># This program is distributed in the hope that it will be useful,</span>
+<span class="c1"># but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="c1"># MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the</span>
+<span class="c1"># GNU General Public License for more details.</span>
+<span class="c1">#</span>
+<span class="c1"># You should have received a copy of the LSST License Statement and</span>
+<span class="c1"># the GNU General Public License along with this program.  If not,</span>
+<span class="c1"># see &lt;http://www.lsstcorp.org/LegalNotices/&gt;.</span>
+<span class="c1">#</span>
+<span class="c1"># python lib</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">gc</span>
+<span class="kn">import</span> <span class="nn">galsim</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numpy.lib.recfunctions</span> <span class="k">as</span> <span class="nn">rfn</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">fitsio</span>
+    <span class="n">with_hst</span><span class="o">=</span><span class="kc">True</span>
+    <span class="n">hpInfofname</span>     <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;homeWrk&#39;</span><span class="p">],</span><span class="s1">&#39;skyMap/healpix-nside</span><span class="si">%d</span><span class="s1">-nest.fits&#39;</span><span class="p">)</span>
+    <span class="n">cosmoHSThpix</span>    <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>\
+           <span class="p">[</span><span class="mi">1743739</span><span class="p">,</span> <span class="mi">1743740</span><span class="p">,</span> <span class="mi">1743741</span><span class="p">,</span> <span class="mi">1743742</span><span class="p">,</span> <span class="mi">1743743</span><span class="p">,</span> <span class="mi">1743825</span><span class="p">,</span> <span class="mi">1743828</span><span class="p">,</span>
+            <span class="mi">1743829</span><span class="p">,</span> <span class="mi">1743830</span><span class="p">,</span> <span class="mi">1743831</span><span class="p">,</span> <span class="mi">1743836</span><span class="p">,</span> <span class="mi">1743837</span><span class="p">,</span> <span class="mi">1744397</span><span class="p">,</span> <span class="mi">1744398</span><span class="p">,</span>
+            <span class="mi">1744399</span><span class="p">,</span> <span class="mi">1744402</span><span class="p">,</span> <span class="mi">1744408</span><span class="p">,</span> <span class="mi">1744409</span><span class="p">,</span> <span class="mi">1744410</span><span class="p">,</span> <span class="mi">1744411</span><span class="p">,</span> <span class="mi">1744414</span><span class="p">,</span>
+            <span class="mi">1744416</span><span class="p">,</span> <span class="mi">1744417</span><span class="p">,</span> <span class="mi">1744418</span><span class="p">,</span> <span class="mi">1744419</span><span class="p">,</span> <span class="mi">1744420</span><span class="p">,</span> <span class="mi">1744421</span><span class="p">,</span> <span class="mi">1744422</span><span class="p">,</span>
+            <span class="mi">1744423</span><span class="p">,</span> <span class="mi">1744424</span><span class="p">,</span> <span class="mi">1744425</span><span class="p">,</span> <span class="mi">1744426</span><span class="p">,</span> <span class="mi">1744427</span><span class="p">,</span> <span class="mi">1744428</span><span class="p">,</span> <span class="mi">1744429</span><span class="p">,</span>
+            <span class="mi">1744430</span><span class="p">,</span> <span class="mi">1744431</span><span class="p">,</span> <span class="mi">1744432</span><span class="p">,</span> <span class="mi">1744433</span><span class="p">,</span> <span class="mi">1744434</span><span class="p">,</span> <span class="mi">1744435</span><span class="p">,</span> <span class="mi">1744436</span><span class="p">,</span>
+            <span class="mi">1744437</span><span class="p">,</span> <span class="mi">1744438</span><span class="p">,</span> <span class="mi">1744439</span><span class="p">,</span> <span class="mi">1744440</span><span class="p">,</span> <span class="mi">1744441</span><span class="p">,</span> <span class="mi">1744442</span><span class="p">,</span> <span class="mi">1744443</span><span class="p">,</span>
+            <span class="mi">1744444</span><span class="p">,</span> <span class="mi">1744445</span><span class="p">,</span> <span class="mi">1744446</span><span class="p">,</span> <span class="mi">1744447</span><span class="p">,</span> <span class="mi">1744482</span><span class="p">,</span> <span class="mi">1744488</span><span class="p">,</span> <span class="mi">1744489</span><span class="p">,</span>
+            <span class="mi">1744490</span><span class="p">,</span> <span class="mi">1744491</span><span class="p">,</span> <span class="mi">1744494</span><span class="p">,</span> <span class="mi">1744512</span><span class="p">,</span> <span class="mi">1744513</span><span class="p">,</span> <span class="mi">1744514</span><span class="p">,</span> <span class="mi">1744515</span><span class="p">,</span>
+            <span class="mi">1744516</span><span class="p">,</span> <span class="mi">1744517</span><span class="p">,</span> <span class="mi">1744518</span><span class="p">,</span> <span class="mi">1744519</span><span class="p">,</span> <span class="mi">1744520</span><span class="p">,</span> <span class="mi">1744521</span><span class="p">,</span> <span class="mi">1744522</span><span class="p">,</span>
+            <span class="mi">1744523</span><span class="p">,</span> <span class="mi">1744524</span><span class="p">,</span> <span class="mi">1744525</span><span class="p">,</span> <span class="mi">1744526</span><span class="p">,</span> <span class="mi">1744527</span><span class="p">,</span> <span class="mi">1744528</span><span class="p">,</span> <span class="mi">1744529</span><span class="p">,</span>
+            <span class="mi">1744530</span><span class="p">,</span> <span class="mi">1744531</span><span class="p">,</span> <span class="mi">1744532</span><span class="p">,</span> <span class="mi">1744533</span><span class="p">,</span> <span class="mi">1744534</span><span class="p">,</span> <span class="mi">1744535</span><span class="p">,</span> <span class="mi">1744536</span><span class="p">,</span>
+            <span class="mi">1744537</span><span class="p">,</span> <span class="mi">1744538</span><span class="p">,</span> <span class="mi">1744539</span><span class="p">,</span> <span class="mi">1744540</span><span class="p">,</span> <span class="mi">1744541</span><span class="p">,</span> <span class="mi">1744542</span><span class="p">,</span> <span class="mi">1744543</span><span class="p">,</span>
+            <span class="mi">1744545</span><span class="p">,</span> <span class="mi">1744548</span><span class="p">,</span> <span class="mi">1744549</span><span class="p">,</span> <span class="mi">1744550</span><span class="p">,</span> <span class="mi">1744551</span><span class="p">,</span> <span class="mi">1744557</span><span class="p">,</span> <span class="mi">1744560</span><span class="p">,</span>
+            <span class="mi">1744561</span><span class="p">,</span> <span class="mi">1744562</span><span class="p">,</span> <span class="mi">1744563</span><span class="p">,</span> <span class="mi">1744564</span><span class="p">,</span> <span class="mi">1744565</span><span class="p">,</span> <span class="mi">1744566</span><span class="p">,</span> <span class="mi">1744567</span><span class="p">,</span>
+            <span class="mi">1744568</span><span class="p">,</span> <span class="mi">1744569</span><span class="p">,</span> <span class="mi">1744570</span><span class="p">,</span> <span class="mi">1744571</span><span class="p">,</span> <span class="mi">1744572</span><span class="p">,</span> <span class="mi">1744573</span><span class="p">,</span> <span class="mi">1744574</span><span class="p">,</span>
+            <span class="mi">1744576</span><span class="p">,</span> <span class="mi">1744577</span><span class="p">,</span> <span class="mi">1744578</span><span class="p">,</span> <span class="mi">1744579</span><span class="p">,</span> <span class="mi">1744580</span><span class="p">,</span> <span class="mi">1744581</span><span class="p">,</span> <span class="mi">1744582</span><span class="p">,</span>
+            <span class="mi">1744583</span><span class="p">,</span> <span class="mi">1744584</span><span class="p">,</span> <span class="mi">1744585</span><span class="p">,</span> <span class="mi">1744586</span><span class="p">,</span> <span class="mi">1744587</span><span class="p">,</span> <span class="mi">1744588</span><span class="p">,</span> <span class="mi">1744589</span><span class="p">,</span>
+            <span class="mi">1744590</span><span class="p">,</span> <span class="mi">1744594</span><span class="p">,</span> <span class="mi">1744608</span><span class="p">,</span> <span class="mi">1744609</span><span class="p">,</span> <span class="mi">1744610</span><span class="p">,</span> <span class="mi">1750033</span><span class="p">])</span>
+<span class="k">except</span> <span class="p">(</span><span class="ne">ImportError</span><span class="p">,</span> <span class="ne">KeyError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+    <span class="n">with_hst</span><span class="o">=</span><span class="kc">False</span>
+
+<span class="k">if</span> <span class="n">with_hst</span><span class="p">:</span>
+    <span class="k">class</span> <span class="nc">cosmoHSTGal</span><span class="p">():</span>
+        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">version</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hpInfo</span>     <span class="o">=</span>   <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">hpInfofname</span> <span class="o">%</span><span class="mi">512</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">directory</span>  <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;homeWrk&#39;</span><span class="p">],</span><span class="s1">&#39;COSMOS/galsim_train/COSMOS_25.2_training_sample/&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">catName</span>    <span class="o">=</span>   <span class="s1">&#39;real_galaxy_catalog_25.2.fits&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">finName</span>    <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span><span class="s1">&#39;cat_used.fits&#39;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">version</span><span class="o">==</span><span class="s1">&#39;252&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">hpDir</span>  <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span><span class="s1">&#39;healpix-nside512&#39;</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">version</span><span class="o">==</span><span class="s1">&#39;252E&#39;</span><span class="p">:</span>
+                <span class="n">_dir</span>        <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;homeWrk&#39;</span><span class="p">],</span>\
+                            <span class="s1">&#39;COSMOS/galsim_train/COSMOS_25.2_extended/&#39;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">hpDir</span>  <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">_dir</span><span class="p">,</span><span class="s1">&#39;healpix-nside512&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">return</span>
+
+        <span class="k">def</span> <span class="nf">selectHpix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pixId</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            # select galaxies in one healPIX</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">indFname</span>    <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hpDir</span><span class="p">,</span><span class="s1">&#39;</span><span class="si">%d</span><span class="s1">-25.2_ind.fits&#39;</span> <span class="o">%</span><span class="n">pixId</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">indFname</span><span class="p">):</span>
+                <span class="n">__mask</span>  <span class="o">=</span>   <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">indFname</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dd</span>      <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">hpInfo</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">hpInfo</span><span class="p">[</span><span class="s1">&#39;pix&#39;</span><span class="p">]</span><span class="o">==</span><span class="n">pixId</span><span class="p">]</span>
+                <span class="n">__mask</span>  <span class="o">=</span>   <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catused</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span><span class="o">&gt;</span><span class="n">dd</span><span class="p">[</span><span class="s1">&#39;raMin&#39;</span><span class="p">])</span>\
+                        <span class="o">&amp;</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catused</span><span class="p">[</span><span class="s1">&#39;ra&#39;</span><span class="p">]</span><span class="o">&lt;</span><span class="n">dd</span><span class="p">[</span><span class="s1">&#39;raMax&#39;</span><span class="p">])</span>\
+                        <span class="o">&amp;</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catused</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span><span class="o">&gt;</span><span class="n">dd</span><span class="p">[</span><span class="s1">&#39;decMin&#39;</span><span class="p">])</span>\
+                        <span class="o">&amp;</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catused</span><span class="p">[</span><span class="s1">&#39;dec&#39;</span><span class="p">]</span><span class="o">&lt;</span><span class="n">dd</span><span class="p">[</span><span class="s1">&#39;decMax&#39;</span><span class="p">])</span>
+            <span class="n">__out</span>   <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">catused</span><span class="p">[</span><span class="n">__mask</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">__out</span>
+
+        <span class="k">def</span> <span class="nf">readHpixSample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">pixId</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            # select galaxies in one healPIX</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">fname</span>   <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">hpDir</span><span class="p">,</span><span class="s1">&#39;cat-</span><span class="si">%d</span><span class="s1">-25.2.fits&#39;</span> <span class="o">%</span><span class="n">pixId</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">fname</span><span class="p">):</span>
+                <span class="n">out</span> <span class="o">=</span>   <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span>   <span class="kc">None</span>
+            <span class="k">return</span> <span class="n">out</span>
+
+        <span class="k">def</span> <span class="nf">readHSTsample</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            # read the HST galaxy training sample</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finName</span><span class="p">):</span>
+                <span class="n">catfinal</span>    <span class="o">=</span>   <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finName</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cosmos_cat</span>  <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">COSMOSCatalog</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">catName</span><span class="p">,</span><span class="nb">dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">directory</span><span class="p">)</span>
+                <span class="c1"># used index</span>
+                <span class="n">index_use</span>   <span class="o">=</span>   <span class="n">cosmos_cat</span><span class="o">.</span><span class="n">orig_index</span>
+                <span class="c1"># used catalog</span>
+                <span class="n">paracat</span>     <span class="o">=</span>   <span class="n">cosmos_cat</span><span class="o">.</span><span class="n">param_cat</span><span class="p">[</span><span class="n">index_use</span><span class="p">]</span>
+                <span class="c1"># parametric catalog</span>
+                <span class="n">oricat</span>      <span class="o">=</span>   <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">cosmos_cat</span><span class="o">.</span><span class="n">real_cat</span><span class="o">.</span><span class="n">getFileName</span><span class="p">())[</span><span class="n">index_use</span><span class="p">]</span>
+                <span class="n">ra</span>          <span class="o">=</span>   <span class="n">oricat</span><span class="p">[</span><span class="s1">&#39;RA&#39;</span><span class="p">]</span>
+                <span class="n">dec</span>         <span class="o">=</span>   <span class="n">oricat</span><span class="p">[</span><span class="s1">&#39;DEC&#39;</span><span class="p">]</span>
+                <span class="n">indexNew</span>    <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">ra</span><span class="p">),</span><span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+                <span class="n">__tmp</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">ra</span><span class="p">,</span><span class="n">dec</span><span class="p">,</span><span class="n">indexNew</span><span class="p">])</span><span class="o">.</span><span class="n">T</span>
+                <span class="n">radec</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="nb">tuple</span><span class="p">(</span><span class="n">__t</span><span class="p">)</span> <span class="k">for</span> <span class="n">__t</span> <span class="ow">in</span> <span class="n">__tmp</span><span class="p">],</span><span class="n">dtype</span><span class="o">=</span><span class="p">[(</span><span class="s1">&#39;ra&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;dec&#39;</span><span class="p">,</span><span class="s1">&#39;&gt;f8&#39;</span><span class="p">),(</span><span class="s1">&#39;index&#39;</span><span class="p">,</span><span class="s1">&#39;i8&#39;</span><span class="p">)])</span>
+                <span class="n">catfinal</span>    <span class="o">=</span>   <span class="n">rfn</span><span class="o">.</span><span class="n">merge_arrays</span><span class="p">([</span><span class="n">paracat</span><span class="p">,</span><span class="n">radec</span><span class="p">],</span> <span class="n">flatten</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">usemask</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+                <span class="n">fitsio</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finName</span><span class="p">,</span><span class="n">catfinal</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">catused</span>    <span class="o">=</span>   <span class="n">catfinal</span>
+            <span class="k">return</span>
+
+<span class="c1"># LSST Task</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span> <span class="nn">lsst.afw.math</span> <span class="k">as</span> <span class="nn">afwMath</span>
+    <span class="kn">import</span> <span class="nn">lsst.afw.image</span> <span class="k">as</span> <span class="nn">afwImg</span>
+    <span class="kn">import</span> <span class="nn">lsst.afw.geom</span> <span class="k">as</span> <span class="nn">afwGeom</span>
+    <span class="kn">import</span> <span class="nn">lsst.meas.algorithms</span> <span class="k">as</span> <span class="nn">meaAlg</span>
+    <span class="n">with_lsst</span><span class="o">=</span><span class="kc">True</span>
+<span class="k">except</span> <span class="ne">ImportError</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+    <span class="n">with_lsst</span><span class="o">=</span><span class="kc">False</span>
+
+<span class="k">if</span> <span class="n">with_lsst</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">makeLsstExposure</span><span class="p">(</span><span class="n">galData</span><span class="p">,</span><span class="n">psfData</span><span class="p">,</span><span class="n">pixScale</span><span class="p">,</span><span class="n">variance</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        make an LSST exposure object</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            galData:    array of galaxy image</span>
+<span class="sd">            psfData:    array of PSF image</span>
+<span class="sd">            pixScale:   pixel scale</span>
+<span class="sd">            variance:   noise variance</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            exposure:   LSST exposure object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">with_lsst</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s1">&#39;Do not have lsstpipe!&#39;</span><span class="p">)</span>
+        <span class="n">ny</span><span class="p">,</span><span class="n">nx</span>       <span class="o">=</span>   <span class="n">galData</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">exposure</span>    <span class="o">=</span>   <span class="n">afwImg</span><span class="o">.</span><span class="n">ExposureF</span><span class="p">(</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">)</span>
+        <span class="n">exposure</span><span class="o">.</span><span class="n">getMaskedImage</span><span class="p">()</span><span class="o">.</span><span class="n">getImage</span><span class="p">()</span><span class="o">.</span><span class="n">getArray</span><span class="p">()[:,:]</span><span class="o">=</span><span class="n">galData</span>
+        <span class="n">exposure</span><span class="o">.</span><span class="n">getMaskedImage</span><span class="p">()</span><span class="o">.</span><span class="n">getVariance</span><span class="p">()</span><span class="o">.</span><span class="n">getArray</span><span class="p">()[:,:]</span><span class="o">=</span><span class="n">variance</span>
+        <span class="c1">#Set the PSF</span>
+        <span class="n">ngridPsf</span>    <span class="o">=</span>   <span class="n">psfData</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">psfLsst</span>     <span class="o">=</span>   <span class="n">afwImg</span><span class="o">.</span><span class="n">ImageF</span><span class="p">(</span><span class="n">ngridPsf</span><span class="p">,</span><span class="n">ngridPsf</span><span class="p">)</span>
+        <span class="n">psfLsst</span><span class="o">.</span><span class="n">getArray</span><span class="p">()[:,:]</span><span class="o">=</span> <span class="n">psfData</span>
+        <span class="n">psfLsst</span>     <span class="o">=</span>   <span class="n">psfLsst</span><span class="o">.</span><span class="n">convertD</span><span class="p">()</span>
+        <span class="n">kernel</span>      <span class="o">=</span>   <span class="n">afwMath</span><span class="o">.</span><span class="n">FixedKernel</span><span class="p">(</span><span class="n">psfLsst</span><span class="p">)</span>
+        <span class="n">kernelPSF</span>   <span class="o">=</span>   <span class="n">meaAlg</span><span class="o">.</span><span class="n">KernelPsf</span><span class="p">(</span><span class="n">kernel</span><span class="p">)</span>
+        <span class="n">exposure</span><span class="o">.</span><span class="n">setPsf</span><span class="p">(</span><span class="n">kernelPSF</span><span class="p">)</span>
+        <span class="c1">#prepare the wcs</span>
+        <span class="c1">#Rotation</span>
+        <span class="n">cdelt</span>   <span class="o">=</span>   <span class="p">(</span><span class="n">pixScale</span><span class="o">*</span><span class="n">afwGeom</span><span class="o">.</span><span class="n">arcseconds</span><span class="p">)</span>
+        <span class="n">CD</span>      <span class="o">=</span>   <span class="n">afwGeom</span><span class="o">.</span><span class="n">makeCdMatrix</span><span class="p">(</span><span class="n">cdelt</span><span class="p">,</span> <span class="n">afwGeom</span><span class="o">.</span><span class="n">Angle</span><span class="p">(</span><span class="mf">0.</span><span class="p">))</span><span class="c1">#no rotation</span>
+        <span class="c1">#wcs</span>
+        <span class="n">crval</span>   <span class="o">=</span>   <span class="n">afwGeom</span><span class="o">.</span><span class="n">SpherePoint</span><span class="p">(</span><span class="n">afwGeom</span><span class="o">.</span><span class="n">Angle</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span><span class="n">afwGeom</span><span class="o">.</span><span class="n">degrees</span><span class="p">),</span><span class="n">afwGeom</span><span class="o">.</span><span class="n">Angle</span><span class="p">(</span><span class="mf">0.</span><span class="p">,</span><span class="n">afwGeom</span><span class="o">.</span><span class="n">degrees</span><span class="p">))</span>
+        <span class="c1">#crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6</span>
+        <span class="n">crpix</span>   <span class="o">=</span>   <span class="n">afwGeom</span><span class="o">.</span><span class="n">Point2D</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">dataWcs</span> <span class="o">=</span>   <span class="n">afwGeom</span><span class="o">.</span><span class="n">makeSkyWcs</span><span class="p">(</span><span class="n">crpix</span><span class="p">,</span><span class="n">crval</span><span class="p">,</span><span class="n">CD</span><span class="p">)</span>
+        <span class="n">exposure</span><span class="o">.</span><span class="n">setWcs</span><span class="p">(</span><span class="n">dataWcs</span><span class="p">)</span>
+        <span class="c1">#prepare the frc</span>
+        <span class="n">dataCalib</span> <span class="o">=</span> <span class="n">afwImg</span><span class="o">.</span><span class="n">makePhotoCalibFromCalibZeroPoint</span><span class="p">(</span><span class="mf">63095734448.0194</span><span class="p">)</span>
+        <span class="n">exposure</span><span class="o">.</span><span class="n">setPhotoCalib</span><span class="p">(</span><span class="n">dataCalib</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">exposure</span>
+
+<span class="c1">## For ring tests</span>
+<div class="viewcode-block" id="make_ringrot_radians"><a class="viewcode-back" href="../../fpfs.html#fpfs.simutil.make_ringrot_radians">[docs]</a><span class="k">def</span> <span class="nf">make_ringrot_radians</span><span class="p">(</span><span class="n">nord</span><span class="o">=</span><span class="mi">8</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate rotation angle array for ring test</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        nord:       up to 1/2**nord*pi rotation</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        rotArray:   rotation array [radians]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rotArray</span><span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="n">nord</span><span class="p">)</span>
+    <span class="n">nnum</span>    <span class="o">=</span>   <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nord</span><span class="o">+</span><span class="mi">1</span><span class="p">):</span>
+        <span class="n">nj</span>  <span class="o">=</span>   <span class="mi">2</span><span class="o">**</span><span class="n">j</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">nj</span><span class="p">,</span><span class="mi">2</span><span class="p">):</span>
+            <span class="n">nnum</span><span class="o">+=</span><span class="mi">1</span>
+            <span class="n">rotArray</span><span class="p">[</span><span class="n">nnum</span><span class="p">]</span><span class="o">=</span><span class="n">i</span><span class="o">/</span><span class="n">nj</span>
+    <span class="n">rotArray</span><span class="o">=</span><span class="n">rotArray</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span>
+    <span class="k">return</span> <span class="n">rotArray</span></div>
+
+<div class="viewcode-block" id="sim_test"><a class="viewcode-back" href="../../fpfs.html#fpfs.simutil.sim_test">[docs]</a><span class="k">class</span> <span class="nc">sim_test</span><span class="p">():</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">shear</span><span class="p">,</span><span class="n">rng</span><span class="p">,</span><span class="n">scale</span><span class="o">=</span><span class="mf">0.263</span><span class="p">,</span><span class="n">psf_fwhm</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span><span class="n">gal_hlr</span><span class="o">=</span><span class="mf">0.5</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        simulate an exponential object with moffat PSF, this class has the same observational setup as</span>
+<span class="sd">        https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            shear:          (g1, g2),The shear in each component</span>
+<span class="sd">            rng:            The random number generator</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">=</span>   <span class="n">rng</span>
+
+        <span class="n">dy</span><span class="p">,</span> <span class="n">dx</span>  <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">low</span><span class="o">=-</span><span class="n">scale</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">scale</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">psf</span>     <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Moffat</span><span class="p">(</span><span class="n">beta</span><span class="o">=</span><span class="mf">2.5</span><span class="p">,</span><span class="n">fwhm</span><span class="o">=</span><span class="n">psf_fwhm</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span> <span class="n">g2</span><span class="o">=-</span><span class="mf">0.02</span><span class="p">,)</span>
+
+        <span class="n">obj0</span>    <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Exponential</span><span class="p">(</span>
+            <span class="n">half_light_radius</span><span class="o">=</span><span class="n">gal_hlr</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span>
+            <span class="n">g1</span>  <span class="o">=</span>   <span class="n">shear</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="n">g2</span>  <span class="o">=</span>   <span class="n">shear</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span>
+            <span class="n">dx</span>  <span class="o">=</span>   <span class="n">dx</span><span class="p">,</span>
+            <span class="n">dy</span>  <span class="o">=</span>   <span class="n">dy</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">obj</span>     <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">obj0</span><span class="p">)</span>
+
+        <span class="c1"># define the psf and psf here which will be repeatedly used</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">psf</span><span class="o">=</span>   <span class="n">psf</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">array</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="o">=</span>   <span class="n">obj</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">array</span>
+        <span class="k">return</span>
+
+<div class="viewcode-block" id="sim_test.make_image"><a class="viewcode-back" href="../../fpfs.html#fpfs.simutil.sim_test.make_image">[docs]</a>    <span class="k">def</span> <span class="nf">make_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">noise</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span><span class="n">psf_noise</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        generate a galaxy image</span>
+
+<span class="sd">        Parameters:</span>
+<span class="sd">            noise:      Noise for the image</span>
+<span class="sd">            psf_noise:  Noise for the PSF</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            im:         galaxy image</span>
+<span class="sd">            psf_im:     PSF image</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">noise</span><span class="o">&gt;</span><span class="mf">1e-10</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">noise</span><span class="p">,</span><span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">img</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">img</span>
+        <span class="k">if</span> <span class="n">psf_noise</span><span class="o">&gt;</span><span class="mf">1e-10</span><span class="p">:</span>
+            <span class="n">psf</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">psf</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">psf_noise</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">psf</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">psf</span> <span class="o">=</span>   <span class="bp">self</span><span class="o">.</span><span class="n">psf</span>
+        <span class="k">return</span> <span class="n">img</span><span class="p">,</span><span class="n">psf</span></div></div>
+
+<div class="viewcode-block" id="make_basic_sim"><a class="viewcode-back" href="../../fpfs.html#fpfs.simutil.make_basic_sim">[docs]</a><span class="k">def</span> <span class="nf">make_basic_sim</span><span class="p">(</span><span class="n">outDir</span><span class="p">,</span><span class="n">gname</span><span class="p">,</span><span class="n">Id0</span><span class="p">,</span><span class="n">ny</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span><span class="n">nx</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span><span class="n">do_write</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">return_array</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Make basic galaxy image simulation (isolated)</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        outDir:         output directory</span>
+<span class="sd">        gname:          shear distortion setup</span>
+<span class="sd">        Id0:            index of the simulation</span>
+<span class="sd">        ny, nx:         number of galaxies in y,x direction</span>
+<span class="sd">        do_write:       whether write output [bool, default: True]</span>
+<span class="sd">        return_array:   whether return galaxy array [bool, default: False]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">ngrid</span>  <span class="o">=</span>   <span class="mi">64</span>
+    <span class="n">scale</span>  <span class="o">=</span>   <span class="mf">0.168</span>
+    <span class="c1"># Get the shear information</span>
+    <span class="n">gList</span>  <span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mf">0.02</span><span class="p">,</span><span class="mf">0.</span><span class="p">,</span><span class="mf">0.02</span><span class="p">])</span>
+    <span class="n">gList</span>  <span class="o">=</span>   <span class="n">gList</span><span class="p">[[</span><span class="nb">eval</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">gname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]]</span>
+    <span class="k">if</span> <span class="n">gname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="s1">&#39;g1&#39;</span><span class="p">:</span>
+        <span class="n">g1</span> <span class="o">=</span>    <span class="n">gList</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">g2</span> <span class="o">=</span>    <span class="mf">0.</span>
+    <span class="k">elif</span> <span class="n">gname</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;-&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">==</span><span class="s1">&#39;g2&#39;</span><span class="p">:</span>
+        <span class="n">g1</span> <span class="o">=</span>    <span class="mf">0.</span>
+        <span class="n">g2</span> <span class="o">=</span>    <span class="n">gList</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;cannot decide g1 or g2&#39;</span><span class="p">)</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Processing for </span><span class="si">%s</span><span class="s1">, and shears for four redshift bins are </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">gname</span><span class="p">,</span><span class="n">gList</span><span class="p">))</span>
+    <span class="c1"># PSF</span>
+    <span class="n">psfFWHM</span> <span class="o">=</span>   <span class="nb">eval</span><span class="p">(</span><span class="n">outDir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_psf&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="o">/</span><span class="mf">100.</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;The FWHM for PSF is: </span><span class="si">%s</span><span class="s1"> arcsec&#39;</span><span class="o">%</span><span class="n">psfFWHM</span><span class="p">)</span>
+    <span class="n">psfInt</span>  <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Moffat</span><span class="p">(</span><span class="n">beta</span><span class="o">=</span><span class="mf">3.5</span><span class="p">,</span><span class="n">fwhm</span><span class="o">=</span><span class="n">psfFWHM</span><span class="p">,</span><span class="n">trunc</span><span class="o">=</span><span class="n">psfFWHM</span><span class="o">*</span><span class="mf">4.</span><span class="p">)</span>
+    <span class="n">psfInt</span>  <span class="o">=</span>   <span class="n">psfInt</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">e1</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span><span class="n">e2</span><span class="o">=-</span><span class="mf">0.02</span><span class="p">)</span>
+    <span class="c1">#psfImg =   psfInt.drawImage(nx=45,ny=45,scale=scale)</span>
+
+    <span class="n">gal_image</span><span class="o">=</span>  <span class="n">galsim</span><span class="o">.</span><span class="n">ImageF</span><span class="p">(</span><span class="n">nx</span><span class="o">*</span><span class="n">ngrid</span><span class="p">,</span><span class="n">ny</span><span class="o">*</span><span class="n">ngrid</span><span class="p">,</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span>
+    <span class="n">gal_image</span><span class="o">.</span><span class="n">setOrigin</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">outFname</span><span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outDir</span><span class="p">,</span><span class="s1">&#39;image-</span><span class="si">%d</span><span class="s1">-</span><span class="si">%s</span><span class="s1">.fits&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">Id0</span><span class="p">,</span><span class="n">gname</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">outFname</span><span class="p">):</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Already have the outcome.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">do_write</span><span class="p">:</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Nothing to write.&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">return_array</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fitsio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">outFname</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">ud</span>      <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">UniformDeviate</span><span class="p">(</span><span class="n">Id0</span><span class="o">+</span><span class="mi">212</span><span class="p">)</span>
+    <span class="n">bigfft</span>  <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">GSParams</span><span class="p">(</span><span class="n">maximum_fft_size</span><span class="o">=</span><span class="mi">10240</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;basic&#39;</span> <span class="ow">in</span> <span class="n">outDir</span><span class="p">:</span>
+        <span class="n">rotArray</span>    <span class="o">=</span>   <span class="n">make_ringrot_radians</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+        <span class="c1"># 2**7*8=1024 galaxy ID</span>
+        <span class="c1"># 2**7 different rotations and dilations</span>
+        <span class="c1"># for each galaxy ID 10000 parametric galaxies</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;We have </span><span class="si">%d</span><span class="s1"> rotation realizations&#39;</span> <span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="n">rotArray</span><span class="p">))</span>
+        <span class="n">irot</span>        <span class="o">=</span>   <span class="n">Id0</span><span class="o">//</span><span class="mi">8</span>
+        <span class="k">if</span> <span class="n">irot</span><span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rotArray</span><span class="p">):</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;galaxy image index greater than </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span><span class="nb">len</span><span class="p">(</span><span class="n">rotArray</span><span class="o">*</span><span class="mi">8</span><span class="p">))</span>
+        <span class="n">ang</span>     <span class="o">=</span>   <span class="n">rotArray</span><span class="p">[</span><span class="n">irot</span><span class="p">]</span><span class="o">*</span><span class="n">galsim</span><span class="o">.</span><span class="n">radians</span>
+        <span class="n">rescale</span> <span class="o">=</span>   <span class="mf">1.</span><span class="o">+</span><span class="p">(</span><span class="n">ud</span><span class="p">()</span><span class="o">-</span><span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="mf">0.1</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span><span class="n">rescale</span><span class="p">)</span>
+        <span class="c1"># cosmos group ID =0...7</span>
+        <span class="c1"># we use 80000 galsim galaxies repeatedly</span>
+        <span class="n">cgid</span>    <span class="o">=</span>   <span class="nb">int</span><span class="p">(</span><span class="n">Id0</span><span class="o">%</span><span class="mi">8</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Making Basic Simulation. ID: </span><span class="si">%d</span><span class="s1">, cosmos GID: </span><span class="si">%d</span><span class="s1">.&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">Id0</span><span class="p">,</span><span class="n">cgid</span><span class="p">))</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;The rotating angle is </span><span class="si">%.2f</span><span class="s1"> radians.&#39;</span> <span class="o">%</span><span class="n">rotArray</span><span class="p">[</span><span class="n">irot</span><span class="p">])</span>
+        <span class="c1"># Galsim galaxies</span>
+        <span class="n">directory</span>   <span class="o">=</span>   <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;homeWrk&#39;</span><span class="p">],</span>\
+                        <span class="s1">&#39;COSMOS/galsim_train/COSMOS_25.2_training_sample/&#39;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">directory</span><span class="p">),</span> <span class="s1">&#39;cannot find galsim galaxies&#39;</span>
+        <span class="n">catName</span>     <span class="o">=</span>   <span class="s1">&#39;real_galaxy_catalog_25.2.fits&#39;</span>
+        <span class="n">cosmos_cat</span>  <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">COSMOSCatalog</span><span class="p">(</span><span class="n">catName</span><span class="p">,</span><span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">)</span>
+
+        <span class="c1"># Basic parameters</span>
+        <span class="n">flux_scaling</span><span class="o">=</span>   <span class="mf">2.587</span>
+        <span class="c1"># catalog</span>
+        <span class="n">cosmo252</span><span class="o">=</span>   <span class="n">cosmoHSTGal</span><span class="p">(</span><span class="s1">&#39;252&#39;</span><span class="p">)</span>
+        <span class="n">cosmo252</span><span class="o">.</span><span class="n">readHSTsample</span><span class="p">()</span>
+        <span class="c1"># cgid=0...7</span>
+        <span class="n">hscCat</span>  <span class="o">=</span>   <span class="n">cosmo252</span><span class="o">.</span><span class="n">catused</span><span class="p">[</span><span class="n">cgid</span><span class="o">*</span><span class="n">nx</span><span class="o">*</span><span class="n">ny</span><span class="p">:(</span><span class="n">cgid</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">nx</span><span class="o">*</span><span class="n">ny</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span><span class="n">ss</span>  <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">hscCat</span><span class="p">):</span>
+            <span class="n">ix</span>  <span class="o">=</span>   <span class="n">i</span><span class="o">%</span><span class="n">nx</span>
+            <span class="n">iy</span>  <span class="o">=</span>   <span class="n">i</span><span class="o">//</span><span class="n">nx</span>
+            <span class="n">b</span>   <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">BoundsI</span><span class="p">(</span><span class="n">ix</span><span class="o">*</span><span class="n">ngrid</span><span class="p">,(</span><span class="n">ix</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">ngrid</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">iy</span><span class="o">*</span><span class="n">ngrid</span><span class="p">,(</span><span class="n">iy</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">ngrid</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># each galaxy</span>
+            <span class="n">gal</span> <span class="o">=</span>   <span class="n">cosmos_cat</span><span class="o">.</span><span class="n">makeGalaxy</span><span class="p">(</span><span class="n">gal_type</span><span class="o">=</span><span class="s1">&#39;parametric&#39;</span><span class="p">,</span>\
+                    <span class="n">index</span><span class="o">=</span><span class="n">ss</span><span class="p">[</span><span class="s1">&#39;index&#39;</span><span class="p">],</span><span class="n">gsparams</span><span class="o">=</span><span class="n">bigfft</span><span class="p">)</span>
+            <span class="c1"># rescale the radius by &#39;rescale&#39; and keep surface brightness the same</span>
+            <span class="n">gal</span> <span class="o">=</span>   <span class="n">gal</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">rescale</span><span class="p">)</span>
+            <span class="c1"># rotate by &#39;ang&#39;</span>
+            <span class="n">gal</span> <span class="o">=</span>   <span class="n">gal</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">ang</span><span class="p">)</span>
+            <span class="c1"># accounting for zeropoint difference between COSMOS HST and HSC</span>
+            <span class="n">gal</span> <span class="o">=</span>   <span class="n">gal</span><span class="o">*</span><span class="n">flux_scaling</span>
+            <span class="c1"># shear distortion</span>
+            <span class="n">gal</span> <span class="o">=</span>   <span class="n">gal</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span><span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s1">&#39;Shift&#39;</span> <span class="ow">in</span> <span class="n">outDir</span><span class="p">:</span>
+                <span class="c1"># Galaxies is randomly shifted</span>
+                <span class="c1"># This shift ensure that the offset to (ngrid//2,ngrid//2) is an isotropic circle</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="p">(</span><span class="n">ud</span><span class="p">()</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="n">scale</span>
+                <span class="n">dy</span> <span class="o">=</span> <span class="p">(</span><span class="n">ud</span><span class="p">()</span><span class="o">+</span><span class="mf">0.5</span><span class="p">)</span><span class="o">*</span><span class="n">scale</span>
+                <span class="n">gal</span><span class="o">=</span> <span class="n">gal</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">dy</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="s1">&#39;Center&#39;</span> <span class="ow">in</span> <span class="n">outDir</span><span class="p">:</span>
+                <span class="c1"># Galaxies is located at (ngrid//2,ngrid//2)</span>
+                <span class="n">dx</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">scale</span>
+                <span class="n">dy</span> <span class="o">=</span> <span class="mf">0.5</span><span class="o">*</span><span class="n">scale</span>
+                <span class="n">gal</span><span class="o">=</span> <span class="n">gal</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="n">dx</span><span class="p">,</span><span class="n">dy</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1">#Galaxies is located at (ngrid//2-0.5,ngrid//2-0.5))</span>
+                <span class="k">pass</span>
+            <span class="n">gal</span> <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">([</span><span class="n">psfInt</span><span class="p">,</span><span class="n">gal</span><span class="p">],</span><span class="n">gsparams</span><span class="o">=</span><span class="n">bigfft</span><span class="p">)</span>
+            <span class="c1"># draw galaxy</span>
+            <span class="n">sub_img</span> <span class="o">=</span>   <span class="n">gal_image</span><span class="p">[</span><span class="n">b</span><span class="p">]</span>
+            <span class="n">gal</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">sub_img</span><span class="p">,</span><span class="n">add_to_image</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">del</span> <span class="n">gal</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">sub_img</span>
+        <span class="k">del</span> <span class="n">hscCat</span><span class="p">,</span><span class="n">cosmos_cat</span><span class="p">,</span><span class="n">cosmo252</span><span class="p">,</span><span class="n">psfInt</span>
+        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="s1">&#39;small&#39;</span> <span class="ow">in</span> <span class="n">outDir</span><span class="p">:</span>
+        <span class="c1"># use galaxies with random knots</span>
+        <span class="c1"># we only support three versions of small galaxies with different radius</span>
+        <span class="n">irr</span> <span class="o">=</span>   <span class="nb">eval</span><span class="p">(</span><span class="n">outDir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_psf&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;small&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">irr</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="n">radius</span>  <span class="o">=</span><span class="mf">0.07</span>
+        <span class="k">elif</span> <span class="n">irr</span><span class="o">==</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">radius</span>  <span class="o">=</span><span class="mf">0.15</span>
+        <span class="k">elif</span> <span class="n">irr</span><span class="o">==</span><span class="mi">2</span><span class="p">:</span>
+            <span class="n">radius</span>  <span class="o">=</span><span class="mf">0.20</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Something wrong with the outDir! we only support&#39;</span>
+                    <span class="s1">&#39;three versions of small galaxies&#39;</span><span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Making Small Simulation with Random Knots.&#39;</span> <span class="p">)</span>
+        <span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Radius: </span><span class="si">%s</span><span class="s1">, ID: </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span><span class="p">(</span><span class="n">radius</span><span class="p">,</span><span class="n">Id0</span><span class="p">)</span> <span class="p">)</span>
+        <span class="n">npoints</span> <span class="o">=</span>   <span class="mi">20</span>
+        <span class="n">gal0</span>    <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">RandomKnots</span><span class="p">(</span><span class="n">half_light_radius</span><span class="o">=</span><span class="n">radius</span><span class="p">,</span>\
+                    <span class="n">npoints</span><span class="o">=</span><span class="n">npoints</span><span class="p">,</span><span class="n">flux</span><span class="o">=</span><span class="mf">10.</span><span class="p">,</span><span class="n">rng</span><span class="o">=</span><span class="n">ud</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">ix</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">iy</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+                <span class="n">igal</span>   <span class="o">=</span>    <span class="n">ix</span><span class="o">*</span><span class="mi">100</span><span class="o">+</span><span class="n">iy</span>
+                <span class="n">b</span>      <span class="o">=</span>    <span class="n">galsim</span><span class="o">.</span><span class="n">BoundsI</span><span class="p">(</span><span class="n">ix</span><span class="o">*</span><span class="n">ngrid</span><span class="p">,(</span><span class="n">ix</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">ngrid</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span>\
+                            <span class="n">iy</span><span class="o">*</span><span class="n">ngrid</span><span class="p">,(</span><span class="n">iy</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">*</span><span class="n">ngrid</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">igal</span><span class="o">%</span><span class="mi">4</span><span class="o">==</span><span class="mi">0</span> <span class="ow">and</span> <span class="n">igal</span><span class="o">!=</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="n">gal0</span><span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">RandomKnots</span><span class="p">(</span><span class="n">half_light_radius</span><span class="o">=</span><span class="n">radius</span><span class="p">,</span>\
+                            <span class="n">npoints</span><span class="o">=</span><span class="n">npoints</span><span class="p">,</span><span class="n">flux</span><span class="o">=</span><span class="mf">10.</span><span class="p">,</span><span class="n">rng</span><span class="o">=</span><span class="n">ud</span><span class="p">,</span><span class="n">gsparams</span><span class="o">=</span><span class="n">bigfft</span><span class="p">)</span>
+                <span class="n">sub_img</span> <span class="o">=</span>   <span class="n">gal_image</span><span class="p">[</span><span class="n">b</span><span class="p">]</span>
+                <span class="n">ang</span>     <span class="o">=</span>   <span class="n">igal</span><span class="o">%</span><span class="mi">4</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">/</span><span class="mf">4.</span> <span class="o">*</span> <span class="n">galsim</span><span class="o">.</span><span class="n">radians</span>
+                <span class="n">gal</span>     <span class="o">=</span>   <span class="n">gal0</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="n">ang</span><span class="p">)</span>
+                <span class="c1"># Shear the galaxy</span>
+                <span class="n">gal</span>     <span class="o">=</span>   <span class="n">gal</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span><span class="n">g1</span><span class="o">=</span><span class="n">g1</span><span class="p">,</span><span class="n">g2</span><span class="o">=</span><span class="n">g2</span><span class="p">)</span>
+                <span class="n">gal</span>     <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">([</span><span class="n">psfInt</span><span class="p">,</span><span class="n">gal</span><span class="p">],</span><span class="n">gsparams</span><span class="o">=</span><span class="n">bigfft</span><span class="p">)</span>
+                <span class="c1"># Draw the galaxy image</span>
+                <span class="n">gal</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">sub_img</span><span class="p">,</span><span class="n">add_to_image</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">del</span> <span class="n">gal</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">sub_img</span>
+                <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+        <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;outDir should cotain &#39;basic&#39; or &#39;small&#39;!!&quot;</span><span class="p">)</span>
+    <span class="k">del</span> <span class="n">ud</span>
+    <span class="k">if</span> <span class="n">do_write</span><span class="p">:</span>
+        <span class="n">gal_image</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">outFname</span><span class="p">,</span><span class="n">clobber</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">return_array</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">gal_image</span><span class="o">.</span><span class="n">array</span></div>
+
+<div class="viewcode-block" id="make_gal_ssbg"><a class="viewcode-back" href="../../fpfs.html#fpfs.simutil.make_gal_ssbg">[docs]</a><span class="k">def</span> <span class="nf">make_gal_ssbg</span><span class="p">(</span><span class="n">shear</span><span class="p">,</span><span class="n">psf</span><span class="p">,</span><span class="n">rng</span><span class="p">,</span><span class="n">r1</span><span class="p">,</span><span class="n">r0</span><span class="o">=</span><span class="mf">20.</span><span class="p">)</span><span class="o">-&gt;</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    simulate an exponential object with moffat PSF, given a SNR (r0) and</span>
+<span class="sd">    a source background noise ratio (r0)</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">    shear:  (g1, g2),The shear in each component</span>
+<span class="sd">    rng:    The random number generator</span>
+<span class="sd">    r1:     The source background noise variance ratio</span>
+<span class="sd">    r0:     The SNR of galaxy</span>
+<span class="sd">    psf:    galsim.Moffat, e.g.,</span>
+<span class="sd">            galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.01,)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">rng</span>     <span class="o">=</span>   <span class="n">rng</span>
+    <span class="n">scale</span>   <span class="o">=</span>   <span class="mf">0.263</span>
+    <span class="n">gal_hlr</span> <span class="o">=</span>   <span class="mf">0.5</span>
+
+    <span class="n">dy</span><span class="p">,</span> <span class="n">dx</span>  <span class="o">=</span>   <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="n">low</span><span class="o">=-</span><span class="n">scale</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="n">scale</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">obj0</span>    <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Exponential</span><span class="p">(</span>
+        <span class="n">half_light_radius</span><span class="o">=</span><span class="n">gal_hlr</span><span class="p">,</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">shear</span><span class="p">(</span>
+        <span class="n">g1</span>  <span class="o">=</span>   <span class="n">shear</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="n">g2</span>  <span class="o">=</span>   <span class="n">shear</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span>
+        <span class="n">dx</span>  <span class="o">=</span>   <span class="n">dx</span><span class="p">,</span>
+        <span class="n">dy</span>  <span class="o">=</span>   <span class="n">dy</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">obj</span>     <span class="o">=</span>   <span class="n">galsim</span><span class="o">.</span><span class="n">Convolve</span><span class="p">(</span><span class="n">psf</span><span class="p">,</span> <span class="n">obj0</span><span class="p">)</span>
+
+    <span class="c1"># define the psf and psf here which will be repeatedly used</span>
+    <span class="n">psf</span>     <span class="o">=</span>   <span class="n">psf</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">array</span>
+    <span class="c1"># galaxy image:</span>
+    <span class="n">img</span>     <span class="o">=</span>   <span class="n">obj</span><span class="o">.</span><span class="n">drawImage</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">array</span>
+    <span class="n">ngrid</span>   <span class="o">=</span>   <span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="c1"># noise image:</span>
+    <span class="n">noimg</span>   <span class="o">=</span>   <span class="n">rng</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">1.</span><span class="p">,</span><span class="n">size</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="c1"># get the current flux using the 5x5 substamps centered at the stamp&#39;s center</span>
+    <span class="n">flux_tmp</span><span class="o">=</span>   <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">img</span><span class="p">[</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="mi">2</span><span class="p">:</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="mi">3</span><span class="p">,</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">-</span><span class="mi">2</span><span class="p">:</span><span class="n">ngrid</span><span class="o">//</span><span class="mi">2</span><span class="o">+</span><span class="mi">3</span><span class="p">])</span>
+    <span class="c1"># the current (expectation of) total noise std on the 5x5 substamps is 5 since for each</span>
+    <span class="c1"># pixel, the expecatation value of variance is 1; therefore, the expectation value of variance is 25...</span>
+    <span class="n">std_tmp</span> <span class="o">=</span>   <span class="mi">5</span>
+    <span class="c1"># normalize both the galaxy image and noise image so that they will have</span>
+    <span class="c1"># flux=1 and variance=1 (expectation value) in the 5x5 substamps</span>
+    <span class="n">img</span>     <span class="o">=</span>   <span class="n">img</span><span class="o">/</span><span class="n">flux_tmp</span>
+    <span class="n">noimg</span>   <span class="o">=</span>   <span class="n">noimg</span><span class="o">/</span><span class="n">std_tmp</span>
+    <span class="c1"># now we can determine the flux and background variance using equation (3)</span>
+    <span class="n">F</span>       <span class="o">=</span>   <span class="n">r0</span><span class="o">**</span><span class="mf">2.</span><span class="o">*</span><span class="p">(</span><span class="mi">1</span><span class="o">+</span><span class="n">r1</span><span class="p">)</span><span class="o">/</span><span class="n">r1</span>
+    <span class="n">B</span>       <span class="o">=</span>   <span class="n">F</span><span class="o">/</span><span class="n">r1</span>
+    <span class="n">img</span>     <span class="o">=</span>   <span class="n">img</span><span class="o">*</span><span class="n">F</span>
+    <span class="n">noimg</span>   <span class="o">=</span>   <span class="n">noimg</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">B</span><span class="p">)</span>
+    <span class="n">img</span>     <span class="o">=</span>   <span class="n">img</span><span class="o">+</span><span class="n">noimg</span>
+    <span class="k">return</span> <span class="n">img</span></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">FPFS 2.0.3 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">fpfs.simutil</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Xiangchong Li.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.4.0.
+    </div>
+  </body>
+</html>
