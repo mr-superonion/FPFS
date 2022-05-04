@@ -26,6 +26,7 @@ jobs:
     - name: Install dependencies
       uses: BSFishy/pip-action@v1
       with:
+        requirements: requirements.txt
         upgrade: "true"
         no-deps: "false" 
         platform: "linux_ubuntu_18_04_x86_64"
