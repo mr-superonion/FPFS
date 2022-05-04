@@ -24,10 +24,7 @@ jobs:
       with:
         python-version: "3.10"
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      uses: py-actions/py-dependency-install@v3
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
