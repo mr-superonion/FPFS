@@ -422,7 +422,7 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
     Parameters:
         shear (tuple):
            (g1, g2),The shear in each component
-        rng ():
+        rng (np.random.RandomState):
             The random number generator
         r1  (float):
             The source background noise variance ratio
