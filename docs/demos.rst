@@ -1,8 +1,13 @@
-fpfs package
+Demos
 ============
 
 .. include:: macros.hrst
 
-Demos
+Demo 1
 -------
 
+Demo 2
+-------
+
+Demo 3
+-------
