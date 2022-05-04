@@ -1,5 +1,6 @@
 # `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 ----
+[![Python application](https://github.com/mr-superonion/FPFS/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/mr-superonion/FPFS/actions/workflows/python-app.yml)
 
 ## Installation
 
