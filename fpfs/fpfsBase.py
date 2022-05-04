@@ -214,6 +214,7 @@ class fpfsTask():
                         ('fpfs_M40','>f8'),\
                         ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
                         ]
+            # Wait Zhi Shen to implement higher order shapelets
             pass
         self.chiD =   out
         return
