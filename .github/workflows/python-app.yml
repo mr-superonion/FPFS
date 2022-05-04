@@ -30,6 +30,7 @@ jobs:
         update-setuptools: "true"
         update-wheel: "true"
         no-deps: "false" 
+        platform: "linux_ubuntu_18_04_x86_64"
 
     - name: Lint with flake8
       run: |
