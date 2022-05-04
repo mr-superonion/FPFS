@@ -3,4 +3,5 @@ pytest
 numpy
 scipy
 numba
+pyfftw3
 galsim
