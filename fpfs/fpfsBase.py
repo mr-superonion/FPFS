@@ -124,6 +124,7 @@ class fpfsTask():
             # This setup is able to derive kappa response
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indC =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
+        self.nnord=nnord
         chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         self.prepare_ChiDeri(chi)
@@ -186,20 +187,35 @@ class fpfsTask():
         """
         _chiU   =   chi[self._indC,self._indY,self._indX]
         out     =   []
-        out.append(_chiU.real[0])
-        out.append(_chiU.real[1])
-        out.append(_chiU.real[2]);out.append(_chiU.imag[2])
-        out.append(_chiU.real[3])
-        out.append(_chiU.real[4]);out.append(_chiU.imag[4])
-        out     =   np.stack(out)
+        if self.nnord==4:
+            out.append(_chiU.real[0]) #x00
+            out.append(_chiU.real[1]) #x20
+            out.append(_chiU.real[2]);out.append(_chiU.imag[2]) # x22c,s
+            out.append(_chiU.real[3]) # x40
+            out.append(_chiU.real[4]);out.append(_chiU.imag[4]) # x42c,s
+            out     =   np.stack(out)
+            self.deri_types=[
+                        ('fpfs_M00','>f8'),\
+                        ('fpfs_M20','>f8'),\
+                        ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
+                        ('fpfs_M40','>f8'),\
+                        ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
+                        ]
+        elif self.nnord==6:
+            out.append(_chiU.real[0]) #x00
+            out.append(_chiU.real[1]) #x20
+            out.append(_chiU.real[2]);out.append(_chiU.imag[2]) # x22c,s
+            out.append(_chiU.real[3]) # x40
+            out.append(_chiU.real[4]);out.append(_chiU.imag[4]) # x42c,s
+            self.deri_types=[
+                        ('fpfs_M00','>f8'),\
+                        ('fpfs_M20','>f8'),\
+                        ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
+                        ('fpfs_M40','>f8'),\
+                        ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
+                        ]
+            pass
         self.chiD =   out
-        self.deri_types=[
-                    ('fpfs_M00','>f8'),\
-                    ('fpfs_M20','>f8'),\
-                    ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-                    ('fpfs_M40','>f8'),\
-                    ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
-                    ]
         return
 
     def prepare_ChiCov(self,chi):
