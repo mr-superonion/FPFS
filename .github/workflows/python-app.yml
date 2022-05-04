@@ -29,6 +29,7 @@ jobs:
         update-pip: "true"
         update-setuptools: "true"
         update-wheel: "true"
+        no-deps: false 
 
     - name: Lint with flake8
       run: |
