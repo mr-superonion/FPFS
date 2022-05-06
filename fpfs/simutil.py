@@ -195,49 +195,61 @@ def make_ringrot_radians(nord=8):
     return rotArray
 
 class sim_test():
-    def __init__(self,shear,rng,scale=0.263,psf_fwhm=0.9,gal_hlr=0.5):
+    def __init__(self,shear,rng,scale=0.263,psf_fwhm=0.9,gal_hlr=0.5,ngrid=32):
         """
         simulate an exponential object with moffat PSF, this class has the same observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
 
         Parameters:
-            shear:          (g1, g2),The shear in each component
-            rng:            The random number generator
+            shear (tuple):      (g1, g2),The shear in each component
+            rng (randState):    The random number generator
         """
         self.rng=   rng
+        dx      =   0.5*scale
+        dy      =   0.5*scale
 
-        dy, dx  =   self.rng.uniform(low=-scale/2, high=scale/2, size=2)
-        psf     =   galsim.Moffat(beta=2.5,fwhm=psf_fwhm,
-        ).shear(g1=0.02, g2=-0.02,)
+        psf     =   galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.02,)
+        psf     =   psf.shift(
+            dx  =   dx,
+            dy  =   dy,
+        )
 
         obj0    =   galsim.Exponential(
             half_light_radius=gal_hlr,
         ).shear(
             g1  =   shear[0],
             g2  =   shear[1],
-        ).shift(
-            dx  =   dx,
-            dy  =   dy,
         )
-        obj     =   galsim.Convolve(psf, obj0)
 
-        # define the psf and psf here which will be repeatedly used
-        self.psf=   psf.drawImage(scale=scale).array
-        self.img=   obj.drawImage(scale=scale).array
+        self.scale= scale
+
+        self.obj=   galsim.Convolve(psf, obj0)
+
+        # define the psf and gal here which will be repeatedly used
+        self.img0=  self.obj.drawImage(nx=ngrid,ny=ngrid,scale=scale).array
+        self.psf=   psf.drawImage(nx=ngrid,ny=ngrid,scale=scale).array
+        self.ngrid= ngrid
         return
 
-    def make_image(self,noise:float,psf_noise:float=0.):
+    def make_image(self,noise,psf_noise=0.,do_shift=False):
         """
         generate a galaxy image
 
         Parameters:
-            noise:      Noise for the image
-            psf_noise:  Noise for the PSF
+            noise (float):      Noise for the image
+            psf_noise (float):  Noise for the PSF [defalut: 0.]
+            do_shift (bool):    whether shift the galaxy [default: False]
 
         Returns:
-            im:         galaxy image
-            psf_im:     PSF image
+            im (ndarray):       galaxy image
+            psf_im (ndarray):   PSF image
         """
+        if do_shift:
+            dy, dx  =   self.rng.uniform(low=-self.scale/2, high=self.scale/2, size=2)
+            obj     =   self.obj.shift(dx  = dx, dy  = dy)
+            self.img=   obj.drawImage(nx=self.ngrid,ny=self.ngrid,scale=self.scale).array
+        else:
+            self.img=   self.img0
         if noise>1e-10:
             img =   self.img+self.rng.normal(scale=noise,size=self.img.shape)
         else:
@@ -353,6 +365,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
                 # This shift ensure that the offset to (ngrid//2,ngrid//2) is an isotropic circle
                 dx = (ud()+0.5)*scale
                 dy = (ud()+0.5)*scale
+                if i==0:
+                    logging.info('%.2f,%.2f' %(dx,dy))
                 gal= gal.shift(dx,dy)
             elif 'Center' in outDir:
                 # Galaxies is located at (ngrid//2,ngrid//2)
@@ -422,7 +436,7 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
     Parameters:
         shear (tuple):
            (g1, g2),The shear in each component
-        rng (np.random.RandomState):
+        rng (randState):
             The random number generator
         r1  (float):
             The source background noise variance ratio
