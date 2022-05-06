@@ -26,9 +26,9 @@ import numpy.lib.recfunctions as rfn
 det_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
 """list: a list of pixel index, where (2,2) is the centroid
 """
-_gsigma=3.*2*np.pi/64.
-"""float: default gaussian smoothing kernel
-"""
+# _gsigma=3.*2*np.pi/64.
+# """float: default gaussian smoothing kernel
+# """
 
 @numba.njit
 def get_Rlim(psf_array,sigma):
@@ -132,7 +132,7 @@ class fpfsTask():
         chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF2)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         self.prepare_ChiDeri(chi)
-        self.prepare_ChiDet(chi,self.sigmaF)
+        self.prepare_ChiDet(chi)
         self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
 
         if self.noise_correct:
@@ -241,18 +241,17 @@ class fpfsTask():
                     ('fpfs_N00N40','>f8')]
         return
 
-    def prepare_ChiDet(self,chi,gsigma=_gsigma):
+    def prepare_ChiDet(self,chi):
         """
         prepare the basis to estimate covariance for detection
         Parameters:
             chi (ndarray):      2D shapelet basis
-            gsigma (float):     smoothing size
         """
         _chiU  =    chi[self._indC,self._indY,self._indX]
-        gKer,(k2grid,k1grid)=imgutil.gauss_kernel(self.ngrid,self.ngrid,gsigma,\
+        gKer,(k2grid,k1grid)=imgutil.gauss_kernel(self.ngrid,self.ngrid,self.sigmaF,\
                         do_shift=True,return_grid=True)
-        q1Ker  =    (k1grid**2.-k2grid**2.)/gsigma**2.*gKer
-        q2Ker  =    (2.*k1grid*k2grid)/gsigma**2.*gKer
+        q1Ker  =    (k1grid**2.-k2grid**2.)/self.sigmaF**2.*gKer
+        q2Ker  =    (2.*k1grid*k2grid)/self.sigmaF**2.*gKer
         d1Ker  =    (-1j*k1grid)*gKer
         d2Ker  =    (-1j*k2grid)*gKer
         out    =    []
