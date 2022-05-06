@@ -23,7 +23,7 @@ from . import imgutil
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-det_inds=[(1,2),(2,1),(2,2),(2,3),(3,2)]
+det_inds=[(2,2),(1,2),(3,2),(2,1),(2,3)]
 """list: a list of pixel index, where (2,2) is the centroid
 """
 # _gsigma=3.*2*np.pi/64.
