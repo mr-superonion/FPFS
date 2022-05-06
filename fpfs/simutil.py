@@ -365,6 +365,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
                 # This shift ensure that the offset to (ngrid//2,ngrid//2) is an isotropic circle
                 dx = (ud()+0.5)*scale
                 dy = (ud()+0.5)*scale
+                if i==0:
+                    logging.info('%.2f,%.2f' %(dx,dy))
                 gal= gal.shift(dx,dy)
             elif 'Center' in outDir:
                 # Galaxies is located at (ngrid//2,ngrid//2)

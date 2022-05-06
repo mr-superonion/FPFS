@@ -115,8 +115,9 @@ class fpfsTask():
         # scale radius of PSF's Fourier transform (in units of pixel)
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
         # shapelet scale
-        self.sigmaPx=   max(min(sigmaPsf*beta,6.),1.)
-        self.rlim   =   get_Rlim(self.psfPow,self.sigmaPx/np.sqrt(2.))
+        sigmaPx     =   max(min(sigmaPsf*beta,6.),1.)
+        self.sigmaF =   sigmaPx*self._dk
+        self.rlim   =   get_Rlim(self.psfPow,sigmaPx/np.sqrt(2.))
         self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
@@ -132,7 +133,7 @@ class fpfsTask():
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indC =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
         self.nnord=nnord
-        chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
+        chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         self.prepare_ChiDeri(chi)
         if self.noise_correct:
@@ -154,8 +155,6 @@ class fpfsTask():
         """
         self.psfFou= self.psfFou0
         self.psfPow= np.conjugate(self.psfFou)*self.psfFou
-        # we do not ned to reset psfFou since that is only used for detection
-        # (detection only uses average PSF)
         return
 
     def reset_noiFit(self):
@@ -163,8 +162,6 @@ class fpfsTask():
         reset noiFit to the one used to initialize the task
         """
         self.noiFit=self.noiFit0
-        # we do not ned to reset psfFou since that is only used for detection
-        # (detection only uses average PSF)
         return
 
     def setRlim(self,rlim):
@@ -252,12 +249,11 @@ class fpfsTask():
             chi (ndarray):      2D shapelet basis
         """
         # get the Gaussian scale in Fourier space
-        gsigma =    self.sigmaPx*self._dk
         _      =    chi[self._indC,self._indY,self._indX]
-        gKer,(k2grid,k1grid)=imgutil.gauss_kernel(self.ngrid,self.ngrid,gsigma,\
+        gKer,(k2grid,k1grid)=imgutil.gauss_kernel(self.ngrid,self.ngrid,self.sigmaF,\
                         do_shift=True,return_grid=True)
-        q1Ker  =    (k1grid**2.-k2grid**2.)/gsigma**2.*gKer
-        q2Ker  =    (2.*k1grid*k2grid)/gsigma**2.*gKer
+        q1Ker  =    (k1grid**2.-k2grid**2.)/self.sigmaF**2.*gKer
+        q2Ker  =    (2.*k1grid*k2grid)/self.sigmaF**2.*gKer
         d1Ker  =    (-1j*k1grid)*gKer
         d2Ker  =    (-1j*k2grid)*gKer
         out    =    []
@@ -424,19 +420,19 @@ class fpfsTask():
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
 
-def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
+def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
         moments (ndarray):
             input FPFS moments
+        dets (ndarray):
+            detection array
         const (float):
             the _wing Constant [float (default:1)]
         noirev (bool):
             revise the second-order noise bias? [default: False]
-        dets (ndarray):
-            input detection array [default: None]
         flipsign (bool):
             flip the sign of response? (if you are using the
             convention in Li et. al (2018), set it to True)
@@ -464,15 +460,12 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     e2sqS0  =   e2sq*s0
 
     # prepare the shear response for detection operation
-    if dets is not None:
-        dDict=  {}
-        for (j,i) in det_inds:
-            types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
-            types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
-            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
-            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
-    else:
-        dDict=  None
+    dDict=  {}
+    for (j,i) in det_inds:
+        types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
+        types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
+        dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
+        dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
 
     if noirev:
         assert 'fpfs_N00N00' in moments.dtype.names
@@ -481,20 +474,19 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
         ratio=  moments['fpfs_N00N00']/_w**2.
 
         # correction for detection shear response
-        if dets is not None and dDict is not None:
-            assert 'pdet_N22cV22r1' in dets.dtype.names
-            assert 'pdet_N22sV22r2' in dets.dtype.names
-            for (j,i) in det_inds:
-                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
-                    -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
-                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
-                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
-                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
-                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
-                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
-                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
+        assert 'pdet_N22cV22r1' in dets.dtype.names
+        assert 'pdet_N22sV22r2' in dets.dtype.names
+        for (j,i) in det_inds:
+            dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
+                -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
+                +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
+                +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
+            dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
+            dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
+                -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
+                +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
+                +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
+            dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
 
         e1  =   (e1+moments['fpfs_N00N22c']\
                 /_w**2.)/(1+ratio)
