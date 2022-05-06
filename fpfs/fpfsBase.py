@@ -74,13 +74,11 @@ class fpfsTask():
         noiFit (ndarray):
             Estimated noise power function (if you have already estimated noise
             power) [default: None]
-        det_gsigma (float):
-            Gaussian sigma for detection kernel [default: None]
         deubg (bool):
             Whether debug or not [default: False]
     """
     _DefaultName = "fpfsTask"
-    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,det_gsigma=None,debug=False):
+    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,debug=False):
         if not isinstance(beta,(float,int)):
             raise TypeError('Input beta should be float.')
         if beta>=1. or beta<=0.:
@@ -113,8 +111,10 @@ class fpfsTask():
         # scale radius of PSF
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)
         # shapelet scale
-        self.sigmaPx=   max(min(sigmaPsf*beta,4.),1.)
-        self.rlim   =   get_Rlim(self.psfPow,self.sigmaPx)
+        sigmaPx=   max(min(sigmaPsf*beta,4.),1.)
+        self.rlim   =   get_Rlim(self.psfPow,sigmaPx)
+        self.sigmaF2=   sigmaPx*self._dk
+        self.sigmaF =   self.sigmaF2*np.sqrt(2.)
         self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
@@ -129,24 +129,15 @@ class fpfsTask():
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indC =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
         self.nnord=nnord
-        chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaPx*self._dk)\
+        chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF2)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
         self.prepare_ChiDeri(chi)
+        self.prepare_ChiDet(chi,self.sigmaF)
+        self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
+
         if self.noise_correct:
             self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
-            if det_gsigma is not None:
-                logging.info('Will correct detection bias')
-                self.prepare_ChiDet(chi,det_gsigma)
-                self.det_gsigma=det_gsigma
-                self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
-            else:
-                self.det_gsigma=None
-                logging.info('Do not correct for detection bias')
-        else:
-            if det_gsigma is not None:
-                raise ValueError('Cannot fully correct detection bias without \
-                        noise power. Please input noise power.')
         del chi
         if debug:
             self.stackPow=np.zeros(psfData.shape,dtype='>f8')
@@ -427,17 +418,17 @@ class fpfsTask():
             epcor   =   2.*(noiFit*noiFit+2.*galPow*noiFit)
             decEP   =   self.deconvolvePow(epcor,order=2.)
             nn      =   self.itransformCov(decEP)
-            if self.det_gsigma is not None:
-                _tmp=   np.fft.fftshift(np.fft.fft2(data))
-                _tmp=   2.*_tmp*noiFit
-                decDet= self.deconvolve2(_tmp,prder=1.,frder=1)
-                dd  =   self.itransformDet(decDet)
         decPow      =   self.deconvolvePow(galPow,order=1.)
         mm          =   self.itransform(decPow)
-        if (nn is not None) and (dd is not None):
+        _tmp        =   np.fft.fftshift(np.fft.fft2(data))
+        _tmp        =   2.*_tmp*noiFit
+        decDet      =   self.deconvolve2(_tmp,prder=1.,frder=1)
+        dd          =   self.itransformDet(decDet)
+        if nn is not None:
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
-        elif nn is not None:
-            mm      =   rfn.merge_arrays([mm,nn],flatten=True,usemask=False)
+        else:
+            mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
+
         if self.stackPow is not None:
             self.stackPow+=galPow
         return mm
