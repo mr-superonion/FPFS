@@ -159,8 +159,6 @@ class fpfsTask():
         """
         self.psfFou= self.psfFou0
         self.psfPow= np.conjugate(self.psfFou)*self.psfFou
-        # we do not ned to reset psfFou since that is only used for detection
-        # (detection only uses average PSF)
         return
 
     def reset_noiFit(self):
@@ -168,8 +166,6 @@ class fpfsTask():
         reset noiFit to the one used to initialize the task
         """
         self.noiFit=self.noiFit0
-        # we do not ned to reset psfFou since that is only used for detection
-        # (detection only uses average PSF)
         return
 
     def setRlim(self,rlim):
@@ -450,19 +446,19 @@ class fpfsTask():
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
 
-def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
+def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 
     Parameters:
         moments (ndarray):
             input FPFS moments
+        dets (ndarray):
+            detection array
         const (float):
             the _wing Constant [float (default:1)]
         noirev (bool):
             revise the second-order noise bias? [default: False]
-        dets (ndarray):
-            input detection array [default: None]
         flipsign (bool):
             flip the sign of response? (if you are using the
             convention in Li et. al (2018), set it to True)
@@ -490,15 +486,12 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     e2sqS0  =   e2sq*s0
 
     # prepare the shear response for detection operation
-    if dets is not None:
-        dDict=  {}
-        for (j,i) in det_inds:
-            types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
-            types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
-            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
-            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
-    else:
-        dDict=  None
+    dDict=  {}
+    for (j,i) in det_inds:
+        types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
+        types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
+        dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
+        dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
 
     if noirev:
         # do second-order noise bias correction
@@ -508,20 +501,19 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
         ratio=  moments['fpfs_N00N00']/_w**2.
 
         # correction for detection shear response
-        if dets is not None and dDict is not None:
-            assert 'pdet_N22cV22r1' in dets.dtype.names
-            assert 'pdet_N22sV22r2' in dets.dtype.names
-            for (j,i) in det_inds:
-                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
-                    -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
-                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
-                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
-                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
-                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
-                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
-                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
+        assert 'pdet_N22cV22r1' in dets.dtype.names
+        assert 'pdet_N22sV22r2' in dets.dtype.names
+        for (j,i) in det_inds:
+            dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
+                -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
+                +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
+                +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
+            dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
+            dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
+                -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
+                +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
+                +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
+            dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
 
         # equation (22) of Li et.al (2022)
         e1  =   (e1+moments['fpfs_N00N22c']\
