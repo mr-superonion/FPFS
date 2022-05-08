@@ -454,8 +454,13 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
             an array of (FPFS ellipticities, FPFS ellipticity response,
             FPFS flux ratio, and FPFS selection response)
     """
-    types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
-                ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
+    # types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
+    #             ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
+    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),\
+                ('fpfs_s0','>f8'),('fpfs_eSquare','>f8'), ('fpfs_RS','>f8'),\
+                ('fpfs_s4','>f8'), ('fpfs_s2','>f8'),('fpfs_s6','>f8'),\
+                ('fpfs_s42c','>f8'),('fpfs_s42s','>f8'),\
+                ('fpfs_m00','>f8'),('fpfs_m20','>f8')]
     # response for selections (2 shear components for each)
     #Get inverse weight
     _w      =   moments['fpfs_M00']+const
@@ -470,6 +475,12 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     #FPFS sel Respose (part1)
     e1sqS0  =   e1sq*s0
     e2sqS0  =   e2sq*s0
+    ##
+    s2      =   moments['fpfs_M20']/_w 
+    s6      =   moments['fpfs_M60']/_w
+    s42c    =   moments['fpfs_M42c']/_w
+    s42s    =   moments['fpfs_M42s']/_w
+
 
     # prepare the shear response for detection operation
     if dets is not None:
@@ -543,6 +554,14 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
     out['fpfs_s0']   =   s0
     out['fpfs_eSquare']  =   eSq
     out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
+    ###
+    out['fpfs_s4']       =   s4
+    out['fpfs_s2']       =   s2
+    out['fpfs_s6']       =   s6
+    out['fpfs_s42c']     =   s42c
+    out['fpfs_s42s']     =   s42s
+    out['fpfs_m00']      =   moments['fpfs_M00']
+    out['fpfs_m20']      =   moments['fpfs_M20']
     return out
 
 def fpfsM2Err(moments,const=1.):
