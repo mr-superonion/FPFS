@@ -245,9 +245,9 @@ class pcaVector():
             X (ndarray):        input data array (mean subtracted) [shape=(nobj,ndim)]
 
         Atributes:
-            shape (tuple):      shape of the data vector
+            shape (tuple):      shape of the data vector (nobj, ndim)
             bases (ndarray):    principal vectors
-            stds (ndarray):     stds on theses axes
+            stds (ndarray):     stds of theses axes
             projs (ndarray):    projection coefficients of the initializing data
         """
 
@@ -290,7 +290,6 @@ class pcaVector():
             pass
         else:
             raise ValueError('X and fname cannot all be None')
-
         return
 
     def transform(self,X):
