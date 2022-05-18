@@ -1,5 +1,5 @@
 fpfs
-numpy
+galsim
 scipy
 numba
-galsim
+numpy

@@ -4,9 +4,8 @@ import fpfs
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-def analyze_FPFS(rng:np.random.RandomState, input_shear:np.ndarray, num_gals:int,\
-        noi_stds,noi_psf=1e-9):
-    noi_stds=   np.array(noi_stds)
+def analyze_FPFS(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
+    noi_stds =   np.array(noi_stds)
     if len(noi_stds.shape)==0:
         noi_stds=np.array([noi_stds])
     elif len(noi_stds.shape)>=2:

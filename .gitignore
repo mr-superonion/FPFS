@@ -1,10 +1,11 @@
-build*
-*.ipynb_checkpoints/
+build
+.ipynb_checkpoints
 *.pyc
 *.swp
 wrkDir
 datDir
-*.ipynb_checkpoints/*
+doc/_html/*
+doc/_latex/*
 _build
 dist
 *.aux
