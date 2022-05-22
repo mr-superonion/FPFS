@@ -19,8 +19,8 @@
 
 import numba
 import logging
-from . import imgutil
 import numpy as np
+from . import imgutil
 import numpy.lib.recfunctions as rfn
 
 det_inds=[(2,2),(1,2),(3,2),(2,1),(2,3)]
@@ -111,8 +111,10 @@ class fpfsTask():
         # Preparing PSF
         psfData     =   np.array(psfData,dtype='>f8')
         self.psfFou =   np.fft.fftshift(np.fft.fft2(psfData))
-        self.psfFou0=   self.psfFou.copy()
+        self.psfFou0=   self.psfFou.copy() # we keep a copy of the initial PSF
         self.psfPow =   imgutil.getFouPow(psfData)
+
+        # A few import scales
         # scale radius of PSF's Fourier transform (in units of pixel)
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
         # shapelet scale
@@ -134,6 +136,8 @@ class fpfsTask():
             # This setup is able to derive kappa response as well as shear response
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indC =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
+        else:
+            raise ValueError('only support for nnord= 4 or nnord=6')
         self.nnord=nnord
         chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF2)\
                         .reshape(((nnord+1)**2,self.ngrid,self.ngrid))
@@ -142,7 +146,7 @@ class fpfsTask():
         self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
 
         if self.noise_correct:
-            logging.info('photon from noise error covariance will be calculated')
+            logging.info('measurement error covariance will be calculated')
             self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
         del chi
@@ -182,18 +186,17 @@ class fpfsTask():
 
     def prepare_ChiDeri(self,chi):
         """
-        prepare the basis to estimate Derivatives
+        prepare the basis to estimate Derivatives (or equivalent moments)
         Parameters:
             chi (ndarray):  2D shapelet basis
         """
-        _chiU   =   chi[self._indC,self._indY,self._indX]
         out     =   []
         if self.nnord==4:
-            out.append(_chiU.real[0]) #x00
-            out.append(_chiU.real[1]) #x20
-            out.append(_chiU.real[2]);out.append(_chiU.imag[2]) # x22c,s
-            out.append(_chiU.real[3]) # x40
-            out.append(_chiU.real[4]);out.append(_chiU.imag[4]) # x42c,s
+            out.append(chi.real[0]) #x00
+            out.append(chi.real[1]) #x20
+            out.append(chi.real[2]);out.append(chi.imag[2]) # x22c,s
+            out.append(chi.real[3]) # x40
+            out.append(chi.real[4]);out.append(chi.imag[4]) # x42c,s
             out     =   np.stack(out)
             self.deri_types=[
                         ('fpfs_M00','>f8'),\
@@ -203,12 +206,12 @@ class fpfsTask():
                         ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
                         ]
         elif self.nnord==6:
-            out.append(_chiU.real[0]) #x00
-            out.append(_chiU.real[1]) #x20
-            out.append(_chiU.real[2]);out.append(_chiU.imag[2]) # x22c,s
-            out.append(_chiU.real[3]) # x40
-            out.append(_chiU.real[4]);out.append(_chiU.imag[4]) # x42c,s
-            out.append(_chiU.real[5]) # x60
+            out.append(chi.real[0]) #x00
+            out.append(chi.real[1]) #x20
+            out.append(chi.real[2]);out.append(chi.imag[2]) # x22c,s
+            out.append(chi.real[3]) # x40
+            out.append(chi.real[4]);out.append(chi.imag[4]) # x42c,s
+            out.append(chi.real[5]) # x60
             self.deri_types=[
                         ('fpfs_M00','>f8'),\
                         ('fpfs_M20','>f8'),\
@@ -217,34 +220,44 @@ class fpfsTask():
                         ('fpfs_M42c','>f8'),('fpfs_M42s','>f8'),\
                         ('fpfs_M60','>f8')
                         ]
-            # # Wait Zhi Shen to implement higher order shapelets
-            # pass
+        else:
+            raise ValueError('only support for nnord=4 or nnord=6')
+        assert len(out)==len(self.deri_types)
         self.chiD =   out
+        del out
         return
 
     def prepare_ChiCov(self,chi):
         """
-        prepare the basis to estimate covariance
+        prepare the basis to estimate covariance of measurement error
 
         Parameters:
             chi (ndarray):    2D shapelet basis
         """
-        _chiU   =   chi[self._indC,self._indY,self._indX]
         out     =   []
-        out.append(_chiU.real[0]*_chiU.real[0])#x00 x00
-        out.append(_chiU.real[2]*_chiU.real[2])#x22c x22c
-        out.append(_chiU.imag[2]*_chiU.imag[2])#x22s x22s
-        out.append(_chiU.real[3]*_chiU.real[3])#x40 x40
-        out.append(_chiU.real[0]*_chiU.real[2])#x00 x22c
-        out.append(_chiU.real[0]*_chiU.imag[2])#x00 x22s
-        out.append(_chiU.real[0]*_chiU.real[3])#x00 x40
+        # diagonal terms
+        out.append(chi.real[0]*chi.real[0])#x00 x00
+        out.append(chi.real[1]*chi.real[1])#x20 x20
+        out.append(chi.real[2]*chi.real[2])#x22c x22c
+        out.append(chi.imag[2]*chi.imag[2])#x22s x22s
+        out.append(chi.real[3]*chi.real[3])#x40 x40
+        # off-diagonal terms
+        out.append(chi.real[0]*chi.real[2])#x00 x22c
+        out.append(chi.real[0]*chi.imag[2])#x00 x22s
+        out.append(chi.real[0]*chi.real[3])#x00 x40
+        out.append(chi.real[2]*chi.real[4])#x22c x42c
+        out.append(chi.imag[2]*chi.imag[4])#x22s x42s
         out     =   np.stack(out)
-        self.chiCov =   out
-        self.cov_types= [('fpfs_N00N00','>f8'),\
+        self.cov_types= [('fpfs_N00N00','>f8'),('fpfs_N20N20','>f8'),\
                     ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
                     ('fpfs_N40N40','>f8'),\
                     ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
-                    ('fpfs_N00N40','>f8')]
+                    ('fpfs_N00N40','>f8'),\
+                    ('fpfs_N42cN22c','>f8'),('fpfs_N42sN22s','>f8'),\
+                    ]
+        assert len(out)==len(self.cov_types)
+        self.chiCov =   out
+        del out
         return
 
     def prepare_ChiDet(self,chi):
@@ -269,17 +282,18 @@ class fpfsTask():
             r2 =    (q2Ker+y*d1Ker+x*d2Ker)*np.exp(1j*(k1grid*x+k2grid*y))
             r1 =    r1[self._indY,self._indX]/self.ngrid**2.
             r2 =    r2[self._indY,self._indX]/self.ngrid**2.
-            out.append(_.real[0]*r1) #x00*phi;1
-            out.append(_.real[0]*r2) #x00*phi;2
-            out.append(_.real[2]*r1) #x22c*phi;1
-            out.append(_.imag[2]*r2) #x22s*phi;2
+            out.append(chi.real[0]*r1) #x00*phi;1
+            out.append(chi.real[0]*r2) #x00*phi;2
+            out.append(chi.real[2]*r1) #x22c*phi;1
+            out.append(chi.imag[2]*r2) #x22s*phi;2
             self.det_types.append(('pdet_N00F%d%dr1'  %(j,i),'>f8'))
             self.det_types.append(('pdet_N00F%d%dr2'  %(j,i),'>f8'))
             self.det_types.append(('pdet_N22cF%d%dr1' %(j,i),'>f8'))
             self.det_types.append(('pdet_N22sF%d%dr2' %(j,i),'>f8'))
-        del _
         out     =   np.stack(out)
+        assert len(out)==len(self.det_types)
         self.chiDet =   out
+        del out
         return
 
     def deconvolve(self,data,prder=1.,frder=1.):
@@ -304,43 +318,36 @@ class fpfsTask():
                 /self.psfFou[self._ind2D]**frder
         return out
 
-    def itransform(self,data):
+    def itransform(self,data,out_type='Deri'):
         """
         Project image onto shapelet basis vectors
 
         Parameters:
             data (ndarray): image to transfer
+            out_type (str): transform type ('Deri', 'Cov', or 'Det')
 
         Returns:
             out (ndarray):  projection in shapelet space
         """
 
-        # Moments
-        _       =   np.sum(data[None,self._indY,self._indX]\
-                    *self.chiD,axis=(1,2)).real
-        out     =   np.array(tuple(_),dtype=self.deri_types)
-        return out
-
-    def itransformCov(self,data):
-        """
-        Project the (PP+PD)/P^2 to measure the covariance of shapelet modes.
-
-        Parameters:
-            data  (ndarray):    data to transfer
-
-        Returns:
-            out (ndarray):      projection in shapelet space
-        """
-        # Moments
-        _       =   np.sum(data[None,self._indY,self._indX]\
-                    *self.chiCov,axis=(1,2)).real
-        out     =   np.array(tuple(_),dtype=self.cov_types)
-        return out
-
-    def itransformDet(self,data):
-        _       =   np.sum(data[None,self._indY,self._indX]*\
-                    self.chiDet,axis=(1,2)).real
-        out     =   np.array(tuple(_),dtype=self.det_types)
+        if out_type=='Deri':
+            # Derivatives/Moments
+            _       =   np.sum(data[None,self._indY,self._indX]\
+                        *self.chiD,axis=(1,2)).real
+            out     =   np.array(tuple(_),dtype=self.deri_types)
+        elif out_type=='Cov':
+            # covariance of moments
+            _       =   np.sum(data[None,self._indY,self._indX]\
+                        *self.chiCov,axis=(1,2)).real
+            out     =   np.array(tuple(_),dtype=self.cov_types)
+        elif out_type=='Det':
+            # covariance of pixels
+            _       =   np.sum(data[None,self._indY,self._indX]*\
+                        self.chiDet,axis=(1,2)).real
+            out     =   np.array(tuple(_),dtype=self.det_types)
+        else:
+            raise ValueError("out_type can only be 'Deri', 'Cov' or 'Det',\
+                    but the input is '%s'" %out_type)
         return out
 
     def measure(self,galData,psfFou=None,noiFit=None):
@@ -349,6 +356,8 @@ class fpfsTask():
 
         Parameters:
             galData (ndarray|list):     galaxy image
+            psfFou (ndarray):           PSF's Fourier transform
+            noiFit (ndarray):           noise Fourier power function
 
         Returns:
             out (ndarray):              FPFS moments
@@ -424,7 +433,7 @@ class fpfsTask():
             return np.empty(1)
         galFou  =   np.fft.fftshift(np.fft.fft2(data))
         decG    =   self.deconvolve(galFou,prder=0.,frder=1)
-        mm      =   self.itransform(decG)
+        mm      =   self.itransform(decG,out_type='Deri')
         del decG
 
         nn          =   None # photon noise covariance array
@@ -441,8 +450,8 @@ class fpfsTask():
                 # use the input noise power
                 noiFit  =   self.noiFit
             decNp   =   self.deconvolve(noiFit,prder=1,frder=0)
-            nn      =   self.itransformCov(decNp)
-            dd      =   self.itransformDet(decNp)
+            nn      =   self.itransform(decNp,out_type='Cov')
+            dd      =   self.itransform(decNp,out_type='Det')
             del decNp
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
