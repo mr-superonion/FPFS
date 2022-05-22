@@ -31,20 +31,21 @@ det_inds=[(2,2),(1,2),(3,2),(2,1),(2,3)]
 # """
 
 @numba.njit
-def get_Rlim(psf_array,sigma):
+def get_klim(psf_array,sigma):
     """
-    Get rlim, the area outside rlim is supressed by the shaplet Gaussian kernel
-    in FPFS shear estimation method.
+    Get klim, the region outside klim is supressed by the shaplet Gaussian
+    kernel in FPFS shear estimation method; therefore we set values in this
+    region to zeros.
 
     Parameters:
         psf_array (ndarray):    PSF's Fourier power or Fourier transform
 
     Returns:
-        rlim (float):           the limit radius
+        klim (float):           the limit radius
     """
     ngrid   =   psf_array.shape[0]
-    thres   =   1.e-5
-    rlim    =   ngrid//2
+    thres   =   1.e-10
+    klim    =   ngrid//2
     for dist in range(ngrid//5,ngrid//2-1):
         ave =  abs(np.exp(-dist**2./2./sigma**2.)\
                 /psf_array[ngrid//2+dist,ngrid//2])
@@ -52,9 +53,9 @@ def get_Rlim(psf_array,sigma):
                 /psf_array[ngrid//2,ngrid//2+dist])
         ave =   ave/2.
         if ave<=thres:
-            rlim=   dist
+            klim=   dist
             break
-    return rlim
+    return klim
 
 class fpfsTask():
     """
@@ -69,8 +70,8 @@ class fpfsTask():
             the highest order of Shapelets radial components [default: 4]
         noiModel (ndarray):
             Models to be used to fit noise power function using the pixels at
-            large k for each galaxy (if you wish FPFS code to estiamte
-            noise power). [default: None]
+            large k for each galaxy (if you wish FPFS code to estiamte noise
+            power). [default: None]
         noiFit (ndarray):
             Estimated noise power function (if you have already estimated noise
             power) [default: None]
@@ -141,7 +142,7 @@ class fpfsTask():
         self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
 
         if self.noise_correct:
-            logging.info('We correct noise bias')
+            logging.info('photon from noise error covariance will be calculated')
             self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
         del chi
@@ -168,13 +169,13 @@ class fpfsTask():
         self.noiFit=self.noiFit0
         return
 
-    def setRlim(self,rlim):
+    def setRlim(self,klim):
         """
-        set rlim, the area outside rlim is supressed by the shaplet Gaussian
+        set klim, the area outside klim is supressed by the shaplet Gaussian
         kerenl
         """
-        self.rlim=   rlim
-        self._indX=np.arange(self.ngrid//2-self.rlim,self.ngrid//2+self.rlim+1)
+        self.klim_pix=   klim
+        self._indX=np.arange(self.ngrid//2-self.klim_pix,self.ngrid//2+self.klim_pix+1)
         self._indY=self._indX[:,None]
         self._ind2D=np.ix_(self._indX,self._indX)
         return
@@ -295,7 +296,7 @@ class fpfsTask():
 
         Returns:
             out (ndarray):
-                Deconvolved galaxy power (truncated at rlim)
+                Deconvolved galaxy power (truncated at klim)
         """
         out  =   np.zeros(data.shape,dtype=np.complex64)
         out[self._ind2D]=data[self._ind2D]\
@@ -434,7 +435,7 @@ class fpfsTask():
             if self.noiModel is not None:
                 # fit the noise power from the galaxy power
                 galPow  =   imgutil.getFouPow(data)
-                noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+                noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.klim_pix)
                 del galPow
             else:
                 # use the input noise power
@@ -666,7 +667,7 @@ def fpfsM2Err(moments,const=1.):
 #        # Preparing noise Model
 #        self.noiModel=  noiModel
 #        self.noiFit =   noiFit
-#        self.rlim   =   int(ngrid//4)
+#        self.klim_pix   =   int(ngrid//4)
 #        return
 
 #    def test(self,galData):
@@ -706,6 +707,6 @@ def fpfsM2Err(moments,const=1.):
 #        galPow  =   imgutil.getFouPow(data)
 #        if (self.noiFit is not None) or (self.noiModel is not None):
 #            if self.noiModel is not None:
-#                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+#                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.klim_pix)
 #            galPow  =   galPow-self.noiFit
 #        return galPow
