@@ -106,13 +106,21 @@ class fpfsTask():
             self.noiModel=  np.array(noiModel,dtype='>f8')
         else:
             self.noiModel=  None
-        self.noiFit0=   self.noiFit
+        self.noiFit0=   self.noiFit # we keep a copy of the initial noise Fourier power
 
         # Preparing PSF
         psfData     =   np.array(psfData,dtype='>f8')
         self.psfFou =   np.fft.fftshift(np.fft.fft2(psfData))
         self.psfFou0=   self.psfFou.copy() # we keep a copy of the initial PSF
         self.psfPow =   imgutil.getFouPow(psfData)
+        self.psfPow0=   self.psfPow.copy() # we keep a copy of the initial PSF power
+        self.psf_types=[
+                    ('fpfs_psf_M00','>f8'),('fpfs_psf_M20','>f8'),\
+                    ('fpfs_psf_M22c','>f8'),('fpfs_psf_M22s','>f8'),\
+                    ('fpfs_psf_M40','>f8'),\
+                    ('fpfs_psf_M42c','>f8'),('fpfs_psf_M42s','>f8')
+                    ]
+        mm_psf      =   self.itransform(self.psfFou,out_type='PSF')
 
         # A few import scales
         # scale radius of PSF's Fourier transform (in units of pixel)
@@ -142,7 +150,7 @@ class fpfsTask():
             raise ValueError('only support for nnord= 4 or nnord=6')
         self.nnord=nnord
         chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF)\
-                    .reshape(((nnord+1)**2,self.ngrid,self.ngrid))[self._indC,self._indY,self._indX]
+                .reshape(((nnord+1)**2,self.ngrid,self.ngrid))[self._indC,self._indY,self._indX]
         self.prepare_ChiDeri(chi)
         if self.noise_correct:
             logging.info('measurement error covariance will be calculated')
@@ -200,8 +208,7 @@ class fpfsTask():
             out.append(chi.real[4]);out.append(chi.imag[4]) # x42c,s
             out     =   np.stack(out)
             self.deri_types=[
-                        ('fpfs_M00','>f8'),\
-                        ('fpfs_M20','>f8'),\
+                        ('fpfs_M00','>f8'),('fpfs_M20','>f8'),\
                         ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
                         ('fpfs_M40','>f8'),\
                         ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
@@ -214,8 +221,7 @@ class fpfsTask():
             out.append(chi.real[4]);out.append(chi.imag[4]) # x42c,s
             out.append(chi.real[5]) # x60
             self.deri_types=[
-                        ('fpfs_M00','>f8'),\
-                        ('fpfs_M20','>f8'),\
+                        ('fpfs_M00','>f8'),('fpfs_M20','>f8'),\
                         ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
                         ('fpfs_M40','>f8'),\
                         ('fpfs_M42c','>f8'),('fpfs_M42s','>f8'),\
@@ -254,7 +260,7 @@ class fpfsTask():
                     ('fpfs_N40N40','>f8'),\
                     ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
                     ('fpfs_N00N40','>f8'),\
-                    ('fpfs_N42cN22c','>f8'),('fpfs_N42sN22s','>f8'),\
+                    ('fpfs_N22cN42c','>f8'),('fpfs_N22sN42s','>f8'),\
                     ]
         assert len(out)==len(self.cov_types)
         self.chiCov =   out
@@ -304,9 +310,9 @@ class fpfsTask():
         Parameters:
             data (ndarray):
                 galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
-            prder (int):
+            prder (float):
                 deconvlove order of PSF FT power
-            frder (int):
+            frder (float):
                 deconvlove order of PSF FT
 
         Returns:
@@ -346,6 +352,11 @@ class fpfsTask():
             _       =   np.sum(data[None,self._indY,self._indX]*\
                         self.chiDet,axis=(1,2)).real
             out     =   np.array(tuple(_),dtype=self.det_types)
+        elif out_type=='PSF':
+            # Derivatives/Moments
+            _       =   np.sum(data[None,self._indY,self._indX]\
+                        *self.chiD,axis=(1,2)).real
+            out     =   np.array(tuple(_),dtype=self.psf_types)
         else:
             raise ValueError("out_type can only be 'Deri', 'Cov' or 'Det',\
                     but the input is '%s'" %out_type)
@@ -400,7 +411,7 @@ class fpfsTask():
         Measure the FPFS moments
 
         Parameters:
-            data (ndarray):     image array (centroid does not matter)
+            data (ndarray):     galaxy image array (centroid does not matter)
 
         Returns:
             mm (ndarray):       FPFS moments
