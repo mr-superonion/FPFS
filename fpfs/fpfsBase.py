@@ -114,13 +114,6 @@ class fpfsTask():
         self.psfFou0=   self.psfFou.copy() # we keep a copy of the initial PSF
         self.psfPow =   imgutil.getFouPow(psfData)
         self.psfPow0=   self.psfPow.copy() # we keep a copy of the initial PSF power
-        self.psf_types=[
-                    ('fpfs_psf_M00','>f8'),('fpfs_psf_M20','>f8'),\
-                    ('fpfs_psf_M22c','>f8'),('fpfs_psf_M22s','>f8'),\
-                    ('fpfs_psf_M40','>f8'),\
-                    ('fpfs_psf_M42c','>f8'),('fpfs_psf_M42s','>f8')
-                    ]
-        mm_psf      =   self.itransform(self.psfFou,out_type='PSF')
 
         # A few import scales
         # scale radius of PSF's Fourier transform (in units of pixel)
@@ -158,6 +151,15 @@ class fpfsTask():
             self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
         del chi
+
+        # measure PSF properties
+        self.psf_types=[
+                    ('fpfs_psf_M00','>f8'),('fpfs_psf_M20','>f8'),\
+                    ('fpfs_psf_M22c','>f8'),('fpfs_psf_M22s','>f8'),\
+                    ('fpfs_psf_M40','>f8'),\
+                    ('fpfs_psf_M42c','>f8'),('fpfs_psf_M42s','>f8')
+                    ]
+        mm_psf      =   self.itransform(self.psfFou,out_type='PSF')
 
         # others
         if debug:
@@ -467,7 +469,7 @@ class fpfsTask():
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
 
-def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
+def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 
@@ -475,44 +477,46 @@ def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
         moments (ndarray):
             input FPFS moments
         dets (ndarray):
-            detection array
+            detection array [default: None]
         const (float):
-            the _wing Constant [float (default:1)]
+            the weight constant [default:1]
         noirev (bool):
             revise the second-order noise bias? [default: False]
         flipsign (bool):
-            flip the sign of response? (if you are using the
+            flip the sign of response? [default: False] (if you are using the
             convention in Li et. al (2018), set it to True)
 
     Returns:
         out (ndarray):
-            an array of (FPFS ellipticities, FPFS ellipticity response,
-            FPFS flux ratio, and FPFS selection response)
+            an array of (FPFS ellipticities, FPFS ellipticity response, FPFS
+            flux ratio, and FPFS selection response)
     """
     types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
                 ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
-    # response for selections (2 shear components for each)
-    #Get inverse weight
+    # FPFS shape weight's inverse
     _w      =   moments['fpfs_M00']+const
-    #Ellipticity
+    # FPFS ellipticity
     e1      =   moments['fpfs_M22c']/_w
     e2      =   moments['fpfs_M22s']/_w
     e1sq    =   e1*e1
     e2sq    =   e2*e2
-    #FPFS flux ratio
+    # FPFS flux ratio
     s0      =   moments['fpfs_M00']/_w
     s4      =   moments['fpfs_M40']/_w
-    #FPFS sel Respose (part1)
+    # FPFS sel respose
     e1sqS0  =   e1sq*s0
     e2sqS0  =   e2sq*s0
 
-    # prepare the shear response for detection operation
-    dDict=  {}
-    for (j,i) in det_inds:
-        types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
-        types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
-        dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
-        dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
+    if dets is not None:
+        # shear response for detection
+        dDict=  {}
+        for (j,i) in det_inds:
+            types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
+            types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
+            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
+            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
+    else:
+        dDict = None
 
     if noirev:
         # do second-order noise bias correction
@@ -521,20 +525,21 @@ def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
         assert 'fpfs_N00N22s' in moments.dtype.names
         ratio=  moments['fpfs_N00N00']/_w**2.
 
-        # correction for detection shear response
-        assert 'pdet_N22cV22r1' in dets.dtype.names
-        assert 'pdet_N22sV22r2' in dets.dtype.names
-        for (j,i) in det_inds:
-            dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
-                -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
-                +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
-                +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
-            dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
-            dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
-                -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
-                +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
-                +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
-            dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
+        if dDict is not None:
+            # correction detection shear response for noise bias
+            assert 'pdet_N22cV22r1' in dets.dtype.names
+            assert 'pdet_N22sV22r2' in dets.dtype.names
+            for (j,i) in det_inds:
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
+                    -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
+                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
+                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
+                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
+                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
+                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
 
         # equation (22) of Li et.al (2022)
         e1  =   (e1+moments['fpfs_N00N22c']\
@@ -548,6 +553,7 @@ def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
         e2sq=   (e2sq-moments['fpfs_N22sN22s']/_w**2.\
                 +4.*e2*moments['fpfs_N00N22s']/_w**2.)\
                 /(1.+3*ratio)
+        # noise bias correction for flux ratio
         s0  =   (s0+moments['fpfs_N00N00']\
                 /_w**2.)/(1+ratio)
         s4  =   (s4+moments['fpfs_N00N40']\
@@ -559,24 +565,24 @@ def fpfsM2E(moments,dets,const=1.,noirev=False,flipsign=False):
         e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
                 -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
 
-    out  =   np.array(np.zeros(moments.size),dtype=types)
-    if dDict is not None:
-        for (j,i) in det_inds:
-            out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
-            out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
-        del dDict
+    eSq  =   e1sq+e2sq       # shape noise e_1^2+e_2^2
+    eSqS0=   e1sqS0+e2sqS0   # (e_1^2+e_2^2)s_0 for selection bias correcton
+    RE   =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq) # shear response of e
 
-    eSq     =   e1sq+e2sq
-    eSqS0   =   e1sqS0+e2sqS0
-    #Response factor
-    RE   =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq)
+    # make the output ndarray
+    out  =   np.array(np.zeros(moments.size),dtype=types)
     out['fpfs_e1']   =   e1
     out['fpfs_e2']   =   e2
     # In Li et. al (2018) there is a minus sign difference
     out['fpfs_RE']   =   RE*(2.*flipsign.real-1.)
     out['fpfs_s0']   =   s0
-    out['fpfs_eSquare']  =   eSq
+    out['fpfs_eSquare']= eSq
     out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
+    if dDict is not None:
+        for (j,i) in det_inds:
+            out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
+            out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
+        del dDict
     return out
 
 def fpfsM2Err(moments,const=1.):
@@ -585,15 +591,15 @@ def fpfsM2Err(moments,const=1.):
     moments and the moments covariances
 
     Parameters:
-        moments:
-            input FPFS moments [float array]
-        const:
-            the weighting Constant [float]
-        mcalib:
-            multiplicative bias [float array]
+        moments (ndarray):
+            input FPFS moments
+        const (float):
+            the weighting Constant
+        mcalib (ndarray):
+            multiplicative bias
 
     Returns:
-        errDat:
+        errDat (ndarray):
             an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
     """
     assert 'fpfs_N00N00' in moments.dtype.names
@@ -642,91 +648,3 @@ def fpfsM2Err(moments,const=1.):
     errDat['fpfs_e1s0Cov'] =   e1s0Cov
     errDat['fpfs_e2s0Cov'] =   e2s0Cov
     return errDat
-
-#def fpfsM2E_v3(moments,const=1.,mcalib=0.):
-#    """
-#    (This is for higher order shapelest moments
-#    but the implementation of this function is unfinished)
-#    # Estimate FPFS ellipticities from fpfs moments
-
-#    Parameters:
-#    moments:    input FPFS moments
-#    const:      the weighting Constant
-#    mcalib:     multiplicative biases
-
-#    Returns:
-#       an array of FPFS ellipticities, FPFS ellipticity response, FPFS flux ratio
-#
-#
-#    """
-#    #Get weight
-#    weight  =   moments['fpfs_M20']+const
-#    #FPFS flux
-#    flux    =   moments['fpfs_M00']/weight
-#    #Ellipticity
-#    e1      =   moments['fpfs_M22c']/weight
-#    e2      =   moments['fpfs_M22s']/weight
-#    e41     =   moments['fpfs_M42c']/weight
-#    e42     =   moments['fpfs_M42s']/weight
-#    #Response factor
-#    R1      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e1*e41)
-#    R2      =   1./np.sqrt(2.)*(moments['fpfs_M00']-moments['fpfs_M40'])/weight+np.sqrt(6)*(e2*e42)
-#    RE      =   (R1+R2)/2.
-#    types   =   [('fpfs_e1','>f8'),('fpfs_e2','>f8'),('fpfs_RE','>f8'),('fpfs_flux','>f8')]
-#    ellDat  =   np.array(np.zeros(moments.size),dtype=types)
-#    ellDat['fpfs_e1']=e1
-#    ellDat['fpfs_e2']=e2
-#    ellDat['fpfs_RE']=RE
-#    ellDat['fpfs_flux']=flux
-#    return ellDat
-
-#class fpfsTestNoi():
-#    _DefaultName = "fpfsTestNoi"
-#    def __init__(self,ngrid,noiModel=None,noiFit=None):
-#        self.ngrid  =   ngrid
-#        # Preparing noise Model
-#        self.noiModel=  noiModel
-#        self.noiFit =   noiFit
-#        self.klim_pix   =   int(ngrid//4)
-#        return
-
-#    def test(self,galData):
-#        """
-#        # test the noise subtraction
-
-#        Parameters:
-#        galData:    galaxy image [float array (list)]
-
-#        Returns:
-#        out :   FPFS moments
-#
-#
-#        """
-#        if isinstance(galData,np.ndarray):
-#            # single galaxy
-#            out =   self.__test(galData)
-#            return out
-#        elif isinstance(galData,list):
-#            assert isinstance(galData[0],np.ndarray)
-#            # list of galaxies
-#            results=[]
-#            for gal in galData:
-#                _g=self.__test(gal)
-#                results.append(_g)
-#            out =   np.stack(results)
-#            return out
-
-#    def __test(self,data):
-#        """
-#        # test the noise subtraction
-
-#        Parameters:
-#        data:    image array (centroid does not matter)
-#        """
-#        assert len(data.shape)==2
-#        galPow  =   imgutil.getFouPow(data)
-#        if (self.noiFit is not None) or (self.noiModel is not None):
-#            if self.noiModel is not None:
-#                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.klim_pix)
-#            galPow  =   galPow-self.noiFit
-#        return galPow
