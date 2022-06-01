@@ -483,6 +483,7 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
         dDict=  None
 
     if noirev:
+        # do second-order noise bias correction
         assert 'fpfs_N00N00' in moments.dtype.names
         assert 'fpfs_N00N22c' in moments.dtype.names
         assert 'fpfs_N00N22s' in moments.dtype.names
@@ -504,10 +505,12 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
                     +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
                 dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
 
+        # equation (22) of Li et.al (2022)
         e1  =   (e1+moments['fpfs_N00N22c']\
                 /_w**2.)/(1+ratio)
         e2  =   (e2+moments['fpfs_N00N22s']\
                 /_w**2.)/(1+ratio)
+        # e1^2, e2^2
         e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
                 +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
                 /(1.+3*ratio)
@@ -518,8 +521,8 @@ def fpfsM2E(moments,const=1.,noirev=False,dets=None,flipsign=False):
                 /_w**2.)/(1+ratio)
         s4  =   (s4+moments['fpfs_N00N40']\
                 /_w**2.)/(1+ratio)
-
         # correction for selection (by s0) shear response
+        # e1^2s0, e2^2s0
         e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
                 -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
         e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
