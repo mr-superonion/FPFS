@@ -250,6 +250,7 @@ class fpfsTask():
         out.append(chi.imag[2]*chi.imag[2])#x22s x22s
         out.append(chi.real[3]*chi.real[3])#x40 x40
         # off-diagonal terms
+        out.append(chi.real[0]*chi.real[1])#x00 x40
         out.append(chi.real[0]*chi.real[2])#x00 x22c
         out.append(chi.real[0]*chi.imag[2])#x00 x22s
         out.append(chi.real[0]*chi.real[3])#x00 x40
@@ -261,6 +262,7 @@ class fpfsTask():
         self.cov_types= [('fpfs_N00N00','<f8'),('fpfs_N20N20','<f8'),\
                     ('fpfs_N22cN22c','<f8'),('fpfs_N22sN22s','<f8'),\
                     ('fpfs_N40N40','<f8'),\
+                    ('fpfs_N00N20','<f8'),\
                     ('fpfs_N00N22c','<f8'),('fpfs_N00N22s','<f8'),\
                     ('fpfs_N00N40','<f8'),\
                     ('fpfs_N00N42c','<f8'),('fpfs_N00N42s','<f8'),\
@@ -567,7 +569,7 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
         # noise bias correction for flux ratio
         s0  =   (s0+moments['fpfs_N00N00']\
                 /_w**2.)/(1+ratio)
-        s2  =   (s0+moments['fpfs_N00N20']\
+        s2  =   (s2+moments['fpfs_N00N20']\
                 /_w**2.)/(1+ratio)
         s4  =   (s4+moments['fpfs_N00N40']\
                 /_w**2.)/(1+ratio)
@@ -578,9 +580,9 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
         e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
                 -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
         # shear response of resolution selection
-        e1sqS2= (e1sqS0+3.*e1sq*moments['fpfs_N00N20']/_w**2.\
+        e1sqS2= (e1sqS2+3.*e1sq*moments['fpfs_N00N20']/_w**2.\
                 -s2*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
-        e2sqS2= (e2sqS0+3.*e2sq*moments['fpfs_N00N20']/_w**2.\
+        e2sqS2= (e2sqS2+3.*e2sq*moments['fpfs_N00N20']/_w**2.\
                 -s2*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
         e1q1=   (e1q1-moments['fpfs_N22cN42c']/_w**2.)/(1.+3*ratio)
         e2q2=   (e2q2-moments['fpfs_N22sN42s']/_w**2.)/(1.+3*ratio)
@@ -616,7 +618,7 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
     del e1sqS0,e2sqS0
     eqeq =  e1q1+e2q2
     eSqS2=  e1sqS2+e2sqS2   # (e_1^2+e_2^2)s_2 for selection bias correcton
-    del e1sq,e2sq
+    del e1q1,e2q2
     out['fpfs_RS0'] =   (eSq-eSqS0)/np.sqrt(2.) # selection bias correction for flux
     out['fpfs_RS2'] =   (eqeq*np.sqrt(3.)-eSqS2)/np.sqrt(2.) # selection bias correction for resolution
     return out
