@@ -94,22 +94,22 @@ class fpfsTask():
             if isinstance(noiFit,np.ndarray):
                 assert noiFit.shape==psfData.shape, \
                 'the input noise power should have the same shape with input psf image'
-                self.noiFit  =  np.array(noiFit,dtype='>f8')
+                self.noiFit  =  np.array(noiFit,dtype='<f8')
             elif isinstance(noiFit,float):
-                self.noiFit  =  np.ones(psfData.shape,dtype='>f8')*noiFit*(self.ngrid)**2.
+                self.noiFit  =  np.ones(psfData.shape,dtype='<f8')*noiFit*(self.ngrid)**2.
             else:
                 raise TypeError('noiFit should be either np.ndarray or float')
         else:
             self.noiFit  =  0.
         if noiModel is not None:
             self.noise_correct=True
-            self.noiModel=  np.array(noiModel,dtype='>f8')
+            self.noiModel=  np.array(noiModel,dtype='<f8')
         else:
             self.noiModel=  None
         self.noiFit0=   self.noiFit # we keep a copy of the initial noise Fourier power
 
         # Preparing PSF
-        psfData     =   np.array(psfData,dtype='>f8')
+        psfData     =   np.array(psfData,dtype='<f8')
         self.psfFou =   np.fft.fftshift(np.fft.fft2(psfData))
         self.psfFou0=   self.psfFou.copy() # we keep a copy of the initial PSF
         self.psfPow =   imgutil.getFouPow(psfData)
@@ -155,16 +155,16 @@ class fpfsTask():
 
         # measure PSF properties
         self.psf_types=[
-                    ('fpfs_psf_M00','>f8'),('fpfs_psf_M20','>f8'),\
-                    ('fpfs_psf_M22c','>f8'),('fpfs_psf_M22s','>f8'),\
-                    ('fpfs_psf_M40','>f8'),\
-                    ('fpfs_psf_M42c','>f8'),('fpfs_psf_M42s','>f8')
+                    ('fpfs_psf_M00','<f8'),('fpfs_psf_M20','<f8'),\
+                    ('fpfs_psf_M22c','<f8'),('fpfs_psf_M22s','<f8'),\
+                    ('fpfs_psf_M40','<f8'),\
+                    ('fpfs_psf_M42c','<f8'),('fpfs_psf_M42s','<f8')
                     ]
         mm_psf      =   self.itransform(self.psfFou,out_type='PSF')
 
         # others
         if debug:
-            self.stackPow=np.zeros(psfData.shape,dtype='>f8')
+            self.stackPow=np.zeros(psfData.shape,dtype='<f8')
         else:
             self.stackPow=None
         return
@@ -210,10 +210,10 @@ class fpfsTask():
             out.append(chi.real[4]);out.append(chi.imag[4]) # x42c,s
             out     =   np.stack(out)
             self.deri_types=[
-                        ('fpfs_M00','>f8'),('fpfs_M20','>f8'),\
-                        ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-                        ('fpfs_M40','>f8'),\
-                        ('fpfs_M42c','>f8'),('fpfs_M42s','>f8')
+                        ('fpfs_M00','<f8'),('fpfs_M20','<f8'),\
+                        ('fpfs_M22c','<f8'),('fpfs_M22s','<f8'),\
+                        ('fpfs_M40','<f8'),\
+                        ('fpfs_M42c','<f8'),('fpfs_M42s','<f8')
                         ]
         elif self.nnord==6:
             out.append(chi.real[0]) #x00
@@ -223,11 +223,11 @@ class fpfsTask():
             out.append(chi.real[4]);out.append(chi.imag[4]) # x42c,s
             out.append(chi.real[5]) # x60
             self.deri_types=[
-                        ('fpfs_M00','>f8'),('fpfs_M20','>f8'),\
-                        ('fpfs_M22c','>f8'),('fpfs_M22s','>f8'),\
-                        ('fpfs_M40','>f8'),\
-                        ('fpfs_M42c','>f8'),('fpfs_M42s','>f8'),\
-                        ('fpfs_M60','>f8')
+                        ('fpfs_M00','<f8'),('fpfs_M20','<f8'),\
+                        ('fpfs_M22c','<f8'),('fpfs_M22s','<f8'),\
+                        ('fpfs_M40','<f8'),\
+                        ('fpfs_M42c','<f8'),('fpfs_M42s','<f8'),\
+                        ('fpfs_M60','<f8')
                         ]
         else:
             raise ValueError('only support for nnord=4 or nnord=6')
@@ -254,15 +254,18 @@ class fpfsTask():
         out.append(chi.real[0]*chi.real[2])#x00 x22c
         out.append(chi.real[0]*chi.imag[2])#x00 x22s
         out.append(chi.real[0]*chi.real[3])#x00 x40
+        out.append(chi.real[0]*chi.real[4])#x00 x42c
+        out.append(chi.real[0]*chi.imag[4])#x00 x42s
         out.append(chi.real[2]*chi.real[4])#x22c x42c
         out.append(chi.imag[2]*chi.imag[4])#x22s x42s
         out     =   np.stack(out)
-        self.cov_types= [('fpfs_N00N00','>f8'),('fpfs_N20N20','>f8'),\
-                    ('fpfs_N22cN22c','>f8'),('fpfs_N22sN22s','>f8'),\
-                    ('fpfs_N40N40','>f8'),\
-                    ('fpfs_N00N22c','>f8'),('fpfs_N00N22s','>f8'),\
-                    ('fpfs_N00N40','>f8'),\
-                    ('fpfs_N22cN42c','>f8'),('fpfs_N22sN42s','>f8'),\
+        self.cov_types= [('fpfs_N00N00','<f8'),('fpfs_N20N20','<f8'),\
+                    ('fpfs_N22cN22c','<f8'),('fpfs_N22sN22s','<f8'),\
+                    ('fpfs_N40N40','<f8'),\
+                    ('fpfs_N00N22c','<f8'),('fpfs_N00N22s','<f8'),\
+                    ('fpfs_N00N40','<f8'),\
+                    ('fpfs_N00N42c','<f8'),('fpfs_N00N42s','<f8'),\
+                    ('fpfs_N22cN42c','<f8'),('fpfs_N22sN42s','<f8'),\
                     ]
         assert len(out)==len(self.cov_types)
         self.chiCov =   out
@@ -295,10 +298,10 @@ class fpfsTask():
             out.append(chi.real[0]*r2) #x00*phi;2
             out.append(chi.real[2]*r1) #x22c*phi;1
             out.append(chi.imag[2]*r2) #x22s*phi;2
-            self.det_types.append(('pdet_N00F%d%dr1'  %(j,i),'>f8'))
-            self.det_types.append(('pdet_N00F%d%dr2'  %(j,i),'>f8'))
-            self.det_types.append(('pdet_N22cF%d%dr1' %(j,i),'>f8'))
-            self.det_types.append(('pdet_N22sF%d%dr2' %(j,i),'>f8'))
+            self.det_types.append(('pdet_N00F%d%dr1'  %(j,i),'<f8'))
+            self.det_types.append(('pdet_N00F%d%dr2'  %(j,i),'<f8'))
+            self.det_types.append(('pdet_N22cF%d%dr1' %(j,i),'<f8'))
+            self.det_types.append(('pdet_N22sF%d%dr2' %(j,i),'<f8'))
         out     =   np.stack(out)
         assert len(out)==len(self.det_types)
         self.chiDet =   out
@@ -469,43 +472,48 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
             an array of (FPFS ellipticities, FPFS ellipticity response, FPFS
             flux ratio, and FPFS selection response)
     """
-    types   =   [('fpfs_e1','>f8'), ('fpfs_e2','>f8'),      ('fpfs_RE','>f8'),\
-                ('fpfs_s0','>f8') , ('fpfs_eSquare','>f8'), ('fpfs_RS','>f8')]
+    # ellipticity, q-ellipticity, sizes, e^2, eq
+    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8'),  ('fpfs_RE','<f8'), \
+                ('fpfs_q1','<f8'), ('fpfs_q2','<f8'), \
+                ('fpfs_s0','<f8') , ('fpfs_s2','<f8') , ('fpfs_s4','<f8'),\
+                ('fpfs_ee','<f8'), ('fpfs_eq','<f8'),\
+                ('fpfs_RS0','<f8'),('fpfs_RS2','<f8')]
     # FPFS shape weight's inverse
     _w      =   moments['fpfs_M00']+const
     # FPFS ellipticity
     e1      =   moments['fpfs_M22c']/_w
     e2      =   moments['fpfs_M22s']/_w
+    q1      =   moments['fpfs_M42c']/_w #New
+    q2      =   moments['fpfs_M42s']/_w
     e1sq    =   e1*e1
     e2sq    =   e2*e2
+    e1q1    =   e1*q1   #New
+    e2q2    =   e2*q2
     # FPFS flux ratio
     s0      =   moments['fpfs_M00']/_w
+    s2      =   moments['fpfs_M20']/_w
     s4      =   moments['fpfs_M40']/_w
     # FPFS sel respose
     e1sqS0  =   e1sq*s0
     e2sqS0  =   e2sq*s0
+    e1sqS2  =   e1sq*s2 #New
+    e2sqS2  =   e2sq*s2
 
     if dets is not None:
         # shear response for detection
         dDict=  {}
         for (j,i) in det_inds:
-            types.append(('fpfs_e1v%d%dr1'%(j,i),'>f8'))
-            types.append(('fpfs_e2v%d%dr2'%(j,i),'>f8'))
+            types.append(('fpfs_e1v%d%dr1'%(j,i),'<f8'))
+            types.append(('fpfs_e2v%d%dr2'%(j,i),'<f8'))
             dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
             dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
     else:
         dDict = None
 
     if noirev:
-        assert 'fpfs_N00N00' in moments.dtype.names
-        assert 'fpfs_N00N22c' in moments.dtype.names
-        assert 'fpfs_N00N22s' in moments.dtype.names
         ratio=  moments['fpfs_N00N00']/_w**2.
-
         if dDict is not None:
             # correction detection shear response for noise bias
-            assert 'pdet_N22cV22r1' in dets.dtype.names
-            assert 'pdet_N22sV22r2' in dets.dtype.names
             for (j,i) in det_inds:
                 dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
                     -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
@@ -523,6 +531,10 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
                 /_w**2.)/(1+ratio)
         e2  =   (e2+moments['fpfs_N00N22s']\
                 /_w**2.)/(1+ratio)
+        q1  =   (q1+moments['fpfs_N00N42c']\
+                /_w**2.)/(1+ratio)
+        q2  =   (q2+moments['fpfs_N00N42s']\
+                /_w**2.)/(1+ratio)
         e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
                 +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
                 /(1.+3*ratio)
@@ -532,32 +544,57 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
         # noise bias correction for flux ratio
         s0  =   (s0+moments['fpfs_N00N00']\
                 /_w**2.)/(1+ratio)
+        s2  =   (s0+moments['fpfs_N00N20']\
+                /_w**2.)/(1+ratio)
         s4  =   (s4+moments['fpfs_N00N40']\
                 /_w**2.)/(1+ratio)
-        # noise bias correction for shear response of s0 selection
+        # shear response of s0 selection
         e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
                 -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
         e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
                 -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
-
-    eSq  =   e1sq+e2sq       # shape noise e_1^2+e_2^2
-    eSqS0=   e1sqS0+e2sqS0   # (e_1^2+e_2^2)s_0 for selection bias correcton
-    RE   =   1./np.sqrt(2.)*(s0-s4+e1sq+e2sq) # shear response of e
+        # shear response of resolution selection
+        e1sqS2= (e1sqS0+3.*e1sq*moments['fpfs_N00N20']/_w**2.\
+                -s2*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
+        e2sqS2= (e2sqS0+3.*e2sq*moments['fpfs_N00N20']/_w**2.\
+                -s2*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
+        e1q1=   (e1q1-moments['fpfs_N22cN42c']/_w**2.)/(1.+3*ratio)
+        e2q2=   (e2q2-moments['fpfs_N22sN42s']/_w**2.)/(1.+3*ratio)
 
     # make the output ndarray
     out  =   np.array(np.zeros(moments.size),dtype=types)
-    out['fpfs_e1']   =   e1
-    out['fpfs_e2']   =   e2
-    # In Li et. al (2018) there is a minus sign difference
-    out['fpfs_RE']   =   RE*(2.*flipsign.real-1.)
-    out['fpfs_s0']   =   s0
-    out['fpfs_eSquare']= eSq
-    out['fpfs_RS']   =   (eSq-eSqS0)/np.sqrt(2.)
     if dDict is not None:
         for (j,i) in det_inds:
             out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
             out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
         del dDict
+
+    # spin-2 properties
+    out['fpfs_e1']  =   e1      # ellipticity
+    out['fpfs_e2']  =   e2
+    out['fpfs_q1']  =   q1      # epsilon
+    out['fpfs_q2']  =   q2
+    del e1,e2,q1,q2
+
+    # spin-0 properties
+    out['fpfs_s0']  =   s0      # flux
+    out['fpfs_s2']  =   s2      # size2
+    out['fpfs_s4']  =   s4      # size4
+    eSq  =  e1sq+e2sq       # e_1^2+e_2^2
+    RE   =  1./np.sqrt(2.)*(s0-s4+eSq) # shear response of e
+    # Li et. al (2018) has a minus sign difference
+    out['fpfs_RE']  =   RE*(2.*flipsign.real-1.)
+    out['fpfs_ee']  =   eSq     # shape noise
+    del s0,s2,s4,RE,e1sq,e2sq
+
+    # for selection bias correction
+    eSqS0=  e1sqS0+e2sqS0   # (e_1^2+e_2^2)s_0 for selection bias correcton
+    del e1sqS0,e2sqS0
+    eqeq =  e1q1+e2q2
+    eSqS2=  e1sqS2+e2sqS2   # (e_1^2+e_2^2)s_2 for selection bias correcton
+    del e1sq,e2sq
+    out['fpfs_RS0'] =   (eSq-eSqS0)/np.sqrt(2.) # selection bias correction for flux
+    out['fpfs_RS2'] =   (eqeq*np.sqrt(3.)-eSqS2)/np.sqrt(2.) # selection bias correction for resolution
     return out
 
 def fpfsM2Err(moments,const=1.):
@@ -614,8 +651,8 @@ def fpfsM2Err(moments,const=1.):
             -2.*e2*moments['fpfs_N00N00']/weight**2.\
             +3*ratio*e2*s0
 
-    types   =   [('fpfs_e1Err','>f8'),('fpfs_e2Err','>f8'),('fpfs_s0Err','>f8'),\
-                    ('fpfs_e1s0Cov','>f8'),('fpfs_e2s0Cov','>f8')]
+    types   =   [('fpfs_e1Err','<f8'),('fpfs_e2Err','<f8'),('fpfs_s0Err','<f8'),\
+                    ('fpfs_e1s0Cov','<f8'),('fpfs_e2s0Cov','<f8')]
     errDat  =   np.array(np.zeros(len(moments)),dtype=types)
     errDat['fpfs_e1Err']   =   e1Err
     errDat['fpfs_e2Err']   =   e2Err

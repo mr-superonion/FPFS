@@ -120,6 +120,7 @@ if with_hst:
 
 # LSST Task
 try:
+    import lsst.geom as geom
     import lsst.afw.math as afwMath
     import lsst.afw.image as afwImg
     import lsst.afw.geom as afwGeom
@@ -158,12 +159,12 @@ if with_lsst:
         exposure.setPsf(kernelPSF)
         #prepare the wcs
         #Rotation
-        cdelt   =   (pixScale*afwGeom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, afwGeom.Angle(0.))#no rotation
+        cdelt   =   (pixScale*geom.arcseconds)
+        CD      =   afwGeom.makeCdMatrix(cdelt, geom.Angle(0.))#no rotation
         #wcs
-        crval   =   afwGeom.SpherePoint(afwGeom.Angle(0.,afwGeom.degrees),afwGeom.Angle(0.,afwGeom.degrees))
+        crval   =   geom.SpherePoint(geom.Angle(0.,geom.degrees),geom.Angle(0.,geom.degrees))
         #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
-        crpix   =   afwGeom.Point2D(0.0, 0.0)
+        crpix   =   geom.Point2D(0.0, 0.0)
         dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
         exposure.setWcs(dataWcs)
         #prepare the frc
