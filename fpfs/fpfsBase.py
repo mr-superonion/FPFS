@@ -37,7 +37,7 @@ def get_klim(psf_array,sigma):
     kernel in FPFS shear estimation method; therefore we set values in this
     region to zeros.
 
-    Parameters:
+    Args:
         psf_array (ndarray):    PSF's Fourier power or Fourier transform
 
     Returns:
@@ -61,7 +61,7 @@ class fpfsTask():
     """
     A class to measure FPFS shapelet mode estimation.
 
-    Parameters:
+    Args:
         psfData (ndarray):
             an average PSF image used to initialize the task
         beta (float):
@@ -198,7 +198,7 @@ class fpfsTask():
     def prepare_ChiDeri(self,chi):
         """
         prepare the basis to estimate Derivatives (or equivalent moments)
-        Parameters:
+        Args:
             chi (ndarray):  2D shapelet basis
         """
         out     =   []
@@ -240,7 +240,7 @@ class fpfsTask():
         """
         prepare the basis to estimate covariance of measurement error
 
-        Parameters:
+        Args:
             chi (ndarray):    2D shapelet basis
         """
         out     =   []
@@ -251,7 +251,7 @@ class fpfsTask():
         out.append(chi.imag[2]*chi.imag[2])#x22s x22s
         out.append(chi.real[3]*chi.real[3])#x40 x40
         # off-diagonal terms
-        out.append(chi.real[0]*chi.real[1])#x00 x40
+        out.append(chi.real[0]*chi.real[1])#x00 x20
         out.append(chi.real[0]*chi.real[2])#x00 x22c
         out.append(chi.real[0]*chi.imag[2])#x00 x22s
         out.append(chi.real[0]*chi.real[3])#x00 x40
@@ -277,7 +277,7 @@ class fpfsTask():
     def prepare_ChiDet(self,chi):
         """
         prepare the basis to estimate covariance for detection
-        Parameters:
+        Args:
             chi (ndarray):      2D shapelet basis
         """
         # get the Gaussian scale in Fourier space
@@ -314,7 +314,7 @@ class fpfsTask():
         """
         Deconvolve input data with the PSF or PSF power
 
-        Parameters:
+        Args:
             data (ndarray):
                 galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
             prder (float):
@@ -336,7 +336,7 @@ class fpfsTask():
         """
         Project image onto shapelet basis vectors
 
-        Parameters:
+        Args:
             data (ndarray): image to transfer
             out_type (str): transform type ('Deri', 'Cov', or 'Det')
 
@@ -373,7 +373,7 @@ class fpfsTask():
         """
         Measure the FPFS moments
 
-        Parameters:
+        Args:
             galData (ndarray|list):     galaxy image
             psfFou (ndarray):           PSF's Fourier transform
             noiFit (ndarray):           noise Fourier power function
@@ -417,7 +417,7 @@ class fpfsTask():
         """
         Measure the FPFS moments
 
-        Parameters:
+        Args:
             data (ndarray):     galaxy image array (centroid does not matter)
 
         Returns:
@@ -452,12 +452,12 @@ class fpfsTask():
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
 
-def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
+def fpfsM2E(mm,dets=None,const=1.,noirev=False):
     """
     Estimate FPFS ellipticities from fpfs moments
 
-    Parameters:
-        moments (ndarray):
+    Args:
+        mm (ndarray):
             input FPFS moments
         dets (ndarray):
             detection array [default: None]
@@ -465,41 +465,32 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
             the weight constant [default:1]
         noirev (bool):
             revise the second-order noise bias? [default: False]
-        flipsign (bool):
-            flip the sign of response? [default: False] (if you are using the
-            convention in Li et. al (2018), set it to True)
 
     Returns:
         out (ndarray):
             an array of (FPFS ellipticities, FPFS ellipticity response, FPFS
-            flux ratio, and FPFS selection response)
+            flux, size and FPFS selection response)
     """
     # ellipticity, q-ellipticity, sizes, e^2, eq
-    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8'),  ('fpfs_RE','<f8'), \
-                ('fpfs_q1','<f8'), ('fpfs_q2','<f8'), \
+    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8') , ('fpfs_ee','<f8'),\
                 ('fpfs_s0','<f8') , ('fpfs_s2','<f8') , ('fpfs_s4','<f8'),\
-                ('fpfs_ee','<f8'), ('fpfs_eq','<f8'),\
-                ('fpfs_RS0','<f8'),('fpfs_RS2','<f8')]
+                ('fpfs_RE','<f8') , ('fpfs_RS0','<f8'), ('fpfs_RS2','<f8')]
+
     # FPFS shape weight's inverse
-    _w      =   moments['fpfs_M00']+const
+    _w      =   mm['fpfs_M00']+const
     # FPFS ellipticity
-    e1      =   moments['fpfs_M22c']/_w
-    e2      =   moments['fpfs_M22s']/_w
-    q1      =   moments['fpfs_M42c']/_w #New
-    q2      =   moments['fpfs_M42s']/_w
-    e1sq    =   e1*e1
-    e2sq    =   e2*e2
-    e1q1    =   e1*q1   #New
-    e2q2    =   e2*q2
-    # FPFS flux ratio
-    s0      =   moments['fpfs_M00']/_w
-    s2      =   moments['fpfs_M20']/_w
-    s4      =   moments['fpfs_M40']/_w
-    # FPFS sel respose
-    e1sqS0  =   e1sq*s0
-    e2sqS0  =   e2sq*s0
-    e1sqS2  =   e1sq*s2 #New
-    e2sqS2  =   e2sq*s2
+    e1      =   mm['fpfs_M22c']/_w
+    e2      =   mm['fpfs_M22s']/_w
+    q1      =   mm['fpfs_M42c']/_w
+    q2      =   mm['fpfs_M42s']/_w
+    # FPFS spin-0 observables
+    s0      =   mm['fpfs_M00']/_w
+    s2      =   mm['fpfs_M20']/_w
+    s4      =   mm['fpfs_M40']/_w
+    # intrinsic ellipticity
+    ee      =   e1*e1+e2*e2
+    eM22    =   e1*mm['fpfs_M22c']+e2*mm['fpfs_M22s']
+    eM42    =   e1*mm['fpfs_M42c']+e2*mm['fpfs_M42s']
 
     if dets is not None:
         # shear response for detection
@@ -513,58 +504,47 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
         dDict = None
 
     if noirev:
-        ratio=  moments['fpfs_N00N00']/_w**2.
+        ratio=  mm['fpfs_N00N00']/_w**2.
         if dDict is not None:
             # correction detection shear response for noise bias
             for (j,i) in det_inds:
                 dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
                     -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
                     +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
+                    +1.*mm['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
                 dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
                 dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
                     -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
                     +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
+                    +1.*mm['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
                 dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
 
+        # intrinsic shape dispersion (not per component)
+        ee      =   (ee-(mm['fpfs_N22cN22c']+mm['fpfs_N22sN22s'])/_w**2.\
+                    +4.*(e1*mm['fpfs_N00N22c']+e2*mm['fpfs_N00N22s'])/_w**2.)\
+                    /(1.+3*ratio)
+        eM22    =   (eM22-(mm['fpfs_N22cN22c']+mm['fpfs_N22sN22s'])/_w \
+                    +2.*(mm['fpfs_N00N22c']*e1+mm['fpfs_N00N22s']*e2)/_w)\
+                    /(1+ratio)
+        eM42    =   (eM42-(mm['fpfs_N22cN42c']+mm['fpfs_N22sN42s'])/_w\
+                    +1.*(e1*mm['fpfs_N00N42c']+e2*mm['fpfs_N00N42s'])/_w\
+                    +1.*(q1*mm['fpfs_N00N22c']+q2*mm['fpfs_N00N22s'])/_w)\
+                    /(1+ratio)
         # noise bias correction for ellipticity
-        e1  =   (e1+moments['fpfs_N00N22c']\
+        e1  =   (e1+mm['fpfs_N00N22c']\
                 /_w**2.)/(1+ratio)
-        e2  =   (e2+moments['fpfs_N00N22s']\
+        e2  =   (e2+mm['fpfs_N00N22s']\
                 /_w**2.)/(1+ratio)
-        q1  =   (q1+moments['fpfs_N00N42c']\
+        # noise bias correction for flux, size
+        s0  =   (s0+mm['fpfs_N00N00']\
                 /_w**2.)/(1+ratio)
-        q2  =   (q2+moments['fpfs_N00N42s']\
+        s2  =   (s2+mm['fpfs_N00N20']\
                 /_w**2.)/(1+ratio)
-        e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
-                +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
-                /(1.+3*ratio)
-        e2sq=   (e2sq-moments['fpfs_N22sN22s']/_w**2.\
-                +4.*e2*moments['fpfs_N00N22s']/_w**2.)\
-                /(1.+3*ratio)
-        # noise bias correction for flux ratio
-        s0  =   (s0+moments['fpfs_N00N00']\
+        s4  =   (s4+mm['fpfs_N00N40']\
                 /_w**2.)/(1+ratio)
-        s2  =   (s2+moments['fpfs_N00N20']\
-                /_w**2.)/(1+ratio)
-        s4  =   (s4+moments['fpfs_N00N40']\
-                /_w**2.)/(1+ratio)
-        # shear response of s0 selection
-        e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
-                -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
-        e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
-                -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
-        # shear response of resolution selection
-        e1sqS2= (e1sqS2+3.*e1sq*moments['fpfs_N00N20']/_w**2.\
-                -s2*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
-        e2sqS2= (e2sqS2+3.*e2sq*moments['fpfs_N00N20']/_w**2.\
-                -s2*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
-        e1q1=   (e1q1-moments['fpfs_N22cN42c']/_w**2.)/(1.+3*ratio)
-        e2q2=   (e2q2-moments['fpfs_N22sN42s']/_w**2.)/(1.+3*ratio)
 
     # make the output ndarray
-    out  =   np.array(np.zeros(moments.size),dtype=types)
+    out  =   np.array(np.zeros(mm.size),dtype=types)
     if dDict is not None:
         for (j,i) in det_inds:
             out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
@@ -574,44 +554,32 @@ def fpfsM2E(moments,dets=None,const=1.,noirev=False,flipsign=False):
     # spin-2 properties
     out['fpfs_e1']  =   e1      # ellipticity
     out['fpfs_e2']  =   e2
-    out['fpfs_q1']  =   q1      # epsilon
-    out['fpfs_q2']  =   q2
-    del e1,e2,q1,q2
-
+    del e1,e2
     # spin-0 properties
     out['fpfs_s0']  =   s0      # flux
     out['fpfs_s2']  =   s2      # size2
     out['fpfs_s4']  =   s4      # size4
-    eSq  =  e1sq+e2sq       # e_1^2+e_2^2
-    RE   =  1./np.sqrt(2.)*(s0-s4+eSq) # shear response of e
-    # Li et. al (2018) has a minus sign difference
-    out['fpfs_RE']  =   RE*(2.*flipsign.real-1.)
-    out['fpfs_ee']  =   eSq     # shape noise
-    del s0,s2,s4,RE,e1sq,e2sq
-
-    # for selection bias correction
-    eSqS0=  e1sqS0+e2sqS0   # (e_1^2+e_2^2)s_0 for selection bias correcton
-    del e1sqS0,e2sqS0
-    eqeq =  e1q1+e2q2
-    eSqS2=  e1sqS2+e2sqS2   # (e_1^2+e_2^2)s_2 for selection bias correcton
-    del e1q1,e2q2
-    out['fpfs_RS0'] =   (eSq-eSqS0)/np.sqrt(2.) # selection bias correction for flux
-    out['fpfs_RS2'] =   (eqeq*np.sqrt(3.)-eSqS2)/np.sqrt(2.) # selection bias correction for resolution
+    out['fpfs_ee']  =   ee      # shape noise
+    # responses
+    RE =  (s0-s4+ee)/np.sqrt(2.)# shear response of e
+    out['fpfs_RE']  =   RE
+    del s0,s2,s4,RE,ee
+    # response for selection process (not response for selection function)
+    out['fpfs_RS0']  =  -1.*eM22/np.sqrt(2.)
+    out['fpfs_RS2']  =  -1.*eM42*np.sqrt(6.)/2.
     return out
 
 def fpfsM2Err(moments,const=1.):
     """
     Estimate FPFS measurement errors from the fpfs
     moments and the moments covariances
-
-    Parameters:
+    Args:
         moments (ndarray):
             input FPFS moments
         const (float):
             the weighting Constant
         mcalib (ndarray):
             multiplicative bias
-
     Returns:
         errDat (ndarray):
             an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
@@ -662,3 +630,156 @@ def fpfsM2Err(moments,const=1.):
     errDat['fpfs_e1s0Cov'] =   e1s0Cov
     errDat['fpfs_e2s0Cov'] =   e2s0Cov
     return errDat
+
+def fpfsM2E_old(moments,dets=None,const=1.,noirev=False):
+    """
+    Estimate FPFS ellipticities from fpfs moments
+
+    Args:
+        moments (ndarray):
+            input FPFS moments
+        dets (ndarray):
+            detection array [default: None]
+        const (float):
+            the weight constant [default:1]
+        noirev (bool):
+            revise the second-order noise bias? [default: False]
+
+    Returns:
+        out (ndarray):
+            an array of (FPFS ellipticities, FPFS ellipticity response, FPFS
+            flux ratio, and FPFS selection response)
+    """
+    # ellipticity, q-ellipticity, sizes, e^2, eq
+    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8'),  ('fpfs_RE','<f8'), \
+                ('fpfs_q1','<f8'), ('fpfs_q2','<f8'), \
+                ('fpfs_s0','<f8') , ('fpfs_s2','<f8') , ('fpfs_s4','<f8'),\
+                ('fpfs_ee','<f8'), ('fpfs_eq','<f8'),\
+                ('fpfs_RS0','<f8'),('fpfs_RS2','<f8')]
+    # FPFS shape weight's inverse
+    _w      =   moments['fpfs_M00']+const
+    # FPFS ellipticity
+    e1      =   moments['fpfs_M22c']/_w
+    e2      =   moments['fpfs_M22s']/_w
+    # q1      =   moments['fpfs_M42c']/_w #New
+    # q2      =   moments['fpfs_M42s']/_w
+    e1sq    =   e1*e1
+    e2sq    =   e2*e2
+    # e1q1    =   e1*q1   #New
+    # e2q2    =   e2*q2
+    # FPFS flux ratio
+    s0      =   moments['fpfs_M00']/_w
+    s2      =   moments['fpfs_M20']/_w
+    s4      =   moments['fpfs_M40']/_w
+    # # FPFS sel respose
+    # e1sqS0  =   e1sq*s0
+    # e2sqS0  =   e2sq*s0
+    # e1sqS2  =   e1sq*s2 #New
+    # e2sqS2  =   e2sq*s2
+
+    if dets is not None:
+        # shear response for detection
+        dDict=  {}
+        for (j,i) in det_inds:
+            types.append(('fpfs_e1v%d%dr1'%(j,i),'<f8'))
+            types.append(('fpfs_e2v%d%dr2'%(j,i),'<f8'))
+            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
+            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
+    else:
+        dDict = None
+
+    if noirev:
+        ratio=  moments['fpfs_N00N00']/_w**2.
+        if dDict is not None:
+            # correction detection shear response for noise bias
+            for (j,i) in det_inds:
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
+                    -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
+                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
+                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
+                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
+                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
+                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
+                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
+                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
+
+        # # shear response of flux selection
+        # e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
+        #         -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
+        # e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
+        #         -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
+        # # shear response of resolution selection
+        # e1sqS2= (e1sqS2+3.*e1sq*moments['fpfs_N00N20']/_w**2.\
+        #         -s2*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
+        # e2sqS2= (e2sqS2+3.*e2sq*moments['fpfs_N00N20']/_w**2.\
+        #         -s2*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
+        # e1q1=   (e1q1-moments['fpfs_N22cN42c']/_w**2.\
+        #         +2.*e1*moments['fpfs_N00N42c']/_w**2.\
+        #         +2.*q1*moments['fpfs_N00N22c']/_w**2.\
+        #         )/(1.+3*ratio)
+        # e2q2=   (e2q2-moments['fpfs_N22sN42s']/_w**2.\
+        #         +2.*e2*moments['fpfs_N00N42s']/_w**2.\
+        #         +2.*q2*moments['fpfs_N00N22s']/_w**2.\
+        #         )/(1.+3*ratio)
+        # # intrinsic shape dispersion
+        # e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
+        #         +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
+        #         /(1.+3*ratio)
+        # e2sq=   (e2sq-moments['fpfs_N22sN22s']/_w**2.\
+        #         +4.*e2*moments['fpfs_N00N22s']/_w**2.)\
+        #         /(1.+3*ratio)
+
+        # noise bias correction for ellipticity
+        e1  =   (e1+moments['fpfs_N00N22c']\
+                /_w**2.)/(1+ratio)
+        e2  =   (e2+moments['fpfs_N00N22s']\
+                /_w**2.)/(1+ratio)
+        # q1  =   (q1+moments['fpfs_N00N42c']\
+        #         /_w**2.)/(1+ratio)
+        # q2  =   (q2+moments['fpfs_N00N42s']\
+        #         /_w**2.)/(1+ratio)
+        # noise bias correction for spin-0 observables
+        s0  =   (s0+moments['fpfs_N00N00']\
+                /_w**2.)/(1+ratio)
+        s2  =   (s2+moments['fpfs_N00N20']\
+                /_w**2.)/(1+ratio)
+        s4  =   (s4+moments['fpfs_N00N40']\
+                /_w**2.)/(1+ratio)
+
+    # make the output ndarray
+    out  =   np.array(np.zeros(moments.size),dtype=types)
+    if dDict is not None:
+        for (j,i) in det_inds:
+            out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
+            out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
+        del dDict
+
+    # spin-2 properties
+    out['fpfs_e1']  =   e1      # ellipticity
+    out['fpfs_e2']  =   e2
+    # out['fpfs_q1']  =   q1      # epsilon
+    # out['fpfs_q2']  =   q2
+    del e1,e2
+
+    # spin-0 properties
+    out['fpfs_s0']  =   s0      # flux
+    out['fpfs_s2']  =   s2      # size2
+    out['fpfs_s4']  =   s4      # size4
+    eSq  =  e1sq+e2sq       # e_1^2+e_2^2
+    RE   =  1./np.sqrt(2.)*(s0-s4+eSq) # shear response of e
+    # Li et. al (2018) has a minus sign difference
+    out['fpfs_RE']  =   RE
+    out['fpfs_ee']  =   eSq     # shape noise
+    del s0,s2,s4,RE,e1sq,e2sq
+
+    # # for selection bias correction
+    # eSqS0=  e1sqS0+e2sqS0   # (e_1^2+e_2^2)s_0 for selection bias correcton
+    # del e1sqS0,e2sqS0
+    # eqeq =  e1q1+e2q2
+    # eSqS2=  e1sqS2+e2sqS2   # (e_1^2+e_2^2)s_2 for selection bias correcton
+    # del e1q1,e2q2
+    # out['fpfs_RS0'] =   (eSq-eSqS0)/np.sqrt(2.) # selection bias correction for flux
+    # out['fpfs_RS2'] =   (eqeq*np.sqrt(3.)-eSqS2)/np.sqrt(2.) # selection bias correction for resolution
+    return out
+

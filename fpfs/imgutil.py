@@ -23,7 +23,7 @@ def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
     """
     Generate a Gaussian kernel on grids for np.fft.fft transform
 
-    Parameters:
+    Args:
         ny (int):    		    grid size in y-direction
         nx (int):    		    grid size in x-direction
         sigma (float):		    scale of Gaussian in Fourier space
@@ -52,7 +52,7 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
     """
     Generate a Gaussian kernel on grids for np.fft.rfft transform
 
-    Parameters:
+    Args:
         ny (int):    		    grid size in y-direction
         nx (int):    		    grid size in x-direction
         sigma (float):		    scale of Gaussian in Fourier space
@@ -77,7 +77,7 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
     """
     Generate a Gaussian kernel in Fourier space on grids
 
-    Parameters:
+    Args:
         ny (int):    		    grid size in y-direction
         nx (int):    		    grid size in x-direction
         sigma (float):		    scale of Gaussian in Fourier space
@@ -108,7 +108,7 @@ def getFouPow_rft(arrayIn: np.ndarray):
     """
     Get Fourier power function
 
-    Parameters:
+    Args:
         arrayIn (ndarray):  image array (centroid does not matter)
 
     Returns:
@@ -129,7 +129,7 @@ def getFouPow(arrayIn: np.ndarray, noiPow=None):
     """
     Get Fourier power function
 
-    Parameters:
+    Args:
         arrayIn (ndarray):  image array (centroid does not matter)
 
     Returns:
@@ -147,7 +147,7 @@ def getRnaive(arrayIn):
     A naive way to estimate Radius.
     Note, this naive estimation is heavily influenced by noise.
 
-    Parameters:
+    Args:
         arrayIn (ndarray):  image array (centroid does not matter)
 
     Returns:
@@ -165,34 +165,32 @@ def shapelets2D(ngrid,nord,sigma):
     """
     Generate shapelets function in Fourier space
     (only support square stamps: ny=nx=ngrid)
-
-    Parameters:
+    Args:
         ngrid (int):    number of pixels in x and y direction
         nord (int):     radial order of the shaplets
         sigma (float):  scale of shapelets in Fourier space
-
     Returns:
         chi (ndarray):  2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
     """
 
     mord    =   nord
-    # Set up the r and theta function
+    # Set grids with dk=2pi/N/sigma
     xy1d    =   np.fft.fftshift(np.fft.fftfreq(ngrid,d=sigma/2./np.pi))
-    xfunc,yfunc=np.meshgrid(xy1d,xy1d)
-    rfunc   =   np.sqrt(xfunc**2.+yfunc**2.)
-    gaufunc =   np.exp(-rfunc*rfunc/2.)
+    xfunc,yfunc=np.meshgrid(xy1d,xy1d)      # 2D grids
+    rfunc   =   np.sqrt(xfunc**2.+yfunc**2.)# radius
+    gaufunc =   np.exp(-rfunc*rfunc/2.)     # Gaussian
     rmask   =   (rfunc!=0.)
     xtfunc  =   np.zeros((ngrid,ngrid),dtype=np.float64)
     ytfunc  =   np.zeros((ngrid,ngrid),dtype=np.float64)
-    np.divide(xfunc,rfunc,where=rmask,out=xtfunc)
-    np.divide(yfunc,rfunc,where=rmask,out=ytfunc)
-    eulfunc = xtfunc+1j*ytfunc
+    np.divide(xfunc,rfunc,where=rmask,out=xtfunc) # cos(phi)
+    np.divide(yfunc,rfunc,where=rmask,out=ytfunc) # sin(phi)
+    eulfunc =   xtfunc+1j*ytfunc            # e^{jphi}
+    # Set up Laguerre function
     lfunc   =   np.zeros((nord+1,mord+1,ngrid,ngrid),dtype=np.float64)
-    chi     =   np.zeros((nord+1,mord+1,ngrid,ngrid),dtype=np.complex64)
-    # Set up l function
     lfunc[0,:,:,:]=1.
     lfunc[1,:,:,:]=1.-rfunc*rfunc+np.arange(mord+1)[None,:,None,None]
     #
+    chi     =   np.zeros((nord+1,mord+1,ngrid,ngrid),dtype=np.complex64)
     for n in range(2,nord+1):
         for m in range(mord+1):
             lfunc[n,m,:,:]=(2.+(m-1.-rfunc*rfunc)/n)*lfunc[n-1,m,:,:]-(1.+(m-1.)/n)*lfunc[n-2,m,:,:]
@@ -202,16 +200,17 @@ def shapelets2D(ngrid,nord,sigma):
             d1=(nn+abs(mm))//2
             cc=np.math.factorial(c1)+0.
             dd=np.math.factorial(d1)+0.
-            cc=cc/dd/np.pi
-            chi[nn,mm,:,:]=pow(-1.,d1)/sigma*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]\
-                    *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm
-    return chi
+            cc=cc/dd
+            chi[nn,mm,:,:]=pow(-1.,d1)*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]\
+                    *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm*(1j)**nn
+    # return chi*dk^2
+    return chi/ngrid**2.
 
 def fitNoiPow(ngrid,galPow,noiModel,rlim):
     """
     Fit the noise power from observed galaxy power
 
-    Parameters:
+    Args:
         ngrid (int):      number of pixels in x and y direction
         galPow (ndarray): galaxy Fourier power function
 
@@ -234,7 +233,7 @@ def pcaimages(X,nmodes):
     """
     Estimate the principal components of array list X
 
-    Parameters:
+    Args:
         X (ndarray):        input data array
         nmodes (int):       number of pcs to keep
 
@@ -275,11 +274,9 @@ def pcaimages(X,nmodes):
 def cut_img(img,rcut):
     """
     cutout img into postage stamp with width=2rcut
-
-    Parameters:
+    Args:
         img (ndarray):  input image
         rcut (int):     cutout radius
-
     Returns:
         out (ndarray):  image in a stamp (cut-out)
     """

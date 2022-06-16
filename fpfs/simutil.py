@@ -134,7 +134,7 @@ if with_lsst:
         """
         make an LSST exposure object
 
-        Parameters:
+        Args:
             galData (ndarray):  array of galaxy image
             psfData (ndarray):  array of PSF image
             pixScale (float):   pixel scale
@@ -177,7 +177,7 @@ def make_ringrot_radians(nord=8):
     """
     Generate rotation angle array for ring test
 
-    Parameters:
+    Args:
         nord (int):
             up to 1/2**nord*pi rotation
 
@@ -201,7 +201,7 @@ class sim_test():
         simulate an exponential object with moffat PSF, this class has the same observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
 
-        Parameters:
+        Args:
             shear (tuple):      (g1, g2),The shear in each component
             rng (randState):    The random number generator
         """
@@ -236,7 +236,7 @@ class sim_test():
         """
         generate a galaxy image
 
-        Parameters:
+        Args:
             noise (float):      Noise for the image
             psf_noise (float):  Noise for the PSF [defalut: 0.]
             do_shift (bool):    whether shift the galaxy [default: False]
@@ -265,7 +265,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
     """
     Make basic galaxy image simulation (isolated)
 
-    Parameters:
+    Args:
         outDir (str):
             output directory
         gname (str):
@@ -434,7 +434,7 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
     simulate an exponential object with moffat PSF, given a SNR (r0) and
     a source background noise ratio (r0)
 
-    Parameters:
+    Args:
         shear (tuple):
            (g1, g2),The shear in each component
         rng (randState):
