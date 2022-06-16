@@ -163,7 +163,7 @@ def getRnaive(arrayIn):
 
 def shapelets2D(ngrid,nord,sigma):
     """
-    Generate shapelets function in Fourier space
+    Generate shapelets function in Fourier space, chi00 are normalized to 1
     (only support square stamps: ny=nx=ngrid)
     Args:
         ngrid (int):    number of pixels in x and y direction
@@ -204,7 +204,8 @@ def shapelets2D(ngrid,nord,sigma):
             chi[nn,mm,:,:]=pow(-1.,d1)*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]\
                     *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm*(1j)**nn
     # return chi*dk^2
-    return chi/ngrid**2.
+    chi=chi/ngrid**2.
+    return chi
 
 def fitNoiPow(ngrid,galPow,noiModel,rlim):
     """

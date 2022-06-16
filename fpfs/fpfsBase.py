@@ -22,13 +22,8 @@ import logging
 import numpy as np
 from . import imgutil
 import numpy.lib.recfunctions as rfn
+from .default import det_inds
 
-det_inds=[(2,2),(1,2),(3,2),(2,1),(2,3)]
-"""list: a list of pixel index, where (2,2) is the centroid
-"""
-# _gsigma=3.*2*np.pi/64.
-# """float: default gaussian smoothing kernel
-# """
 
 @numba.njit
 def get_klim(psf_array,sigma):
@@ -151,15 +146,6 @@ class fpfsTask():
             self.prepare_ChiCov(chi)
             logging.info('Will correct noise bias')
         del chi
-
-        # measure PSF properties
-        self.psf_types=[
-                    ('fpfs_psf_M00','<f8'),('fpfs_psf_M20','<f8'),\
-                    ('fpfs_psf_M22c','<f8'),('fpfs_psf_M22s','<f8'),\
-                    ('fpfs_psf_M40','<f8'),\
-                    ('fpfs_psf_M42c','<f8'),('fpfs_psf_M42s','<f8')
-                    ]
-        mm_psf      =   self.itransform(self.psfFou,out_type='PSF')
 
         # others
         if debug:
