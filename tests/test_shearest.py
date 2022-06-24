@@ -24,12 +24,14 @@ def analyze_FPFS(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
         noii    =   noi_stds[i]
         # initialize FPFS task with psf and noise variance
         # beta<1 is the FPFS scale parameter
-        fpTask  =   fpfs.fpfsBase.fpfsTask(psf,noiFit=noii**2.,beta=0.75)
+        fpTask  =   fpfs.base.fpfsTask(psf,noiFit=noii**2.,beta=0.75)
         if noii<=1e-10:
             print('noise level is too small; therefore, we only simulate one galaxy')
             num_tmp=1
+            noirev=False
         else:
             num_tmp=num_gals
+            noirev=True
         start= time.time()
         results =   []
         for _ in range(num_tmp):
@@ -44,9 +46,9 @@ def analyze_FPFS(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
         end =   time.time()
         print('%.5f seconds to process %d galaxies' %(end-start,num_tmp))
         mms =   rfn.stack_arrays(results,usemask=False)
-        ells=   fpfs.fpfsBase.fpfsM2E(mms,const=2000,noirev=False)
+        ells=   fpfs.catutil.fpfsM2E(mms,const=2000,noirev=noirev)
         del mms,results
-        resp=np.average(ells['fpfs_RE'])
+        resp=np.average(ells['fpfs_R1E'])
         shear=np.average(ells['fpfs_e1'])/resp
         shear_err=np.std(ells['fpfs_e1'])/np.abs(resp)/np.sqrt(num_gals)
         y.append(shear)

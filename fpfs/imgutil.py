@@ -18,6 +18,7 @@
 # python lib
 
 import numpy as np
+import scipy.ndimage as ndi
 
 def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
     """
@@ -161,6 +162,38 @@ def getRnaive(arrayIn):
     sigma   =   np.sqrt(sigma/np.pi)
     return sigma
 
+def detlets2D(ngrid,sigma):
+    """
+    Generate shapelets function in Fourier space, chi00 are normalized to 1
+    (only support square stamps: ny=nx=ngrid)
+    Args:
+        ngrid (int):    number of pixels in x and y direction
+        sigma (float):  scale of shapelets in Fourier space
+    Returns:
+        psi (ndarray):  2D detlets basis in shape of [8,3,ngrid,ngrid]
+    """
+    # Gaussian Kernel
+    gKer,(k2grid,k1grid)=gauss_kernel(ngrid,ngrid,sigma,\
+                do_shift=True,return_grid=True)
+    # for inverse Fourier transform
+    gKer    =   gKer/ngrid**2.
+    # for shear response
+    q1Ker   =   (k1grid**2.-k2grid**2.)/sigma**2.*gKer
+    q2Ker   =   (2.*k1grid*k2grid)/sigma**2.*gKer
+    # quantities for neighbouring pixels
+    d1Ker   =   (-1j*k1grid)*gKer
+    d2Ker   =   (-1j*k2grid)*gKer
+    # initial output psi function
+    psi     =   np.zeros((8,3,ngrid,ngrid),dtype=np.complex64)
+    for _ in range(8):
+        x   =   np.cos(np.pi/4.*_)
+        y   =   np.sin(np.pi/4.*_)
+        foub=   np.exp(1j*(k1grid*x+k2grid*y))
+        psi[_,0] =   gKer-gKer*foub
+        psi[_,1] =   q1Ker-(q1Ker+x*d1Ker-y*d2Ker)*foub
+        psi[_,2] =   q2Ker-(q2Ker+y*d1Ker+x*d2Ker)*foub
+    return psi
+
 def shapelets2D(ngrid,nord,sigma):
     """
     Generate shapelets function in Fourier space, chi00 are normalized to 1
@@ -286,3 +319,30 @@ def cut_img(img,rcut):
     end     =   beg+2*rcut
     out     =   img[beg:end,beg:end]
     return out
+
+def find_peaks(imgCov,thres,thres2=0.):
+    """Detects peaks and returns the coordinates (y,x)
+    Args:
+        imgCov (ndarray):       convolved image
+        thres (float):          detection threshold
+        thres2 (float):         peak identification difference threshold
+    Returns:
+        coord_array (ndarray):  ndarray of coordinates (y,x)
+    """
+    footprint = np.ones((3, 3))
+    footprint[1, 1] = 0
+    footprint[0, 0] = 0
+    footprint[0, 2] = 0
+    footprint[2, 2] = 0
+    footprint[2, 0] = 0
+    filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
+    data    =   np.int_(np.asarray(np.where(((imgCov > filtered+thres2)&(imgCov>thres)))))
+    out     =   np.array(np.zeros(data.size//2),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+    out['fpfs_y']=data[0]
+    out['fpfs_x']=data[1]
+    ny,nx = imgCov.shape
+    # avoid pixels near boundary
+    msk     =   (out['fpfs_y']>20)&(out['fpfs_y']<ny-20)\
+                &(out['fpfs_x']>20)&(out['fpfs_x']<nx-20)
+    coord_array= out[msk]
+    return coord_array

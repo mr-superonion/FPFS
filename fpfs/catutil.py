@@ -1,5 +1,5 @@
 # FPFS shear estimator
-# Copyright 20210905 Xiangchong Li.
+# Copyright 20210805 Xiangchong Li.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,20 +17,100 @@
 #
 # python lib
 import numpy as np
-from .default import det_inds
 
-det_inds=[(2,2),(1,2),(3,2),(2,1),(2,3)]
-"""list: a list of pixel index, where (2,2) is the centroid
-"""
+# functions used for selection
+def tsfunc(x,deriv=0,mu=0.,sigma=1.5):
+    """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
+    the weight function for first order derivative (deriv=1)
+    Args:
+        deriv (int):    whether do derivative (1) or not (0)
+        x (ndarray):    input data vector
+        mu (float):     center of the cut
+        sigma (sigma):  widthe of the selection function
+    Returns:
+        out (ndarray):  the weight funciton (deriv=0), or the *multiplicative
+                        factor* to the weight function for first order derivative
+                        (deriv=1)
+    """
+    t=(x-mu)/sigma
+    if deriv==0:
+        return np.piecewise(t, [t<-1,(t>=-1)&(t<=1),t>1], [0.,lambda t:1./2.+np.sin(t*np.pi/2.)/2., 1.])
+    elif deriv==1:
+        # multiplicative factor (to weight) for derivative
+        return np.piecewise(t,[t<-1+0.01,(t>=-1+0.01)&(t<=1-0.01),t>1-0.01],\
+                [0.,lambda t: np.pi/2./sigma*np.cos(t*np.pi/2.)/(1.+np.sin(t*np.pi/2.)), 0.] )
+    else:
+        raise ValueError('deriv should be 0 or 1')
 
-def fpfsM2E(mm,dets=None,const=1.,noirev=False):
+def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
+    """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
+    the weight function for first order derivative (deriv=1)
+    Args:
+        deriv (int):    whether do derivative (1) or not (0)
+        x (ndarray):    input data vector
+        mu (float):     center of the cut
+        sigma (sigma):  widthe of the selection function
+    Returns:
+        out (ndarray):  the weight funciton (deriv=0), or the *multiplicative
+                        factor* to the weight function for first order derivative
+                        (deriv=1)
+    """
+    expx=np.exp(-(x-mu)/sigma)
+    if deriv==0:
+        # sigmoid function
+        return 1./(1. + expx)
+    elif deriv==1:
+        # multiplicative factor (to weight) for derivative
+        return 1./sigma*expx/(1. + expx)
+    else:
+        raise ValueError('deriv should be 0 or 1')
+
+def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
+    """Returns the weight funciton (deriv=0), or the *multiplicative
+    factor* to the weight function for first order derivative (deriv=1)
+    Args:
+        x (ndarray):    input selection observable
+        cut (float):    the cut on selection observable
+        sigma (sigma):  width of the selection function
+        use_sig (bool): whether use sigmoid (True) of truncated sine (False)
+        deriv (int):    whether do derivative (1) or not (0)
+    Returns:
+        out (ndarray):  the weight funciton (deriv=0), or the *multiplicative
+                        factor* to the weight function for first order
+                        derivative (deriv=1)
+    """
+    if use_sig:
+        out = sigfunc(x,deriv=deriv,mu=cut,sigma=sigma)
+    else:
+        out = tsfunc(x,deriv=deriv,mu=cut,sigma=sigma)
+    return out
+
+def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
+    """Returns the weight bias due to shear dependence and noise bias (first
+    order in w)
+    Args:
+        x (ndarray):        selection observable
+        cut (float):        the cut on selection observable
+        sigma (sigma):      width of the selection function
+        use_sig (bool):     whether use sigmoid (True) of truncated sine (False)
+        w_sel (ndarray):    selection weights as function of selection observable
+        rev  (ndarray):     selection response array
+    Returns:
+        cor (float):        correction for shear response
+    """
+    if rev is None:
+        cor = 0.
+    else:
+        cor = np.sum(rev*w_sel*get_wsel_eff(x,cut,sigma,use_sig,deriv=1))
+    return cor
+
+# functions to get derived observables from fpfs modes
+def fpfsM2E(mm,const=1.,noirev=False):
     """
     Estimate FPFS ellipticities from fpfs moments
     Args:
         mm (ndarray):
             input FPFS moments
-        dets (ndarray):
-            detection array [default: None]
         const (float):
             the weight constant [default:1]
         noirev (bool):
@@ -41,9 +121,22 @@ def fpfsM2E(mm,dets=None,const=1.,noirev=False):
             flux, size and FPFS selection response)
     """
     # ellipticity, q-ellipticity, sizes, e^2, eq
-    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8') , ('fpfs_ee','<f8'),\
-                ('fpfs_s0','<f8') , ('fpfs_s2','<f8') , ('fpfs_s4','<f8'),\
-                ('fpfs_RE','<f8') , ('fpfs_RS0','<f8'), ('fpfs_RS2','<f8')]
+    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8') , ('fpfs_ee','<f8'), \
+                ('fpfs_s0','<f8') , ('fpfs_s2','<f8') , ('fpfs_s4','<f8'), \
+                ('fpfs_R1E','<f8'), ('fpfs_R2E','<f8'), ('fpfs_RS0','<f8'),\
+                ('fpfs_RS2','<f8')]
+    for i in range(8):
+        types.append(('fpfs_R1Sv%d'%i,'<f8'))
+        types.append(('fpfs_R2Sv%d'%i,'<f8'))
+    if noirev:
+        types=  types+[('fpfs_HE100','<f8'),('fpfs_HE200','<f8'),('fpfs_HR00','<f8'),\
+                       ('fpfs_HE120','<f8'),('fpfs_HE220','<f8'),('fpfs_HR20','<f8')]
+        for i in range(8):
+            types.append(('fpfs_HRv%d' %i,'<f8'))
+            types.append(('fpfs_HE1v%d' %i,'<f8'))
+            types.append(('fpfs_HE2v%d' %i,'<f8'))
+    # make the output ndarray
+    out  =   np.array(np.zeros(mm.size),dtype=types)
 
     # FPFS shape weight's inverse
     _w      =   mm['fpfs_M00']+const
@@ -57,35 +150,44 @@ def fpfsM2E(mm,dets=None,const=1.,noirev=False):
     s2      =   mm['fpfs_M20']/_w
     s4      =   mm['fpfs_M40']/_w
     # intrinsic ellipticity
-    ee      =   e1*e1+e2*e2
+    e1e1    =   e1*e1
+    e2e2    =   e2*e2
     eM22    =   e1*mm['fpfs_M22c']+e2*mm['fpfs_M22s']
     eM42    =   e1*mm['fpfs_M42c']+e2*mm['fpfs_M42s']
 
-    if dets is not None:
-        # shear response for peak detection process
-        dDict=  {}
-        for (j,i) in det_inds:
-            types.append(('fpfs_RS0%d%d'%(j,i),'<f8'))
-            dDict['fpfs_RS0%d%d' %(j,i)]=(e1*dets['pdet_v%d%dr1'%(j,i)]+e2*dets['pdet_v%d%dr2'%(j,i)])/2.
-    else:
-        dDict = None
+    # shear response for detection process (not for deatection function)
+    for i in range(8):
+        out['fpfs_R1Sv%d' %(i)]=e1*mm['fpfs_v%dr1'%(i)]
+        out['fpfs_R2Sv%d' %(i)]=e2*mm['fpfs_v%dr2'%(i)]
 
     if noirev:
+        out['fpfs_HR00']=-(mm['fpfs_N00N00']-mm['fpfs_N00N40'])/_w/np.sqrt(2.)
+        out['fpfs_HR20']=-(mm['fpfs_N00N20']-mm['fpfs_N20N40'])/_w/np.sqrt(2.)
+        out['fpfs_HE100']=-(mm['fpfs_N00N22c'])/_w
+        out['fpfs_HE200']=-(mm['fpfs_N00N22s'])/_w
+        out['fpfs_HE120']=-(mm['fpfs_N20N22c'])/_w
+        out['fpfs_HE220']=-(mm['fpfs_N20N22s'])/_w
         ratio=  mm['fpfs_N00N00']/_w**2.
-        if dDict is not None:
-            # correction detection shear response for noise bias
-            for (j,i) in det_inds:
-                corr=(-1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
-                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
-                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
-                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
-                    +1.*mm['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]\
-                    +1.*mm['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]\
-                    )/2.
-                dDict['fpfs_RS0%d%d'%(j,i)]=(dDict['fpfs_RS0%d%d'%(j,i)]+corr)/(1+ratio)
+        # correction for detection process shear response for noise bias
+        for i in range(8):
+            corr1=-1.*mm['fpfs_N22cV%dr1'%i]/_w\
+                +1.*e1*mm['fpfs_N00V%dr1'%i]/_w\
+                +1.*mm['fpfs_N00N22c']/_w**2.*mm['fpfs_v%dr1'%i]
+            corr2=-1.*mm['fpfs_N22sV%dr2'%i]/_w\
+                +1.*e2*mm['fpfs_N00V%dr2'%i]/_w\
+                +1.*mm['fpfs_N00N22s']/_w**2.*mm['fpfs_v%dr2'%i]
+            out['fpfs_R1Sv%d'%i]=(out['fpfs_R1Sv%d'%i]+corr1)/(1+ratio)
+            out['fpfs_R2Sv%d'%i]=(out['fpfs_R2Sv%d'%i]+corr2)/(1+ratio)
+            # Heissen
+            out['fpfs_HRv%d' %i]=-(mm['fpfs_N00V%d' %i]-mm['fpfs_N40V%d'%i])/_w
+            out['fpfs_HE1v%d'%i]=-(mm['fpfs_N22cV%d'%i])/_w
+            out['fpfs_HE2v%d'%i]=-(mm['fpfs_N22sV%d'%i])/_w
         # intrinsic shape dispersion (not per component)
-        ee      =   (ee-(mm['fpfs_N22cN22c']+mm['fpfs_N22sN22s'])/_w**2.\
-                    +4.*(e1*mm['fpfs_N00N22c']+e2*mm['fpfs_N00N22s'])/_w**2.)\
+        e1e1    =   (e1e1-(mm['fpfs_N22cN22c'])/_w**2.\
+                    +4.*(e1*mm['fpfs_N00N22c'])/_w**2.)\
+                    /(1.+3*ratio)
+        e2e2    =   (e2e2-(mm['fpfs_N22sN22s'])/_w**2.\
+                    +4.*(e2*mm['fpfs_N00N22s'])/_w**2.)\
                     /(1.+3*ratio)
         eM22    =   (eM22-(mm['fpfs_N22cN22c']+mm['fpfs_N22sN22s'])/_w \
                     +2.*(mm['fpfs_N00N22c']*e1+mm['fpfs_N00N22s']*e2)/_w)\
@@ -107,13 +209,6 @@ def fpfsM2E(mm,dets=None,const=1.,noirev=False):
         s4  =   (s4+mm['fpfs_N00N40']\
                 /_w**2.)/(1+ratio)
 
-    # make the output ndarray
-    out  =   np.array(np.zeros(mm.size),dtype=types)
-    # response for detection process (not response for deatection function)
-    if dDict is not None:
-        for (j,i) in det_inds:
-            out['fpfs_RS0%d%d'%(j,i)] = dDict['fpfs_RS0%d%d'%(j,i)]
-        del dDict
     # spin-2 properties
     out['fpfs_e1']  =   e1      # ellipticity
     out['fpfs_e2']  =   e2
@@ -122,10 +217,11 @@ def fpfsM2E(mm,dets=None,const=1.,noirev=False):
     out['fpfs_s0']  =   s0      # flux
     out['fpfs_s2']  =   s2      # size2
     out['fpfs_s4']  =   s4      # size4
-    out['fpfs_ee']  =   ee      # shape noise
+    out['fpfs_ee']  =   e1e1+e2e2# shape noise
     # response for ellipticity
-    out['fpfs_RE']  =   (s0-s4+ee)/np.sqrt(2.)
-    del s0,s2,s4,ee
+    out['fpfs_R1E'] =   (s0-s4+2.*e1e1)/np.sqrt(2.)
+    out['fpfs_R2E'] =   (s0-s4+2.*e2e2)/np.sqrt(2.)
+    del s0,s2,s4,e1e1,e2e2
     # response for selection process (not response for selection function)
     out['fpfs_RS0']  =  -1.*eM22/np.sqrt(2.)
     out['fpfs_RS2']  =  -1.*eM42*np.sqrt(6.)/2.
@@ -243,11 +339,11 @@ def fpfsM2E_old(moments,dets=None,const=1.,noirev=False):
     if dets is not None:
         # shear response for detection
         dDict=  {}
-        for (j,i) in det_inds:
-            types.append(('fpfs_e1v%d%dr1'%(j,i),'<f8'))
-            types.append(('fpfs_e2v%d%dr2'%(j,i),'<f8'))
-            dDict['fpfs_e1v%d%dr1' %(j,i)]=e1*dets['pdet_v%d%dr1' %(j,i)]
-            dDict['fpfs_e2v%d%dr2' %(j,i)]=e2*dets['pdet_v%d%dr2' %(j,i)]
+        for i in range(8):
+            types.append(('fpfs_e1v%dr1'%i,'<f8'))
+            types.append(('fpfs_e2v%dr2'%i,'<f8'))
+            dDict['fpfs_e1v%dr1' %i]=e1*dets['fpfs_v%dr1' %i]
+            dDict['fpfs_e2v%dr2' %i]=e2*dets['fpfs_v%dr2' %i]
     else:
         dDict = None
 
@@ -255,17 +351,17 @@ def fpfsM2E_old(moments,dets=None,const=1.,noirev=False):
         ratio=  moments['fpfs_N00N00']/_w**2.
         if dDict is not None:
             # correction detection shear response for noise bias
-            for (j,i) in det_inds:
-                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]\
-                    -1.*dets['pdet_N22cV%d%dr1'%(j,i)]/_w\
-                    +1.*e1*dets['pdet_N00V%d%dr1'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['pdet_v%d%dr1'%(j,i)]
-                dDict['fpfs_e1v%d%dr1'%(j,i)]=dDict['fpfs_e1v%d%dr1'%(j,i)]/(1+ratio)
-                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]\
-                    -1.*dets['pdet_N22sV%d%dr2'%(j,i)]/_w\
-                    +1.*e2*dets['pdet_N00V%d%dr2'%(j,i)]/_w\
-                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['pdet_v%d%dr2'%(j,i)]
-                dDict['fpfs_e2v%d%dr2'%(j,i)]=dDict['fpfs_e2v%d%dr2'%(j,i)]/(1+ratio)
+            for i in range(8):
+                dDict['fpfs_e1v%dr1'%i]=dDict['fpfs_e1v%dr1'%i]\
+                    -1.*dets['fpfs_N22cV%dr1'%i]/_w\
+                    +1.*e1*dets['fpfs_N00V%dr1'%i]/_w\
+                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['fpfs_v%dr1'%i]
+                dDict['fpfs_e1v%dr1'%i]=dDict['fpfs_e1v%dr1'%i]/(1+ratio)
+                dDict['fpfs_e2v%dr2'%i]=dDict['fpfs_e2v%dr2'%i]\
+                    -1.*dets['fpfs_N22sV%dr2'%i]/_w\
+                    +1.*e2*dets['fpfs_N00V%dr2'%i]/_w\
+                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['fpfs_v%dr2'%i]
+                dDict['fpfs_e2v%dr2'%i]=dDict['fpfs_e2v%dr2'%i]/(1+ratio)
 
         # # shear response of flux selection
         # e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
@@ -313,9 +409,9 @@ def fpfsM2E_old(moments,dets=None,const=1.,noirev=False):
     # make the output ndarray
     out  =   np.array(np.zeros(moments.size),dtype=types)
     if dDict is not None:
-        for (j,i) in det_inds:
-            out['fpfs_e1v%d%dr1'%(j,i)] = dDict['fpfs_e1v%d%dr1'%(j,i)]
-            out['fpfs_e2v%d%dr2'%(j,i)] = dDict['fpfs_e2v%d%dr2'%(j,i)]
+        for i in range(8):
+            out['fpfs_e1v%dr1'%i] = dDict['fpfs_e1v%dr1'%i]
+            out['fpfs_e2v%dr2'%i] = dDict['fpfs_e2v%dr2'%i]
         del dDict
 
     # spin-2 properties
