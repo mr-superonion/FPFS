@@ -12,6 +12,7 @@ setup(
         'numpy',
         'scipy',
         'galsim',
+        'jax[cpu]',
     ],
     packages=find_packages(),
     include_package_data=True,
