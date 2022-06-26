@@ -26,11 +26,11 @@ from . import catutil
 from . import imgutil
 
 def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.):
-    """Returns the shear response for pixels identified as peaks
+    """Returns the coordinates of detected sources
     Args:
         imgData (ndarray):      observed image
-        psfData (ndarray):      PSF image center at middle
-        gsigma (float):         sigma of the Gaussian smoothing kernel in Fourier space
+        psfData (ndarray):      PSF image (well centered)
+        gsigma (float):         sigma of the Gaussian smoothing kernel in *Fourier* space
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
@@ -41,29 +41,27 @@ def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.):
     assert imgData.shape==psfData.shape, 'image and PSF should have the same\
             shape. Please do padding before using this function.'
     ny,nx   =   psfData.shape
-    psfF    =   np.fft.fft2(np.fft.ifftshift(psfData))
-
-    gKer,_=imgutil.gauss_kernel(ny,nx,gsigma,return_grid=True)
+    psfF    =   np.fft.rfft2(np.fft.ifftshift(psfData))
+    gKer,_  =   imgutil.gauss_kernel(ny,nx,gsigma,return_grid=True,use_rfft=True)
 
     # convolved images
-    imgF    =   np.fft.fft2(imgData)/psfF*gKer
-    del psfF,psfData
+    imgF    =   np.fft.rfft2(imgData)/psfF*gKer
     if klim>0.:
         # apply a truncation in Fourier space
         nxklim  =   int(klim*nx/np.pi/2.+0.5)
         nyklim  =   int(klim*ny/np.pi/2.+0.5)
-        imgF[:ny//2-nyklim,:]    =    0.
-        imgF[ny//2+nyklim+1:,:]  =    0.
-        imgF[:,:nx//2-nxklim]    =    0.
-        imgF[:,nx//2+nxklim+1:]  =    0.
+        imgF[nyklim+1:-nyklim,:] = 0.
+        imgF[:,nxklim+1:] = 0.
     else:
         # no truncation in Fourier space
         pass
-    imgCov  =   np.fft.ifft2(imgF).real
-
+    del psfF,psfData
+    imgCov  =   np.fft.irfft2(imgF,(ny,nx))
     # the coordinates is not given, so we do another detection
-    if not isinstance(thres,(int, np.floating)):
+    if not isinstance(thres,(int, float)):
         raise ValueError('thres must be float, but now got %s' %type(thres))
+    if not isinstance(thres2,(int, float)):
+        raise ValueError('thres2 must be float, but now got %s' %type(thres))
     coords  =   imgutil.find_peaks(imgCov,thres,thres2)
     return coords
 
@@ -170,16 +168,19 @@ class fpfsTask():
         if nnord == 4:
             # This setup is for shear response only
             # Only uses M00, M20, M22 (real and img) and M40, M42
-            self._indC  =   np.array([0,10,12,20,22])[:,None,None]
+            self._indM  =   np.array([0,10,12,20,22])[:,None,None]
+            self._nameM =   ['M00','M20','M22','M40','M42']
         elif nnord== 6:
-            # This setup is able to derive kappa response as well as shear response
+            # This setup is able to derive kappa response and shear response
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
-            self._indC =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
+            self._indM =    np.array([0, 14, 16, 28, 30, 42])[:,None,None]
+            self._nameM =   ['M00','M20','M22','M40','M42','M60']
         else:
-            raise ValueError('only support for nnord= 4 or nnord=6')
+            raise ValueError('only support for nnord= 4 or nnord=6, but your input\
+                    is nnord=%d' %nnord)
         self.nnord=nnord
         chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF)\
-                .reshape(((nnord+1)**2,self.ngrid,self.ngrid))[self._indC,self._indY,self._indX]
+                .reshape(((nnord+1)**2,self.ngrid,self.ngrid))[self._indM,self._indY,self._indX]
         psi   =    imgutil.detlets2D(self.ngrid,self.sigmaF)[:,:,self._indY,self._indX]
         self.prepare_Chi(chi)
         self.prepare_Psi(psi)
@@ -509,6 +510,10 @@ class Summary():
         self.mm =   mm
         self.ell=   ell
         self.clear_outcomes()
+        if 'fpfs_HR00' in self.ell.dtype.names:
+            self.noirev=True
+        else:
+            self.noirev=False
         return
 
     def clear_outcomes(self):
@@ -545,6 +550,7 @@ class Summary():
                     self._update_selection_weight('det_v%d' %iid,cut,cutsig)
             else:
                 self._update_selection_weight(selnm,cut,cutsig)
+        # logging.info('weight updated. we have %d selection cuts' %self.nsel)
         return
 
     def _update_selection_weight(self,selnm,cut,cutsig):
@@ -614,7 +620,7 @@ class Summary():
             scol=self.mm['fpfs_M00']
             ccol1=self.ell['fpfs_RS0']
             ccol2=self.ell['fpfs_RS0']
-            if 'fpfs_HR00' in self.ell.dtype.names:
+            if self.noirev:
                 dcol=self.ell['fpfs_HR00']
                 ncol1=self.ell['fpfs_HE100']
                 ncol2=self.ell['fpfs_HE200']
@@ -626,7 +632,7 @@ class Summary():
             scol=-self.mm['fpfs_M20']
             ccol1=-self.ell['fpfs_RS2']
             ccol2=-self.ell['fpfs_RS2']
-            if 'fpfs_HR20' in self.ell.dtype.names:
+            if self.noirev:
                 dcol=-self.ell['fpfs_HR20']
                 ncol1=-self.ell['fpfs_HE120']
                 ncol2=-self.ell['fpfs_HE220']
@@ -638,7 +644,7 @@ class Summary():
             scol=self.mm['fpfs_M00']+self.mm['fpfs_M20']
             ccol1=self.ell['fpfs_RS0']+self.ell['fpfs_RS2']
             ccol2=self.ell['fpfs_RS0']+self.ell['fpfs_RS2']
-            if 'fpfs_HR00' in self.ell.dtype.names:
+            if self.noirev:
                 dcol=self.ell['fpfs_HR00']+self.ell['fpfs_HR20']
                 ncol1=self.ell['fpfs_HE100']+self.ell['fpfs_HE120']
                 ncol2=self.ell['fpfs_HE200']+self.ell['fpfs_HE220']
@@ -651,13 +657,18 @@ class Summary():
             scol=self.mm['fpfs_%s' %vn]
             ccol1=self.ell['fpfs_R1S%s' %vn]
             ccol2=self.ell['fpfs_R2S%s' %vn]
-            dcol=None
-            ncol1=None
-            ncol2=None
+            if self.noirev:
+                dcol=self.ell['fpfs_HR%s' %vn]
+                ncol1=self.ell['fpfs_HE1%s' %vn]
+                ncol2=self.ell['fpfs_HE2%s' %vn]
+            else:
+                dcol=None
+                ncol1=None
+                ncol2=None
         else:
             raise ValueError('Do not support selection vector name: %s' %selnm)
-        corSR1 = catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ccol1)
-        corSR2 = catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ccol2)
+        corSR1= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ccol1)
+        corSR2= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ccol2)
         corNR = catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,dcol)
         corNE1= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ncol1)
         corNE2= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ncol2)
