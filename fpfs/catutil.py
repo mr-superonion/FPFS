@@ -179,7 +179,7 @@ def fpfsM2E(mm,const=1.,noirev=False):
             out['fpfs_R1Sv%d'%i]=(out['fpfs_R1Sv%d'%i]+corr1)/(1+ratio)
             out['fpfs_R2Sv%d'%i]=(out['fpfs_R2Sv%d'%i]+corr2)/(1+ratio)
             # Heissen
-            out['fpfs_HRv%d' %i]=-(mm['fpfs_N00V%d' %i]-mm['fpfs_N40V%d'%i])/_w
+            out['fpfs_HRv%d' %i]=-(mm['fpfs_N00V%d' %i]-mm['fpfs_N40V%d'%i])/_w/np.sqrt(2.)
             out['fpfs_HE1v%d'%i]=-(mm['fpfs_N22cV%d'%i])/_w
             out['fpfs_HE2v%d'%i]=-(mm['fpfs_N22sV%d'%i])/_w
         # intrinsic shape dispersion (not per component)
