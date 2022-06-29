@@ -324,6 +324,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
         irot        =   Id0//8
         if irot>= len(rotArray):
             logging.info('galaxy image index greater than %d' %len(rotArray*8))
+            return
         ang     =   rotArray[irot]*galsim.radians
         rescale =   1.+(ud()-0.5)*0.1
         logging.info('%s' %rescale)

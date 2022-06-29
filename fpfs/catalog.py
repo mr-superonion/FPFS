@@ -228,217 +228,197 @@ def fpfsM2E(mm,const=1.,noirev=False):
     del eM22,eM42
     return out
 
-def fpfsM2Err(moments,const=1.):
-    """
-    Estimate FPFS measurement errors from the fpfs
-    moments and the moments covariances
-    Args:
-        moments (ndarray):
-            input FPFS moments
-        const (float):
-            the weighting Constant
-        mcalib (ndarray):
-            multiplicative bias
-    Returns:
-        errDat (ndarray):
-            an array of (measurement error, FPFS ellipticity, FPFS flux ratio)
-    """
-    assert 'fpfs_N00N00' in moments.dtype.names
-    assert 'fpfs_N00N22c' in moments.dtype.names
-    assert 'fpfs_N00N22s' in moments.dtype.names
-    assert 'fpfs_N00N40' in moments.dtype.names
+class summary_stats():
+    def __init__(self,mm,ell,use_sig=False):
+        """
+        Args:
+            mm (ndarray):   FPFS moments
+            ell (ndarray):  FPFS ellipticity
+            use_sig (bool): whether use sigmoid (True) of truncated sine (False)
+        """
+        self.use_sig= use_sig
+        self.mm =   mm
+        self.ell=   ell
+        self.clear_outcomes()
+        if 'fpfs_HR00' in self.ell.dtype.names:
+            self.noirev=True
+        else:
+            self.noirev=False
+        return
 
-    #Get weight
-    weight  =   moments['fpfs_M00']+const
-    #FPFS Ellipticity
-    e1      =   moments['fpfs_M22c']/weight
-    e2      =   moments['fpfs_M22s']/weight
-    #FPFS flux ratio
-    s0      =   moments['fpfs_M00']/weight
-    e1sq    =   e1*e1
-    e2sq    =   e2*e2
-    s0sq    =   s0*s0
-    ratio   =   moments['fpfs_N00N00']/weight**2.
+    def clear_outcomes(self):
+        """clears the outcome of the class
+        """
+        self.nsel = 0
+        self.ws =   np.ones(self.ell.shape)
+        # bias
+        self.ncor = 0
+        self.corE1= 0.  # selection bias in e1
+        self.corE2= 0.  # selection bias in e2
+        self.corR1= 0.  # selection bias in R1E (response)
+        self.corR2= 0.  # selection bias in R2E (response)
+        # signal
+        self.sumE1= 0.  # sum of e1
+        self.sumE2= 0.  # sum of e2
+        self.sumR1= 0.  # sum of R1E (response)
+        self.sumR2= 0.  # sum of R2E (response)
+        return
 
-    e1Err    =   moments['fpfs_N22cN22c']/weight**2.\
-            -4.*e1*moments['fpfs_N00N22c']/weight**2.\
-            +3*ratio*e1sq
-    e2Err    =   moments['fpfs_N22sN22s']/weight**2.\
-            -4.*e2*moments['fpfs_N00N22s']/weight**2.\
-            +3*ratio*e2sq
-    s0Err    =   moments['fpfs_N00N00']/weight**2.\
-            -4.*s0*moments['fpfs_N00N00']/weight**2.\
-             +3*ratio*s0sq
+    def update_selection_weight(self,snms,cuts,cutsigs):
+        """Updates the selection weight term with the current selection weight
+        """
+        if not isinstance(snms,list):
+            if isinstance(snms,str) and isinstance(cuts,float) and isinstance(cutsigs,float):
+                snms=[snms]
+                cuts=[cuts]
+                cutsigs=[cutsigs]
+            else:
+                raise TypeError('snms, cuts and cutsigs should be str, float, float')
+        for selnm,cut,cutsig in zip(snms,cuts,cutsigs):
+            if selnm=='detect':
+                for iid in range(8):
+                    self._update_selection_weight('det_v%d' %iid,cut,cutsig)
+            else:
+                self._update_selection_weight(selnm,cut,cutsig)
+        # logging.info('weight updated. we have %d selection cuts' %self.nsel)
+        return
 
-    e1s0Cov =   moments['fpfs_N00N22c']/weight**2.\
-            -2.*s0*moments['fpfs_N00N22c']/weight**2.\
-            -2.*e1*moments['fpfs_N00N00']/weight**2.\
-            +3*ratio*e1*s0
+    def _update_selection_weight(self,selnm,cut,cutsig):
+        """Updates the selection weight term with the current selection weight
+        """
+        if not isinstance(selnm,str):
+            raise TypeError('selnm should be str')
+        if not isinstance(cut,float):
+            raise TypeError('cut should be float')
+        if not isinstance(cutsig,float):
+            raise TypeError('cutsig should be float')
 
-    e2s0Cov =   moments['fpfs_N00N22s']/weight**2.\
-            -2.*s0*moments['fpfs_N00N22s']/weight**2.\
-            -2.*e2*moments['fpfs_N00N00']/weight**2.\
-            +3*ratio*e2*s0
+        cut_final=cut
+        if selnm=='M00':
+            scol=self.mm['fpfs_M00']
+        elif selnm=='M20':
+            scol=-self.mm['fpfs_M20']
+        elif selnm=='R2':
+            scol=self.mm['fpfs_M00']*(1.-cut)+self.mm['fpfs_M20']
+            cut_final=0. # M00+M20>cut*M00
+        elif 'det_' in selnm:
+            vn=selnm.split('_')[-1]
+            scol=self.mm['fpfs_%s'%vn]
+        else:
+            raise ValueError('Do not support selection vector name: %s' %selnm)
+        # update weight
+        ws  =   get_wsel_eff(scol,cut_final,cutsig,self.use_sig)
+        self.ws=self.ws*ws
+        # count the total number of selection cuts
+        self.nsel=self.nsel+1
+        return
 
-    types   =   [('fpfs_e1Err','<f8'),('fpfs_e2Err','<f8'),('fpfs_s0Err','<f8'),\
-                    ('fpfs_e1s0Cov','<f8'),('fpfs_e2s0Cov','<f8')]
-    errDat  =   np.array(np.zeros(len(moments)),dtype=types)
-    errDat['fpfs_e1Err']   =   e1Err
-    errDat['fpfs_e2Err']   =   e2Err
-    errDat['fpfs_s0Err']   =   s0Err
-    errDat['fpfs_e1s0Cov'] =   e1s0Cov
-    errDat['fpfs_e2s0Cov'] =   e2s0Cov
-    return errDat
+    def update_selection_bias(self,snms,cuts,cutsigs):
+        """Updates the selection bias correction term with the current
+        selection weight
+        """
+        if not isinstance(snms,list):
+            if isinstance(snms,str) and isinstance(cuts,float) and isinstance(cutsigs,float):
+                snms=[snms]
+                cuts=[cuts]
+                cutsigs=[cutsigs]
+            else:
+                raise TypeError('snms, cuts and cutsigs should be (lists of) str, float, float')
+        for selnm,cut,cutsig in zip(snms,cuts,cutsigs):
+            if selnm=='detect':
+                for iid in range(8):
+                    self._update_selection_bias('det_v%d' %iid,cut,cutsig)
+            else:
+                self._update_selection_bias(selnm,cut,cutsig)
+        assert self.nsel==self.ncor
+        return
 
-def fpfsM2E_old(moments,dets=None,const=1.,noirev=False):
-    """
-    Estimate FPFS ellipticities from fpfs moments
+    def _update_selection_bias(self,selnm,cut,cutsig):
+        """Updates the selection bias correction term with the current
+        selection weight
+        Args:
+            selnm (str):    name of the selection variable ('M00', 'M20', 'R2')
+            cut (float):    selection cut
+            cutsig (float): width of the selection weight function (it is closer
+                            to heavy step when cutsig is smaller)
+        """
+        if not isinstance(selnm,str):
+            raise TypeError('selnm should be str')
+        if not isinstance(cut,float):
+            raise TypeError('cut should be float')
+        if not isinstance(cutsig,float):
+            raise TypeError('cutsig should be float')
+        cut_final=cut
+        if selnm=='M00':
+            scol=self.mm['fpfs_M00']
+            ccol1=self.ell['fpfs_RS0']
+            ccol2=self.ell['fpfs_RS0']
+            if self.noirev:
+                dcol=self.ell['fpfs_HR00']
+                ncol1=self.ell['fpfs_HE100']
+                ncol2=self.ell['fpfs_HE200']
+            else:
+                dcol=None
+                ncol1=None
+                ncol2=None
+        elif selnm=='M20':
+            scol=-self.mm['fpfs_M20']
+            ccol1=-self.ell['fpfs_RS2']
+            ccol2=-self.ell['fpfs_RS2']
+            if self.noirev:
+                dcol=-self.ell['fpfs_HR20']
+                ncol1=-self.ell['fpfs_HE120']
+                ncol2=-self.ell['fpfs_HE220']
+            else:
+                dcol=None
+                ncol1=None
+                ncol2=None
+        elif selnm=='R2':
+            cut_final=0.
+            scol=self.mm['fpfs_M00']*(1.-cut)+self.mm['fpfs_M20']
+            ccol1=self.ell['fpfs_RS0']*(1.-cut)+self.ell['fpfs_RS2']
+            ccol2=self.ell['fpfs_RS0']*(1.-cut)+self.ell['fpfs_RS2']
+            if self.noirev:
+                dcol=self.ell['fpfs_HR00']*(1.-cut)+self.ell['fpfs_HR20']
+                ncol1=self.ell['fpfs_HE100']*(1.-cut)+self.ell['fpfs_HE120']
+                ncol2=self.ell['fpfs_HE200']*(1.-cut)+self.ell['fpfs_HE220']
+            else:
+                dcol=None
+                ncol1=None
+                ncol2=None
+        elif 'det_' in selnm:
+            vn=selnm.split('_')[-1]
+            scol=self.mm['fpfs_%s' %vn]
+            ccol1=self.ell['fpfs_R1S%s' %vn]
+            ccol2=self.ell['fpfs_R2S%s' %vn]
+            if self.noirev:
+                dcol=self.ell['fpfs_HR%s' %vn]
+                ncol1=self.ell['fpfs_HE1%s' %vn]
+                ncol2=self.ell['fpfs_HE2%s' %vn]
+            else:
+                dcol=None
+                ncol1=None
+                ncol2=None
+        else:
+            raise ValueError('Do not support selection vector name: %s' %selnm)
+        corSR1= get_wbias(scol,cut_final,cutsig,self.use_sig,self.ws,ccol1)
+        corSR2= get_wbias(scol,cut_final,cutsig,self.use_sig,self.ws,ccol2)
+        corNR = get_wbias(scol,cut_final,cutsig,self.use_sig,self.ws,dcol)
+        corNE1= get_wbias(scol,cut_final,cutsig,self.use_sig,self.ws,ncol1)
+        corNE2= get_wbias(scol,cut_final,cutsig,self.use_sig,self.ws,ncol2)
+        self.corR1=self.corR1+corSR1+corNR
+        self.corR2=self.corR2+corSR2+corNR
+        self.corE1=self.corE1+corNE1
+        self.corE2=self.corE2+corNE2
+        self.ncor=self.ncor+1
+        return
 
-    Args:
-        moments (ndarray):
-            input FPFS moments
-        dets (ndarray):
-            detection array [default: None]
-        const (float):
-            the weight constant [default:1]
-        noirev (bool):
-            revise the second-order noise bias? [default: False]
-
-    Returns:
-        out (ndarray):
-            an array of (FPFS ellipticities, FPFS ellipticity response, FPFS
-            flux ratio, and FPFS selection response)
-    """
-    # ellipticity, q-ellipticity, sizes, e^2, eq
-    types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8'),  ('fpfs_RE','<f8'), \
-                ('fpfs_q1','<f8'), ('fpfs_q2','<f8'), \
-                ('fpfs_s0','<f8') , ('fpfs_s2','<f8') , ('fpfs_s4','<f8'),\
-                ('fpfs_ee','<f8'), ('fpfs_eq','<f8'),\
-                ('fpfs_RS0','<f8'),('fpfs_RS2','<f8')]
-    # FPFS shape weight's inverse
-    _w      =   moments['fpfs_M00']+const
-    # FPFS ellipticity
-    e1      =   moments['fpfs_M22c']/_w
-    e2      =   moments['fpfs_M22s']/_w
-    # q1      =   moments['fpfs_M42c']/_w #New
-    # q2      =   moments['fpfs_M42s']/_w
-    e1sq    =   e1*e1
-    e2sq    =   e2*e2
-    # e1q1    =   e1*q1   #New
-    # e2q2    =   e2*q2
-    # FPFS flux ratio
-    s0      =   moments['fpfs_M00']/_w
-    s2      =   moments['fpfs_M20']/_w
-    s4      =   moments['fpfs_M40']/_w
-    # # FPFS sel respose
-    # e1sqS0  =   e1sq*s0
-    # e2sqS0  =   e2sq*s0
-    # e1sqS2  =   e1sq*s2 #New
-    # e2sqS2  =   e2sq*s2
-
-    if dets is not None:
-        # shear response for detection
-        dDict=  {}
-        for i in range(8):
-            types.append(('fpfs_e1v%dr1'%i,'<f8'))
-            types.append(('fpfs_e2v%dr2'%i,'<f8'))
-            dDict['fpfs_e1v%dr1' %i]=e1*dets['fpfs_v%dr1' %i]
-            dDict['fpfs_e2v%dr2' %i]=e2*dets['fpfs_v%dr2' %i]
-    else:
-        dDict = None
-
-    if noirev:
-        ratio=  moments['fpfs_N00N00']/_w**2.
-        if dDict is not None:
-            # correction detection shear response for noise bias
-            for i in range(8):
-                dDict['fpfs_e1v%dr1'%i]=dDict['fpfs_e1v%dr1'%i]\
-                    -1.*dets['fpfs_N22cV%dr1'%i]/_w\
-                    +1.*e1*dets['fpfs_N00V%dr1'%i]/_w\
-                    +1.*moments['fpfs_N00N22c']/_w**2.*dets['fpfs_v%dr1'%i]
-                dDict['fpfs_e1v%dr1'%i]=dDict['fpfs_e1v%dr1'%i]/(1+ratio)
-                dDict['fpfs_e2v%dr2'%i]=dDict['fpfs_e2v%dr2'%i]\
-                    -1.*dets['fpfs_N22sV%dr2'%i]/_w\
-                    +1.*e2*dets['fpfs_N00V%dr2'%i]/_w\
-                    +1.*moments['fpfs_N00N22s']/_w**2.*dets['fpfs_v%dr2'%i]
-                dDict['fpfs_e2v%dr2'%i]=dDict['fpfs_e2v%dr2'%i]/(1+ratio)
-
-        # # shear response of flux selection
-        # e1sqS0= (e1sqS0+3.*e1sq*moments['fpfs_N00N00']/_w**2.\
-        #         -s0*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
-        # e2sqS0= (e2sqS0+3.*e2sq*moments['fpfs_N00N00']/_w**2.\
-        #         -s0*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
-        # # shear response of resolution selection
-        # e1sqS2= (e1sqS2+3.*e1sq*moments['fpfs_N00N20']/_w**2.\
-        #         -s2*moments['fpfs_N22cN22c']/_w**2.)/(1+6.*ratio)
-        # e2sqS2= (e2sqS2+3.*e2sq*moments['fpfs_N00N20']/_w**2.\
-        #         -s2*moments['fpfs_N22sN22s']/_w**2.)/(1+6.*ratio)
-        # e1q1=   (e1q1-moments['fpfs_N22cN42c']/_w**2.\
-        #         +2.*e1*moments['fpfs_N00N42c']/_w**2.\
-        #         +2.*q1*moments['fpfs_N00N22c']/_w**2.\
-        #         )/(1.+3*ratio)
-        # e2q2=   (e2q2-moments['fpfs_N22sN42s']/_w**2.\
-        #         +2.*e2*moments['fpfs_N00N42s']/_w**2.\
-        #         +2.*q2*moments['fpfs_N00N22s']/_w**2.\
-        #         )/(1.+3*ratio)
-        # # intrinsic shape dispersion
-        # e1sq=   (e1sq-moments['fpfs_N22cN22c']/_w**2.\
-        #         +4.*e1*moments['fpfs_N00N22c']/_w**2.)\
-        #         /(1.+3*ratio)
-        # e2sq=   (e2sq-moments['fpfs_N22sN22s']/_w**2.\
-        #         +4.*e2*moments['fpfs_N00N22s']/_w**2.)\
-        #         /(1.+3*ratio)
-
-        # noise bias correction for ellipticity
-        e1  =   (e1+moments['fpfs_N00N22c']\
-                /_w**2.)/(1+ratio)
-        e2  =   (e2+moments['fpfs_N00N22s']\
-                /_w**2.)/(1+ratio)
-        # q1  =   (q1+moments['fpfs_N00N42c']\
-        #         /_w**2.)/(1+ratio)
-        # q2  =   (q2+moments['fpfs_N00N42s']\
-        #         /_w**2.)/(1+ratio)
-        # noise bias correction for spin-0 observables
-        s0  =   (s0+moments['fpfs_N00N00']\
-                /_w**2.)/(1+ratio)
-        s2  =   (s2+moments['fpfs_N00N20']\
-                /_w**2.)/(1+ratio)
-        s4  =   (s4+moments['fpfs_N00N40']\
-                /_w**2.)/(1+ratio)
-
-    # make the output ndarray
-    out  =   np.array(np.zeros(moments.size),dtype=types)
-    if dDict is not None:
-        for i in range(8):
-            out['fpfs_e1v%dr1'%i] = dDict['fpfs_e1v%dr1'%i]
-            out['fpfs_e2v%dr2'%i] = dDict['fpfs_e2v%dr2'%i]
-        del dDict
-
-    # spin-2 properties
-    out['fpfs_e1']  =   e1      # ellipticity
-    out['fpfs_e2']  =   e2
-    # out['fpfs_q1']  =   q1      # epsilon
-    # out['fpfs_q2']  =   q2
-    del e1,e2
-
-    # spin-0 properties
-    out['fpfs_s0']  =   s0      # flux
-    out['fpfs_s2']  =   s2      # size2
-    out['fpfs_s4']  =   s4      # size4
-    eSq  =  e1sq+e2sq       # e_1^2+e_2^2
-    RE   =  1./np.sqrt(2.)*(s0-s4+eSq) # shear response of e
-    # Li et. al (2018) has a minus sign difference
-    out['fpfs_RE']  =   RE
-    out['fpfs_ee']  =   eSq     # shape noise
-    del s0,s2,s4,RE,e1sq,e2sq
-
-    # # for selection bias correction
-    # eSqS0=  e1sqS0+e2sqS0   # (e_1^2+e_2^2)s_0 for selection bias correcton
-    # del e1sqS0,e2sqS0
-    # eqeq =  e1q1+e2q2
-    # eSqS2=  e1sqS2+e2sqS2   # (e_1^2+e_2^2)s_2 for selection bias correcton
-    # del e1q1,e2q2
-    # out['fpfs_RS0'] =   (eSq-eSqS0)/np.sqrt(2.) # selection bias correction for flux
-    # out['fpfs_RS2'] =   (eqeq*np.sqrt(3.)-eSqS2)/np.sqrt(2.) # selection bias correction for resolution
-    return out
-
+    def update_ellsum(self):
+        """Updates the weighted sum of ellipticity and response with the currenct
+        selection weight
+        """
+        self.sumE1=np.sum(self.ell['fpfs_e1']*self.ws)
+        self.sumE2=np.sum(self.ell['fpfs_e2']*self.ws)
+        self.sumR1=np.sum(self.ell['fpfs_R1E']*self.ws)
+        self.sumR2=np.sum(self.ell['fpfs_R2E']*self.ws)
+        return

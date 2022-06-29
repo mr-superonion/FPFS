@@ -22,10 +22,9 @@ import logging
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-from . import catutil
 from . import imgutil
 
-def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.):
+def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,pixel_scale=1.):
     """Returns the coordinates of detected sources
     Args:
         imgData (ndarray):      observed image
@@ -34,8 +33,9 @@ def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.):
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
+        pixel_scale (float):    pixel scale in arcsec
     Returns:
-        coords (ndarray):   peak values and the shear responses
+        coords (ndarray):       peak values and the shear responses
     """
 
     assert imgData.shape==psfData.shape, 'image and PSF should have the same\
@@ -91,36 +91,31 @@ def get_klim(psf_array,sigma):
             break
     return klim
 
-class fpfsTask():
+class measure_source():
     """
     A class to measure FPFS shapelet mode estimation.
 
     Args:
-        psfData (ndarray):
-            an average PSF image used to initialize the task
-        beta (float):
-            FPFS scale parameter
-        nnord (int):
-            the highest order of Shapelets radial components [default: 4]
-        noiModel (ndarray):
-            Models to be used to fit noise power function using the pixels at
-            large k for each galaxy (if you wish FPFS code to estiamte noise
-            power). [default: None]
-        noiFit (ndarray):
-            Estimated noise power function (if you have already estimated noise
-            power) [default: None]
-        deubg (bool):
-            Whether debug or not [default: False]
+        psfData (ndarray):  an average PSF image used to initialize the task
+        beta (float):       FPFS scale parameter
+        nnord (int):        the highest order of Shapelets radial components [default: 4]
+        noiModel (ndarray): Models to be used to fit noise power function using the pixels at
+                            large k for each galaxy (if you wish FPFS code to estiamte noise
+                            power). [default: None]
+        noiFit (ndarray):   Estimated noise power function (if you have already estimated noise
+                            power) [default: None]
+        deubg (bool):       Whether debug or not [default: False]
+        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec (HSC)]
     """
-    _DefaultName = "fpfsTask"
-    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,debug=False):
+    _DefaultName = "measure_source"
+    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,debug=False,pix_scale=0.168):
         if not isinstance(beta,(float,int)):
             raise TypeError('Input beta should be float.')
         if beta>=1. or beta<=0.:
             raise ValueError('Input beta should be in range (0,1)')
         self.ngrid  =   psfData.shape[0]
-        self._dk    =   2.*np.pi/self.ngrid
-
+        self.pix_scale= pix_scale # this is only used to normalize basis functions
+        self._dk    =   2.*np.pi/self.ngrid # assuming pixel scale is 1
         # Preparing noise
         self.noise_correct=False
         if noiFit is not None:
@@ -154,10 +149,11 @@ class fpfsTask():
         sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
         # shapelet scale
         sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in pixel units
-        self.sigmaF =   sigma_pix*self._dk # setting delta_pix=1
+        self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
+        logging.info('Gaussian in configuration space: sigma= %.4f arcsec' %(1./self.sigmaF*self.pix_scale))
         # effective nyquest wave number
         self.klim_pix=  get_klim(self.psfPow,sigma_pix/np.sqrt(2.)) # in pixel units
-        self.klim   =   self.klim_pix*self._dk # setting delta_pix=1
+        self.klim   =   self.klim_pix*self._dk  # assume pixel scale is 1
         # index selectors
         self._indX=np.arange(self.ngrid//2-self.klim_pix,self.ngrid//2+self.klim_pix+1)
         self._indY=self._indX[:,None]
@@ -394,25 +390,28 @@ class fpfsTask():
             out (ndarray):  projection in shapelet space
         """
 
+        # Here we divide by self.pix_scale**2. for modes since pixel value are
+        # flux in pixel (in unit of nano Jy for HSC)
+        # Correspondingly, covariances are divided by self.pix_scale**4.
         if out_type=='Chi':
             # Chivatives/Moments
             _       =   np.sum(data[None,self._indY,self._indX]\
-                        *self.Chi,axis=(1,2)).real
+                        *self.Chi,axis=(1,2)).real/self.pix_scale**2.
             out     =   np.array(tuple(_),dtype=self.chi_types)
         elif out_type=='Psi':
             # Chivatives/Moments
             _       =   np.sum(data[None,self._indY,self._indX]\
-                        *self.Psi,axis=(1,2)).real
+                        *self.Psi,axis=(1,2)).real/self.pix_scale**2.
             out     =   np.array(tuple(_),dtype=self.psi_types)
         elif out_type=='Cov':
             # covariance of moments
             _       =   np.sum(data[None,self._indY,self._indX]\
-                        *self.chiCov,axis=(1,2)).real
+                        *self.chiCov,axis=(1,2)).real/self.pix_scale**4.
             out     =   np.array(tuple(_),dtype=self.cov_types)
         elif out_type=='detCov':
             # covariance of pixels
             _       =   np.sum(data[None,self._indY,self._indX]*\
-                        self.detCov,axis=(1,2)).real
+                        self.detCov,axis=(1,2)).real/self.pix_scale**4.
             out     =   np.array(tuple(_),dtype=self.det_types)
         else:
             raise ValueError("out_type can only be 'Chi', 'Cov' or 'Det',\
@@ -497,194 +496,3 @@ class fpfsTask():
             del decNp
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
-
-class Summary():
-    def __init__(self,mm,ell,use_sig=False):
-        """
-        Args:
-            mm (ndarray):   FPFS moments
-            ell (ndarray):  FPFS ellipticity
-            use_sig (bool): whether use sigmoid (True) of truncated sine (False)
-        """
-        self.use_sig= use_sig
-        self.mm =   mm
-        self.ell=   ell
-        self.clear_outcomes()
-        if 'fpfs_HR00' in self.ell.dtype.names:
-            self.noirev=True
-        else:
-            self.noirev=False
-        return
-
-    def clear_outcomes(self):
-        """clears the outcome of the class
-        """
-        self.nsel = 0
-        self.ws =   np.ones(self.ell.shape)
-        # bias
-        self.ncor = 0
-        self.corE1= 0.  # selection bias in e1
-        self.corE2= 0.  # selection bias in e2
-        self.corR1= 0.  # selection bias in R1E (response)
-        self.corR2= 0.  # selection bias in R2E (response)
-        # signal
-        self.sumE1= 0.  # sum of e1
-        self.sumE2= 0.  # sum of e2
-        self.sumR1= 0.  # sum of R1E (response)
-        self.sumR2= 0.  # sum of R2E (response)
-        return
-
-    def update_selection_weight(self,snms,cuts,cutsigs):
-        """Updates the selection weight term with the current selection weight
-        """
-        if not isinstance(snms,list):
-            if isinstance(snms,str) and isinstance(cuts,float) and isinstance(cutsigs,float):
-                snms=[snms]
-                cuts=[cuts]
-                cutsigs=[cutsigs]
-            else:
-                raise TypeError('snms, cuts and cutsigs should be str, float, float')
-        for selnm,cut,cutsig in zip(snms,cuts,cutsigs):
-            if selnm=='detect':
-                for iid in range(8):
-                    self._update_selection_weight('det_v%d' %iid,cut,cutsig)
-            else:
-                self._update_selection_weight(selnm,cut,cutsig)
-        # logging.info('weight updated. we have %d selection cuts' %self.nsel)
-        return
-
-    def _update_selection_weight(self,selnm,cut,cutsig):
-        """Updates the selection weight term with the current selection weight
-        """
-        if not isinstance(selnm,str):
-            raise TypeError('selnm should be str')
-        if not isinstance(cut,float):
-            raise TypeError('cut should be float')
-        if not isinstance(cutsig,float):
-            raise TypeError('cutsig should be float')
-
-        if selnm=='M00':
-            scol=self.mm['fpfs_M00']
-        elif selnm=='M20':
-            scol=-self.mm['fpfs_M20']
-        elif selnm=='R2':
-            scol=self.mm['fpfs_M00']+self.mm['fpfs_M20']
-        elif 'det_' in selnm:
-            vn=selnm.split('_')[-1]
-            scol=self.mm['fpfs_%s'%vn]
-        else:
-            raise ValueError('Do not support selection vector name: %s' %selnm)
-        # update weight
-        ws  =   catutil.get_wsel_eff(scol,cut,cutsig,self.use_sig)
-        self.ws=self.ws*ws
-        # count the total number of selection cuts
-        self.nsel=self.nsel+1
-        return
-
-    def update_selection_bias(self,snms,cuts,cutsigs):
-        """Updates the selection bias correction term with the current
-        selection weight
-        """
-        if not isinstance(snms,list):
-            if isinstance(snms,str) and isinstance(cuts,float) and isinstance(cutsigs,float):
-                snms=[snms]
-                cuts=[cuts]
-                cutsigs=[cutsigs]
-            else:
-                raise TypeError('snms, cuts and cutsigs should be str, float, float')
-        for selnm,cut,cutsig in zip(snms,cuts,cutsigs):
-            if selnm=='detect':
-                for iid in range(8):
-                    self._update_selection_bias('det_v%d' %iid,cut,cutsig)
-            else:
-                self._update_selection_bias(selnm,cut,cutsig)
-        assert self.nsel==self.ncor
-        return
-
-    def _update_selection_bias(self,selnm,cut,cutsig):
-        """Updates the selection bias correction term with the current
-        selection weight
-        Args:
-            selnm (str):    name of the selection variable ('M00', 'M20', 'R2')
-            cut (float):    selection cut
-            cutsig (float): width of the selection weight function (it is closer
-                            to heavy step when cutsig is smaller)
-        """
-        if not isinstance(selnm,str):
-            raise TypeError('selnm should be str')
-        if not isinstance(cut,float):
-            raise TypeError('cut should be float')
-        if not isinstance(cutsig,float):
-            raise TypeError('cutsig should be float')
-        if selnm=='M00':
-            scol=self.mm['fpfs_M00']
-            ccol1=self.ell['fpfs_RS0']
-            ccol2=self.ell['fpfs_RS0']
-            if self.noirev:
-                dcol=self.ell['fpfs_HR00']
-                ncol1=self.ell['fpfs_HE100']
-                ncol2=self.ell['fpfs_HE200']
-            else:
-                dcol=None
-                ncol1=None
-                ncol2=None
-        elif selnm=='M20':
-            scol=-self.mm['fpfs_M20']
-            ccol1=-self.ell['fpfs_RS2']
-            ccol2=-self.ell['fpfs_RS2']
-            if self.noirev:
-                dcol=-self.ell['fpfs_HR20']
-                ncol1=-self.ell['fpfs_HE120']
-                ncol2=-self.ell['fpfs_HE220']
-            else:
-                dcol=None
-                ncol1=None
-                ncol2=None
-        elif selnm=='R2':
-            scol=self.mm['fpfs_M00']+self.mm['fpfs_M20']
-            ccol1=self.ell['fpfs_RS0']+self.ell['fpfs_RS2']
-            ccol2=self.ell['fpfs_RS0']+self.ell['fpfs_RS2']
-            if self.noirev:
-                dcol=self.ell['fpfs_HR00']+self.ell['fpfs_HR20']
-                ncol1=self.ell['fpfs_HE100']+self.ell['fpfs_HE120']
-                ncol2=self.ell['fpfs_HE200']+self.ell['fpfs_HE220']
-            else:
-                dcol=None
-                ncol1=None
-                ncol2=None
-        elif 'det_' in selnm:
-            vn=selnm.split('_')[-1]
-            scol=self.mm['fpfs_%s' %vn]
-            ccol1=self.ell['fpfs_R1S%s' %vn]
-            ccol2=self.ell['fpfs_R2S%s' %vn]
-            if self.noirev:
-                dcol=self.ell['fpfs_HR%s' %vn]
-                ncol1=self.ell['fpfs_HE1%s' %vn]
-                ncol2=self.ell['fpfs_HE2%s' %vn]
-            else:
-                dcol=None
-                ncol1=None
-                ncol2=None
-        else:
-            raise ValueError('Do not support selection vector name: %s' %selnm)
-        corSR1= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ccol1)
-        corSR2= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ccol2)
-        corNR = catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,dcol)
-        corNE1= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ncol1)
-        corNE2= catutil.get_wbias(scol,cut,cutsig,self.use_sig,self.ws,ncol2)
-        self.corR1=self.corR1+corSR1+corNR
-        self.corR2=self.corR2+corSR2+corNR
-        self.corE1=self.corE1+corNE1
-        self.corE2=self.corE2+corNE2
-        self.ncor=self.ncor+1
-        return
-
-    def update_ellsum(self):
-        """Updates the weighted sum of ellipticity and response with the currenct
-        selection weight
-        """
-        self.sumE1=np.sum(self.ell['fpfs_e1']*self.ws)
-        self.sumE2=np.sum(self.ell['fpfs_e2']*self.ws)
-        self.sumR1=np.sum(self.ell['fpfs_R1E']*self.ws)
-        self.sumR2=np.sum(self.ell['fpfs_R2E']*self.ws)
-        return
