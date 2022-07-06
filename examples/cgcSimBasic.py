@@ -89,8 +89,8 @@ class cgcSimBasicBatchTask(BatchPoolTask):
     def process(self,cache,Id):
         #Prepare the pool
         p2List=['0000','2222']
-        # p1List=['g1','g2']
         p1List=['g1']
+        # p1List=['g1','g2']
         pendList=['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
         for pp in pendList:
             fpfs.simutil.make_basic_sim(cache.expDir,pp,Id)
