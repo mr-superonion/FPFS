@@ -338,14 +338,14 @@ class measure_source():
         out    =    []
         self.det_types= []
         for _ in range(8):
-            out.append(chi.real[0]*psi[_,0]) #x00*phi
-            out.append(chi.real[0]*psi[_,1]) #x00*phi;1
-            out.append(chi.real[0]*psi[_,2]) #x00*phi;2
-            out.append(chi.real[2]*psi[_,0]) #x22c*phi
-            out.append(chi.imag[2]*psi[_,0]) #x22s*phi
-            out.append(chi.real[2]*psi[_,1]) #x22c*phi;1
-            out.append(chi.imag[2]*psi[_,2]) #x22s*phi;2
-            out.append(chi.real[3]*psi[_,0]) #x40*phi
+            out.append(chi.real[0]*psi[_,0]) #x00*psi
+            out.append(chi.real[0]*psi[_,1]) #x00*psi;1
+            out.append(chi.real[0]*psi[_,2]) #x00*psi;2
+            out.append(chi.real[2]*psi[_,0]) #x22c*psi
+            out.append(chi.imag[2]*psi[_,0]) #x22s*psi
+            out.append(chi.real[2]*psi[_,1]) #x22c*psi;1
+            out.append(chi.imag[2]*psi[_,2]) #x22s*psi;2
+            out.append(chi.real[3]*psi[_,0]) #x40*psi
             self.det_types.append(('fpfs_N00V%d'   %_,'<f8'))
             self.det_types.append(('fpfs_N00V%dr1' %_,'<f8'))
             self.det_types.append(('fpfs_N00V%dr2' %_,'<f8'))
