@@ -281,7 +281,25 @@ def coord_distort(x,y,xref,yref,gamma1,gamma2,kappa=0.):
     y2  =   gamma2*xu+(1+kappa-gamma1)*yu+yref
     return x2,y2
 
-def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=False):
+def coord_rotate(x,y,xref,yref,theta):
+    '''
+    Args:
+        x (ndarray):    input coordinates (x)
+        y (ndarray):    input coordinates (y)
+        xref (float):   reference point (x)
+        yref (float):   reference point (y)
+        theta (float):  rotation angle [rads]
+    Returns:
+        x2 (ndarray):   rotated coordiantes (x)
+        y2 (ndarray):   rotated coordiantes (y)
+    '''
+    xu  =   x-xref
+    yu  =   y-yref
+    x2  =   np.cos(theta)*xu-np.sin(theta)*yu+xref
+    y2  =   np.sin(theta)*xu+np.cos(theta)*yu+yref
+    return x2,y2
+
+def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,return_array=False):
     """Makes cosmo galaxy image simulation (blended)
     Args:
         outDir (str):
@@ -294,6 +312,8 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
             number of galaxies in y direction (default: 5000)
         nx (int):
             number of galaxies in x direction (default: 5000)
+        rfrac(float):
+            fraction of radius to min(nx,ny)
         do_write (bool):
             whether write output (default: True)
         return_array (bool):
@@ -302,9 +322,7 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
     if Id0>= 1024:
         logging.info('galaxy image index greater than 1024' )
         return
-    eta     =   7
-    irot    =   (Id0//8)%(2**eta)
-    cgid    =   int(Id0%8)
+    cgid    =   Id0//4
     np.random.seed(cgid)
     outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
     if os.path.isfile(outFname):
@@ -316,21 +334,19 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
         else:
             return None
 
-    rotArray    =   make_ringrot_radians(eta)
-    # 2**7*8=1024 galaxy ID
-    # 2**7 different rotations and dilations
-    # for each galaxy ID 10000 parametric galaxies
-    logging.info('We have %d rotation realizations' %len(rotArray))
-    ang     =   rotArray[irot]*galsim.radians
-    ud      =   galsim.UniformDeviate(Id0*212)
-    rescale =   1.+(ud()-0.5)*0.1
+    # randomly rotate by an angle
+    irot    =   Id0%4
+    rotAng  =   np.random.uniform(0.,np.pi*2.)+np.pi/4.*irot
+    ang     =   rotAng*galsim.radians
+    rescale =   np.random.uniform(0.95,1.05)
     # Galsim galaxies
-    directory   =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
+    directory   =   os.path.join(os.environ['homeWrk'],\
+            'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
     catName     =   'real_galaxy_catalog_25.2.fits'
     cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
     # Basic parameters
-    bigfft      =   galsim.GSParams(maximum_fft_size=10240)
+    bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     # Get the shear information
     # Three choice on g(-0.02,0,0.02)
     gList   =   np.array([-0.02,0.,0.02])
@@ -352,7 +368,7 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
 
     # catalog
     density =   int(outDir.split('_psf')[0].split('_cosmo')[-1])
-    ngal    =   max(int(nx*ny*0.93**2.*pix_scale**2./3600.*density),1)
+    ngal    =   max(int(nx*ny*np.pi*(rfrac*pix_scale)**2./3600.*density),1)
     logging.info('We have %d galaxies in total' %ngal)
     cosmo252=   cosmoHSTGal('252')
     cosmo252.readHSTsample()
@@ -360,12 +376,15 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
     inds    =   np.random.randint(0,ntrain,ngal)
     inCat   =   cosmo252.catused[inds]
 
-    xarray  =   nx*0.92*np.random.rand(ngal)+nx*0.04
-    yarray  =   ny*0.92*np.random.rand(ngal)+ny*0.04
-    # if True:
-    #     xarray  =   np.array([36.3])
-    #     yarray  =   np.array([30.8])
-
+    rarray  =   np.sqrt((min(nx,ny)*rfrac)**2.*np.random.rand(ngal))
+    tarray  =   np.random.uniform(0.,np.pi*2.,ngal)
+    xarray  =   rarray*np.cos(tarray)+nx//2
+    yarray  =   rarray*np.sin(tarray)+ny//2
+    # xarray  =   np.array([nx//2])
+    # yarray  =   np.array([ny//2])
+    # ngal    =   1
+    del rarray,tarray
+    xarray,yarray=  coord_rotate(xarray,yarray,nx//2,ny//2,rotAng)
 
     #zbound  =   np.array([0.,0.561,0.906,1.374,5.410]) #before sim3
     #zbound  =   np.array([0.005,0.5477,0.8874,1.3119,3.0]) #sim 3
@@ -375,6 +394,7 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
 
     for ii in range(ngal):
         ss  =   inCat[ii]
+        # determine redshift
         gInd=   np.where((ss['zphot']>zbound[:-1])&(ss['zphot']<=zbound[1:]))[0]
         if len(gInd)==1:
             if gname.split('-')[0]=='g1':
@@ -387,50 +407,51 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,do_write=True,return_array=F
                 raise ValueError('g1 or g2 must be in gname')
         else:
             g1  =   0.; g2  = 0.
-        # each galaxy
-        gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+
+        # determine flux
         flux=   10**((27.-ss['mag_auto'])/2.5)
-        gal =   gal.withFlux(flux)
-
-        # rescale the radius while keeping the surface brightness the same
-        gal =   gal.expand(rescale)
-        # rotate by 'ang'
-        gal =   gal.rotate(ang)
-        # lensing shear
-        gal =   gal.shear(g1=g1,g2=g2)
-
         xi  =   xarray[ii]
         yi  =   yarray[ii]
+        # distort here since g1 and g2 can be different for different gals
         xi,yi=  coord_distort(xi,yi,nx//2,ny//2,g1,g2)
-        xu  =   int(xi)
-        yu  =   int(yi)
-        dx  =   (0.5+xi-xu)*pix_scale
-        dy  =   (0.5+yi-yu)*pix_scale
-        gal =   gal.shift(dx,dy)
-        # PSF
-        gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
-        gPix=   gal.getGoodImageSize(pix_scale)
-        rx1 =   np.min([gPix//1.0,xi])
-        rx2 =   np.min([gPix//1.0,nx-xu-1])
+        xu  =   int(xi);yu  =   int(yi)
+        dx  =   (0.5+xi-xu)*pix_scale;dy  =   (0.5+yi-yu)*pix_scale
+        if 'test' in outDir:
+            gal =   galsim.Gaussian(sigma=3.*pix_scale)
+            gal =   gal.withFlux(flux)
+            gal =   gal.shear(g1=g1,g2=g2)
+            gal =   gal.shift(dx,dy)
+            gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
+            gPix=   16
+        else:
+            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+            # assign flux
+            gal =   gal.withFlux(flux)
+            # rescale the radius while keeping the surface brightness the same
+            gal =   gal.expand(rescale)
+            # rotate by 'ang'
+            gal =   gal.rotate(ang)
+            # lensing shear
+            gal =   gal.shear(g1=g1,g2=g2)
+            gal =   gal.shift(dx,dy)
+            # PSF
+            gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
+            gPix=   gal.getGoodImageSize(pix_scale)
+        rx1 =   np.min([gPix,xu])
+        rx2 =   np.min([gPix,nx-xu-1])
         rx  =   int(min(rx1,rx2))
         del rx1,rx2
-        ry1 =   np.min([gPix//1.0,yi])
-        ry2 =   np.min([gPix//1.0,ny-yu-1])
+        ry1 =   np.min([gPix,yu])
+        ry2 =   np.min([gPix,ny-yu-1])
         ry  =   int(min(ry1,ry2))
         del ry1,ry2
         # draw galaxy
         b   =   galsim.BoundsI(xu-rx,xu+rx-1,yu-ry,yu+ry-1)
-        try:
-            sub_img =   gal_image[b]
-        except:
-            print(yu,ry,xi)
-            print(xu-rx,xu+rx-1,yu-ry,yu+ry-1)
-            return
-        del xu,yu
+        sub_img =   gal_image[b]
         gal.drawImage(sub_img,add_to_image=True)
-        del gal,b,sub_img
+        # print(galsim.hsm.FindAdaptiveMom(gal_image))
+        del gal,b,sub_img,xu,yu,xi,yi
         gc.collect()
-    # print(galsim.hsm.FindAdaptiveMom(gal_image))
     del inCat,cosmos_cat,psfInt
     if do_write:
         gal_image.write(outFname,clobber=True)

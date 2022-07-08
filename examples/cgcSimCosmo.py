@@ -80,11 +80,11 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
         #Prepare the storeSet
         pool    =   Pool("cgcSimBasicBatch")
         pool.cacheClear()
-        expDir  =   "galaxy_cosmo085_psf60"
+        expDir  =   "galaxy_unif_cosmo170_psf60"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
-        fieldList=np.arange(110*index,110*(index+1))
+        fieldList=np.arange(100*index,100*(index+1))
         pool.map(self.process,fieldList)
         return
 

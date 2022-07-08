@@ -108,14 +108,12 @@ class measure_source():
         pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec (HSC)]
     """
     _DefaultName = "measure_source"
-    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,debug=False,pix_scale=0.168):
+    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,debug=False,pix_scale=0.168,sigma_arcsec=0.5944):
         if not isinstance(beta,(float,int)):
             raise TypeError('Input beta should be float.')
         if beta>=1. or beta<=0.:
             raise ValueError('Input beta should be in range (0,1)')
         self.ngrid  =   psfData.shape[0]
-        self.pix_scale= pix_scale # this is only used to normalize basis functions
-        self._dk    =   2.*np.pi/self.ngrid # assuming pixel scale is 1
         # Preparing noise
         self.noise_correct=False
         if noiFit is not None:
@@ -145,12 +143,19 @@ class measure_source():
         self.psfPow0=   self.psfPow.copy() # we keep a copy of the initial PSF power
 
         # A few import scales
-        # scale radius of PSF's Fourier transform (in units of pixel)
-        sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
-        # shapelet scale
-        sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in pixel units
-        self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
-        logging.info('Gaussian in configuration space: sigma= %.4f arcsec' %(1./self.sigmaF*self.pix_scale))
+        self.pix_scale= pix_scale # this is only used to normalize basis functions
+        self._dk    =   2.*np.pi/self.ngrid # assuming pixel scale is 1
+        if sigma_arcsec<0. or sigma_arcsec>6.:
+            # scale radius of PSF's Fourier transform (in units of dk)
+            sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
+            # shapelet scale
+            sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
+            self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
+            sigma_arcsec  =   1./self.sigmaF*self.pix_scale
+        else:
+            self.sigmaF =   self.pix_scale/sigma_arcsec
+            sigma_pix   =   self.sigmaF/self._dk
+        logging.info('Gaussian in configuration space: sigma= %.4f arcsec' %(sigma_arcsec))
         # effective nyquest wave number
         self.klim_pix=  get_klim(self.psfPow,sigma_pix/np.sqrt(2.)) # in pixel units
         self.klim   =   self.klim_pix*self._dk  # assume pixel scale is 1
@@ -478,7 +483,7 @@ class measure_source():
         mm      =   self.itransform(decG,out_type='Chi')
         mp      =   self.itransform(decG,out_type='Psi')
         mm      =   rfn.merge_arrays([mm,mp],flatten=True,usemask=False)
-        del decG
+        del decG,mp
 
         if self.noise_correct:
             # do noise covariance estimation
@@ -496,3 +501,54 @@ class measure_source():
             del decNp
             mm      =   rfn.merge_arrays([mm,nn,dd],flatten=True,usemask=False)
         return mm
+
+class test_noise():
+    _DefaultName = "fpfsTestNoi"
+    def __init__(self,ngrid,noiModel=None,noiFit=None):
+        self.ngrid  =   ngrid
+        # Preparing noise Model
+        self.noiModel=  noiModel
+        self.noiFit =   noiFit
+        self.rlim   =   int(ngrid//4)
+        return
+
+    def test(self,galData):
+        """
+        # test the noise subtraction
+
+        Parameters:
+        galData:    galaxy image [float array (list)]
+
+        Returns:
+        out :   FPFS moments
+
+
+        """
+        if isinstance(galData,np.ndarray):
+            # single galaxy
+            out =   self.__test(galData)
+            return out
+        elif isinstance(galData,list):
+            assert isinstance(galData[0],np.ndarray)
+            # list of galaxies
+            results=[]
+            for gal in galData:
+                _g=self.__test(gal)
+                results.append(_g)
+            out =   np.stack(results)
+            return out
+
+    def __test(self,data):
+        """
+        # test the noise subtraction
+
+        Parameters:
+        data:    image array (centroid does not matter)
+        """
+        assert len(data.shape)==2
+        galPow  =   imgutil.getFouPow(data)
+        if (self.noiFit is not None) or (self.noiModel is not None):
+            if self.noiModel is not None:
+                self.noiFit  =   imgutil.fitNoiPow(self.ngrid,galPow,self.noiModel,self.rlim)
+            galPow  =   galPow-self.noiFit
+        return galPow
