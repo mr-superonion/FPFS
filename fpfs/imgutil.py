@@ -105,7 +105,7 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
             raise ValueError('do not support shifting centroid if use_rfft=True')
         return _gauss_kernel_rfft(ny,nx,sigma,return_grid)
 
-def getFouPow_rft(arrayIn: np.ndarray):
+def getFouPow_rft(arrayIn):
     """
     Get Fourier power function
 
@@ -126,7 +126,7 @@ def getFouPow_rft(arrayIn: np.ndarray):
     foupow[:,ngrid//2:]   =  tmp[:,:-1]
     return foupow
 
-def getFouPow(arrayIn: np.ndarray, noiPow=None):
+def getFouPow(arrayIn, noiPow=None):
     """
     Get Fourier power function
 
@@ -320,7 +320,7 @@ def cut_img(img,rcut):
     out     =   img[beg:end,beg:end]
     return out
 
-def find_peaks(imgCov,thres,thres2=0.):
+def find_peaks(imgCov,thres,thres2=0.,negBd=20.):
     """Detects peaks and returns the coordinates (y,x)
     Args:
         imgCov (ndarray):       convolved image
@@ -342,7 +342,7 @@ def find_peaks(imgCov,thres,thres2=0.):
     out['fpfs_x']=data[1]
     ny,nx = imgCov.shape
     # avoid pixels near boundary
-    msk     =   (out['fpfs_y']>20)&(out['fpfs_y']<ny-20)\
-                &(out['fpfs_x']>20)&(out['fpfs_x']<nx-20)
+    msk     =   (out['fpfs_y']>negBd)&(out['fpfs_y']<ny-negBd)\
+                &(out['fpfs_x']>negBd)&(out['fpfs_x']<nx-negBd)
     coord_array= out[msk]
     return coord_array
