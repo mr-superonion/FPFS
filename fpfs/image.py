@@ -78,8 +78,8 @@ def get_klim(psf_array,sigma):
         klim (float):           the limit radius
     """
     ngrid   =   psf_array.shape[0]
-    thres   =   1.e-8
-    klim    =   ngrid//2
+    thres   =   1.e-20 # better to be small otherwise suffer from blending
+    klim    =   ngrid//2-1
     for dist in range(ngrid//5,ngrid//2-1):
         ave =  abs(np.exp(-dist**2./2./sigma**2.)\
                 /psf_array[ngrid//2+dist,ngrid//2])
