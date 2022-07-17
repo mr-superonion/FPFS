@@ -76,12 +76,12 @@ class cgcSimBasicBatchTask(BatchPoolTask):
         pool.cacheClear()
         # expDir  =   "galaxy_basic_psf60"
         # expDir  =   "small0_psf60"
-        #expDir  =   "galaxy_basic2Center_psf60"
-        expDir  =   "galaxy_basic2Center_psf60"
+        expDir  =   "galaxy_basic3Shift_psf60"
+        # expDir  =   "galaxy_basic3Center_psf60"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
-        fieldList=np.arange(110*index,110*(index+1))
+        fieldList=np.arange(100*index,100*(index+1))
         pool.map(self.process,fieldList)
         return
 

@@ -19,88 +19,32 @@
 
 import os
 import gc
+import fitsio
 import galsim
 import logging
 import numpy as np
 import numpy.lib.recfunctions as rfn
-try:
-    import fitsio
-    with_hst=True
-    hpInfofname     =   os.path.join(os.environ['homeWrk'],'skyMap/healpix-nside%d-nest.fits')
-    cosmoHSThpix    =   np.array(\
-           [1743739, 1743740, 1743741, 1743742, 1743743, 1743825, 1743828,
-            1743829, 1743830, 1743831, 1743836, 1743837, 1744397, 1744398,
-            1744399, 1744402, 1744408, 1744409, 1744410, 1744411, 1744414,
-            1744416, 1744417, 1744418, 1744419, 1744420, 1744421, 1744422,
-            1744423, 1744424, 1744425, 1744426, 1744427, 1744428, 1744429,
-            1744430, 1744431, 1744432, 1744433, 1744434, 1744435, 1744436,
-            1744437, 1744438, 1744439, 1744440, 1744441, 1744442, 1744443,
-            1744444, 1744445, 1744446, 1744447, 1744482, 1744488, 1744489,
-            1744490, 1744491, 1744494, 1744512, 1744513, 1744514, 1744515,
-            1744516, 1744517, 1744518, 1744519, 1744520, 1744521, 1744522,
-            1744523, 1744524, 1744525, 1744526, 1744527, 1744528, 1744529,
-            1744530, 1744531, 1744532, 1744533, 1744534, 1744535, 1744536,
-            1744537, 1744538, 1744539, 1744540, 1744541, 1744542, 1744543,
-            1744545, 1744548, 1744549, 1744550, 1744551, 1744557, 1744560,
-            1744561, 1744562, 1744563, 1744564, 1744565, 1744566, 1744567,
-            1744568, 1744569, 1744570, 1744571, 1744572, 1744573, 1744574,
-            1744576, 1744577, 1744578, 1744579, 1744580, 1744581, 1744582,
-            1744583, 1744584, 1744585, 1744586, 1744587, 1744588, 1744589,
-            1744590, 1744594, 1744608, 1744609, 1744610, 1750033])
-except (ImportError, KeyError) as error:
-    with_hst=False
 
-if with_hst:
-    class cosmoHSTGal():
-        def __init__(self,version):
-            self.hpInfo     =   fitsio.read(hpInfofname %512)
+class cosmoHSTGal():
+    def __init__(self,version):
+        self.version=version
+        if version=='252':
             self.directory  =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
             self.catName    =   'real_galaxy_catalog_25.2.fits'
-            self.finName    =   os.path.join(self.directory,'cat_used.fits')
-            if version=='252':
-                self.hpDir  =   os.path.join(self.directory,'healpix-nside512')
-            elif version=='252E':
-                _dir        =   os.path.join(os.environ['homeWrk'],\
-                            'COSMOS/galsim_train/COSMOS_25.2_extended/')
-                self.hpDir  =   os.path.join(_dir,'healpix-nside512')
-            else:
-                return
-            return
+        elif version=='252E':
+            self.directory  =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_extended/')
+        else:
+            raise ValueError('Does not support version=%s' %version)
+        self.finName    =   os.path.join(self.directory,'cat_used.fits')
+        self.catused    =   fitsio.read(self.finName)
+        return
 
-        def selectHpix(self,pixId):
-            """
-            # select galaxies in one healPIX
-            """
-            indFname    =   os.path.join(self.hpDir,'%d-25.2_ind.fits' %pixId)
-            if os.path.isfile(indFname):
-                __mask  =   fitsio.read(indFname)
-            else:
-                dd      =   self.hpInfo[self.hpInfo['pix']==pixId]
-                __mask  =   (self.catused['ra']>dd['raMin'])\
-                        &(self.catused['ra']<dd['raMax'])\
-                        &(self.catused['dec']>dd['decMin'])\
-                        &(self.catused['dec']<dd['decMax'])
-            __out   =   self.catused[__mask]
-            return __out
-
-        def readHpixSample(self,pixId):
-            """
-            # select galaxies in one healPIX
-            """
-            fname   =   os.path.join(self.hpDir,'cat-%d-25.2.fits' %pixId)
-            if os.path.isfile(fname):
-                out =   fitsio.read(fname)
-            else:
-                out =   None
-            return out
-
-        def readHSTsample(self):
-            """
-            # read the HST galaxy training sample
-            """
-            if os.path.isfile(self.finName):
-                catfinal    =   fitsio.read(self.finName)
-            else:
+    def prepare_sample(self):
+        """
+        # read the HST galaxy training sample
+        """
+        if not os.path.isfile(self.finName):
+            if self.version=='252':
                 cosmos_cat  =   galsim.COSMOSCatalog(self.catName,dir=self.directory)
                 # used index
                 index_use   =   cosmos_cat.orig_index
@@ -115,8 +59,10 @@ if with_hst:
                 radec=np.array([tuple(__t) for __t in __tmp],dtype=[('ra','>f8'),('dec','>f8'),('index','i8')])
                 catfinal    =   rfn.merge_arrays([paracat,radec], flatten = True, usemask = False)
                 fitsio.write(self.finName,catfinal)
-            self.catused    =   catfinal
-            return
+                self.catused    =   catfinal
+            else:
+                return
+        return
 
 # LSST Task
 try:
@@ -319,10 +265,10 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
         return_array (bool):
             whether return galaxy array (default: False)
     """
-    if Id0>= 1024:
-        logging.info('galaxy image index greater than 1024' )
+    if Id0>= 4000:
+        logging.info('galaxy image index greater than 4000' )
         return
-    cgid    =   Id0//4
+    cgid    =   Id0//2
     np.random.seed(cgid)
     outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
     if os.path.isfile(outFname):
@@ -334,16 +280,12 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
         else:
             return None
 
-    # randomly rotate by an angle
-    irot    =   Id0%4
-    rotAng  =   np.random.uniform(0.,np.pi*2.)+np.pi/4.*irot
+    # randomly rotate by an angle; we have 45 deg pairs to remove shape noise
+    # in additive bias estimation
+    irot    =   Id0%2
+    rotAng  =   np.random.uniform(0.,np.pi*2.)+np.pi/2.*irot
     ang     =   rotAng*galsim.radians
     rescale =   np.random.uniform(0.95,1.05)
-    # Galsim galaxies
-    directory   =   os.path.join(os.environ['homeWrk'],\
-            'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
-    catName     =   'real_galaxy_catalog_25.2.fits'
-    cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
     # Basic parameters
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
@@ -371,11 +313,11 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
     ngal    =   max(int(nx*ny*np.pi*(rfrac*pix_scale)**2./3600.*density),1)
     logging.info('We have %d galaxies in total' %ngal)
     cosmo252=   cosmoHSTGal('252')
-    cosmo252.readHSTsample()
     ntrain  =   len(cosmo252.catused)
     inds    =   np.random.randint(0,ntrain,ngal)
     inCat   =   cosmo252.catused[inds]
 
+    # evenly distributed within a radius, min(nx,ny)*rfrac
     rarray  =   np.sqrt((min(nx,ny)*rfrac)**2.*np.random.rand(ngal))
     tarray  =   np.random.uniform(0.,np.pi*2.,ngal)
     xarray  =   rarray*np.cos(tarray)+nx//2
@@ -424,7 +366,8 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
             gPix=   16
         else:
-            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+            #gal =   cosmos_cat.makeGalaxy(gal_type='parametric',index=ss['index'],gsparams=bigfft)
+            gal =   generate_cosmos_gal(ss,truncr=5.,gsparams=bigfft)
             # assign flux
             gal =   gal.withFlux(flux)
             # rescale the radius while keeping the surface brightness the same
@@ -452,11 +395,111 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
         # print(galsim.hsm.FindAdaptiveMom(gal_image))
         del gal,b,sub_img,xu,yu,xi,yi
         gc.collect()
-    del inCat,cosmos_cat,psfInt
+    del inCat,psfInt
     if do_write:
         gal_image.write(outFname,clobber=True)
     if return_array:
         return gal_image.array
+
+def generate_cosmos_gal(record,truncr=5.,gsparams=None):
+    """Generates COSMOS galaxies; modified version of
+    https://github.com/GalSim-developers/GalSim/blob/releases/2.3/galsim/scene.py#L626
+    Args:
+        record (ndarray):   one row of the COSMOS galaxy catalog
+        truncr (float):     truncation ratio
+        gsparams:           An `GSParams` argument.
+    Returns:
+        gal:    Galsim galaxy
+    """
+    # record columns:
+    # For 'sersicfit', the result is an array of 8 numbers for each:
+    #     SERSICFIT[0]: intensity of light profile at the half-light radius.
+    #     SERSICFIT[1]: half-light radius measured along the major axis, in
+    #                   units of pixels in the COSMOS lensing data reductions
+    #                   (0.03 arcsec).
+    #     SERSICFIT[2]: Sersic n.
+    #     SERSICFIT[3]: q, the ratio of minor axis to major axis length.
+    #     SERSICFIT[4]: boxiness, currently fixed to 0, meaning isophotes are all
+    #                   elliptical.
+    #     SERSICFIT[5]: x0, the central x position in pixels.
+    #     SERSICFIT[6]: y0, the central y position in pixels.
+    #     SERSICFIT[7]: phi, the position angle in radians. If phi=0, the major
+    #                   axis is lined up with the x axis of the image.
+    # For 'bulgefit', the result is an array of 16 parameters that comes from doing a
+    # 2-component sersic fit.  The first 8 are the parameters for the disk, with n=1, and
+    # the last 8 are for the bulge, with n=4.
+
+    bparams = record['bulgefit']
+    sparams = record['sersicfit']
+    use_bulgefit = record['use_bulgefit']
+    if use_bulgefit:
+        # Bulge parameters:
+        # Minor-to-major axis ratio:
+        bulge_q = bparams[11]
+        # Position angle, now represented as a galsim.Angle:
+        bulge_beta = bparams[15]*galsim.radians
+        disk_q  = bparams[3]
+        disk_beta = bparams[7]*galsim.radians
+        bulge_hlr = record['hlr'][1]
+        bulge_flux = record['flux'][1]
+        disk_hlr= record['hlr'][2]
+        disk_flux = record['flux'][2]
+        if truncr<=0.99:
+            btrunc=None
+            # Then combine the two components of the galaxy.
+            bulge = galsim.DeVaucouleurs(flux=bulge_flux, \
+                    half_light_radius=bulge_hlr,\
+                    gsparams=gsparams)
+            disk = galsim.Exponential(flux=disk_flux, \
+                    half_light_radius=disk_hlr,
+                    gsparams=gsparams)
+        else:
+            btrunc=bulge_hlr*truncr
+            # Then combine the two components of the galaxy.
+            bulge = galsim.DeVaucouleurs(flux=bulge_flux, \
+                    half_light_radius=bulge_hlr,trunc=btrunc,\
+                    gsparams=gsparams)
+            dtrunc=disk_hlr*truncr
+            disk = galsim.Sersic(1., flux=disk_flux, \
+                    half_light_radius=disk_hlr,trunc=dtrunc,
+                    gsparams=gsparams)
+        # Apply shears for intrinsic shape.
+        if bulge_q < 1.:  # pragma: no branch
+            bulge = bulge.shear(q=bulge_q, beta=bulge_beta)
+        if disk_q < 1.:  # pragma: no branch
+            disk = disk.shear(q=disk_q, beta=disk_beta)
+        gal = bulge + disk
+    else:
+        # Do a similar manipulation to the stored quantities for the single Sersic profiles.
+        gal_n = sparams[2]
+        # Fudge this if it is at the edge of the allowed n values.  Since GalSim (as of #325 and
+        # #449) allow Sersic n in the range 0.3<=n<=6, the only problem is that the fits
+        # occasionally go as low as n=0.2.  The fits in this file only go to n=6, so there is no
+        # issue with too-high values, but we also put a guard on that side in case other samples
+        # are swapped in that go to higher value of sersic n.
+        if gal_n < 0.3: gal_n = 0.3
+        if gal_n > 6.0: gal_n = 6.0
+
+        # GalSim is much more efficient if only a finite number of Sersic n values are used.
+        # This (optionally given constructor args) rounds n to the nearest 0.05.
+        # change to 0.1 to speed up
+        gal_n = galsim_round_sersic(gal_n, 0.1)
+        gal_hlr = record['hlr'][0]
+        gal_flux = record['flux'][0]
+        if truncr<=0.99:
+            btrunc=None
+            gal = galsim.Sersic(gal_n, flux=gal_flux, \
+                    half_light_radius=gal_hlr,
+                    gsparams=gsparams)
+        else:
+            btrunc=gal_hlr*truncr
+            gal = galsim.Sersic(gal_n, flux=gal_flux, \
+                    half_light_radius=gal_hlr,trunc=btrunc,
+                    gsparams=gsparams)
+    return gal
+
+def galsim_round_sersic(n, sersic_prec):
+    return float(int(n/sersic_prec + 0.5)) * sersic_prec
 
 def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=False):
     """Makes basic galaxy image simulation (isolated)
@@ -486,6 +529,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
         else:
             return None
 
+    ngal    =   nx*ny
     ngrid  =   64
     scale  =   0.168
     # Get the shear information
@@ -509,79 +553,74 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
 
     gal_image=  galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
     gal_image.setOrigin(0,0)
-    ud      =   galsim.UniformDeviate(Id0+212)
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     if 'basic' in outDir:
-        if Id0>= 2048:
-            logging.info('galaxy image index greater than 2048' )
+        if Id0>= 4000:
+            logging.info('galaxy image index greater than 8000' )
             return
-        rotArray    =   make_ringrot_radians(7)
-        # 2**7*8=1024 galaxy ID
-        # 2**7 different rotations and dilations
-        # for each galaxy ID 10000 parametric galaxies
-        logging.info('We have %d rotation realizations' %len(rotArray))
-        irot    =   (Id0//8)%128
-        ang     =   rotArray[irot]*galsim.radians
-        rescale =   1.+(ud()-0.5)*0.1
-        logging.info('%s' %rescale)
-        # cosmos group ID =0...7
-        # we use 80000 galsim galaxies repeatedly
-        cgid    =   int(Id0%8)
-        logging.info('Making Basic Simulation. ID: %d, cosmos GID: %d.' %(Id0,cgid))
-        logging.info('The rotating angle is %.2f radians.' %rotArray[irot])
+        np.random.seed(Id0)
+        ud      =   galsim.UniformDeviate(Id0)
+        logging.info('Making Basic Simulation. ID: %d' %(Id0))
         # Galsim galaxies
         directory   =   os.path.join(os.environ['homeWrk'],\
                         'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
         assert os.path.isdir(directory), 'cannot find galsim galaxies'
-        catName     =   'real_galaxy_catalog_25.2.fits'
-        cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
+        # catName     =   'real_galaxy_catalog_25.2.fits'
+        # cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
 
         # Basic parameters
-        flux_scaling=   2.587
+        # flux_scaling=   2.587
         # catalog
         cosmo252=   cosmoHSTGal('252')
-        cosmo252.readHSTsample()
-        # cgid=0...7
-        inCat  =   cosmo252.catused[cgid*nx*ny:(cgid+1)*nx*ny]
-        for i,ss  in enumerate(inCat):
+        logging.info('We have %d galaxies in total' %ngal)
+        cosmo252=   cosmoHSTGal('252')
+        ntrain  =   len(cosmo252.catused)
+        inds    =   np.random.randint(0,ntrain,ngal//2)
+        inCat   =   cosmo252.catused[inds]
+        gal0    =   None
+        for i in range(ngal):
+            # boundary
             ix  =   i%nx
             iy  =   i//nx
             b   =   galsim.BoundsI(ix*ngrid,(ix+1)*ngrid-1,iy*ngrid,(iy+1)*ngrid-1)
             # each galaxy
-            gal =   cosmos_cat.makeGalaxy(gal_type='parametric',\
-                    index=ss['index'],gsparams=bigfft)
-            # rescale the radius by 'rescale' and keep surface brightness the same
-            gal =   gal.expand(rescale)
-            # rotate by 'ang'
-            gal =   gal.rotate(ang)
-            # accounting for zeropoint difference between COSMOS HST and HSC
-            gal =   gal*flux_scaling
-            # shear distortion
-            gal =   gal.shear(g1=g1,g2=g2)
-            if 'Shift' in outDir:
-                # Galaxies is randomly shifted
-                # This shift ensure that the offset to (ngrid//2,ngrid//2) is an isotropic circle
-                dx = ud()*scale # ud from 0~1
-                dy = ud()*scale
-                if i==0:
-                    logging.info('%.2f,%.2f' %(dx,dy))
-                gal= gal.shift(dx,dy)
-            elif 'Center' in outDir:
-                # Galaxies is located at (ngrid//2,ngrid//2)
-                dx = 0.5*scale
-                dy = 0.5*scale
-                gal= gal.shift(dx,dy)
+            ss  =   inCat[i//2]
+            if i%2==0:
+                del gal0
+                # gal0    =   cosmos_cat.makeGalaxy(gal_type='parametric',\
+                #             index=ss['index'],gsparams=bigfft)
+                gal0    =   generate_cosmos_gal(ss,truncr=5.,gsparams=bigfft)
+                # accounting for zeropoint difference between COSMOS HST and HSC
+                flux    =   10**((27.-ss['mag_auto'])/2.5)
+                gal0    =   gal0.withFlux(flux)
+                # rescale the radius by 'rescale' and keep surface brightness the same
+                rescale =   np.random.uniform(0.95,1.05)
+                gal0    =   gal0.expand(rescale)
+                # shift galaxy
+                if 'Shift' in outDir:
+                    dx = ud()*scale
+                    dy = ud()*scale
+                    gal0= gal0.shift(dx,dy)
+                # rotate by 'ang'
+                ang     =   np.random.uniform(0.,np.pi*2.)*galsim.radians
+                gal0    =   gal0.rotate(ang)
             else:
-                #Galaxies is located at (ngrid//2-0.5,ngrid//2-0.5))
-                pass
+                assert gal0 is not None
+                ang     =   np.pi/2.*galsim.radians
+                gal0    =   gal0.rotate(ang)
+            # shear distortion
+            gal =   gal0.shear(g1=g1,g2=g2)
+            # shift to (ngrid//2,ngrid//2)
+            gal =   gal.shift(0.5*scale,0.5*scale)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
             # draw galaxy
             sub_img =   gal_image[b]
             gal.drawImage(sub_img,add_to_image=True)
-            del gal,b,sub_img
-        del inCat,cosmos_cat,cosmo252,psfInt
+            del gal,b,sub_img,ss
+        del inCat,cosmo252,psfInt
         gc.collect()
     elif 'small' in outDir:
+        ud      =   galsim.UniformDeviate(Id0)
         # use galaxies with random knots
         # we only support three versions of small galaxies with different radius
         irr =   int(outDir.split('_psf')[0].split('small')[-1])
