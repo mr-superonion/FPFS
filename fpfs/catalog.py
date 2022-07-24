@@ -19,7 +19,7 @@
 import numpy as np
 
 # functions used for selection
-def tsfunc(x,deriv=0,mu=0.,sigma=1.5):
+def tsfunc1(x,deriv=0,mu=0.,sigma=1.5):
     """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
     the weight function for first order derivative (deriv=1)
     Args:
@@ -41,6 +41,22 @@ def tsfunc(x,deriv=0,mu=0.,sigma=1.5):
                 [0.,lambda t: np.pi/2./sigma*np.cos(t*np.pi/2.)/(1.+np.sin(t*np.pi/2.)), 0.] )
     else:
         raise ValueError('deriv should be 0 or 1')
+
+def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
+    t=(x-mu)/sigma
+    func=lambda t:1./2.+t/2.+1./2./np.pi*np.sin(t*np.pi)
+
+    if deriv==0:
+        return np.piecewise(t, [t<-1,(t>=-1)&(t<=1),t>1], [0.,func, 1.])
+    elif deriv==1:
+        func2= lambda t:(1./2./sigma+1./2./sigma*np.cos(np.pi*t))#/(1./2.+t/2.+1./2./np.pi*np.sin(t*np.pi))
+        return np.piecewise(t, [t<-1+0.01,(t>=-1+0.01)&(t<=1-0.01),t>1-0.01],[0.,lambda t: func2(t)/func(t),0.] )
+    elif deriv==2:
+        func3= lambda t:(-np.pi/2./sigma**2.*np.sin(np.pi*t))
+        return np.piecewise(t, [t<-1+0.01,(t>=-1+0.01)&(t<=1-0.01),t>1-0.01],[0.,lambda t: func3(t)/func(t),0.] )
+    elif deriv==3:
+        func4= lambda t:(-(np.pi)**2./2./sigma**3.*np.cos(np.pi*t))
+        return np.piecewise(t, [t<-1+0.01,(t>=-1+0.01)&(t<=1-0.01),t>1-0.01],[0.,lambda t: func4(t)/func(t),0.] )
 
 def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
     """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
@@ -82,7 +98,7 @@ def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
     if use_sig:
         out = sigfunc(x,deriv=deriv,mu=cut,sigma=sigma)
     else:
-        out = tsfunc(x,deriv=deriv,mu=cut,sigma=sigma)
+        out = tsfunc2(x,deriv=deriv,mu=cut,sigma=sigma)
     return out
 
 def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
@@ -161,12 +177,14 @@ def fpfsM2E(mm,const=1.,noirev=False):
         out['fpfs_R2Sv%d' %(i)]=e2*mm['fpfs_v%dr2'%(i)]
 
     if noirev:
-        out['fpfs_HR00']=-(mm['fpfs_N00N00']-mm['fpfs_N00N40'])/_w/np.sqrt(2.)
-        out['fpfs_HR20']=-(mm['fpfs_N00N20']-mm['fpfs_N20N40'])/_w/np.sqrt(2.)
-        out['fpfs_HE100']=-(mm['fpfs_N00N22c'])/_w
-        out['fpfs_HE200']=-(mm['fpfs_N00N22s'])/_w
-        out['fpfs_HE120']=-(mm['fpfs_N20N22c'])/_w
-        out['fpfs_HE220']=-(mm['fpfs_N20N22s'])/_w
+        out['fpfs_HR00']=-(mm['fpfs_N00N00']*(const/_w+s4-4.*e1**2.)\
+                -mm['fpfs_N00N40'])/_w/np.sqrt(2.)
+        out['fpfs_HR20']=-(mm['fpfs_N00N20']*(const/_w+s4-4.*e2**2.)\
+                -mm['fpfs_N20N40'])/_w/np.sqrt(2.)
+        out['fpfs_HE100']=-(mm['fpfs_N00N22c']-e1*mm['fpfs_N00N00'])/_w
+        out['fpfs_HE200']=-(mm['fpfs_N00N22s']-e2*mm['fpfs_N00N00'])/_w
+        out['fpfs_HE120']=-(mm['fpfs_N20N22c']-e1*mm['fpfs_N00N20'])/_w
+        out['fpfs_HE220']=-(mm['fpfs_N20N22s']-e2*mm['fpfs_N00N20'])/_w
         ratio=  mm['fpfs_N00N00']/_w**2.
         # correction for detection process shear response for noise bias
         for i in range(8):
@@ -179,9 +197,10 @@ def fpfsM2E(mm,const=1.,noirev=False):
             out['fpfs_R1Sv%d'%i]=(out['fpfs_R1Sv%d'%i]+corr1)/(1+ratio)
             out['fpfs_R2Sv%d'%i]=(out['fpfs_R2Sv%d'%i]+corr2)/(1+ratio)
             # Heissen
-            out['fpfs_HRv%d' %i]=-(mm['fpfs_N00V%d' %i]-mm['fpfs_N40V%d'%i])/_w/np.sqrt(2.)
-            out['fpfs_HE1v%d'%i]=-(mm['fpfs_N22cV%d'%i])/_w
-            out['fpfs_HE2v%d'%i]=-(mm['fpfs_N22sV%d'%i])/_w
+            out['fpfs_HRv%d' %i]=-(mm['fpfs_N00V%d' %i]*(const/_w+s4-2.*e1**2.-2.*e2**2.)\
+                    -mm['fpfs_N40V%d'%i])/_w/np.sqrt(2.)
+            out['fpfs_HE1v%d'%i]=-(mm['fpfs_N22cV%d'%i]-e1*mm['fpfs_N00V%d'%i])/_w
+            out['fpfs_HE2v%d'%i]=-(mm['fpfs_N22sV%d'%i]-e2*mm['fpfs_N00V%d'%i])/_w
         # intrinsic shape dispersion (not per component)
         e1e1    =   (e1e1-(mm['fpfs_N22cN22c'])/_w**2.\
                     +4.*(e1*mm['fpfs_N00N22c'])/_w**2.)\
@@ -299,8 +318,13 @@ class summary_stats():
         elif selnm=='M20':
             scol=-self.mm['fpfs_M20']
         elif selnm=='R2':
+            # M00+M20>cut*M00 (M00>0., we have mag cut to ensure it)
             scol=self.mm['fpfs_M00']*(1.-cut)+self.mm['fpfs_M20']
-            cut_final=0. # M00+M20>cut*M00
+            cut_final=0.
+        elif selnm=='R2_upp':
+            # M00+M20<cut*M00 (M00>0.)
+            scol=self.mm['fpfs_M00']*(cut-1.)-self.mm['fpfs_M20']
+            cut_final=0.
         elif 'det_' in selnm:
             vn=selnm.split('_')[-1]
             scol=self.mm['fpfs_%s'%vn]
@@ -373,15 +397,19 @@ class summary_stats():
                 dcol=None
                 ncol1=None
                 ncol2=None
-        elif selnm=='R2':
+        elif selnm=='R2' or selnm=='R2_upp':
+            if '_upp' in selnm:
+                fp=-1.
+            else:
+                fp=1.
             cut_final=0.
-            scol=self.mm['fpfs_M00']*(1.-cut)+self.mm['fpfs_M20']
-            ccol1=self.ell['fpfs_RS0']*(1.-cut)+self.ell['fpfs_RS2']
-            ccol2=self.ell['fpfs_RS0']*(1.-cut)+self.ell['fpfs_RS2']
+            scol=(self.mm['fpfs_M00']*(1.-cut)+self.mm['fpfs_M20'])*fp
+            ccol1=(self.ell['fpfs_RS0']*(1.-cut)+self.ell['fpfs_RS2'])*fp
+            ccol2=(self.ell['fpfs_RS0']*(1.-cut)+self.ell['fpfs_RS2'])*fp
             if self.noirev:
-                dcol=self.ell['fpfs_HR00']*(1.-cut)+self.ell['fpfs_HR20']
-                ncol1=self.ell['fpfs_HE100']*(1.-cut)+self.ell['fpfs_HE120']
-                ncol2=self.ell['fpfs_HE200']*(1.-cut)+self.ell['fpfs_HE220']
+                dcol=(self.ell['fpfs_HR00']*(1.-cut)+self.ell['fpfs_HR20'])*fp
+                ncol1=(self.ell['fpfs_HE100']*(1.-cut)+self.ell['fpfs_HE120'])*fp
+                ncol2=(self.ell['fpfs_HE200']*(1.-cut)+self.ell['fpfs_HE220'])*fp
             else:
                 dcol=None
                 ncol1=None

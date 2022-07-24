@@ -56,9 +56,9 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        # default="galaxy_unif2_cosmo170_psf60",
-        # default="galaxy_unif2_cosmo085_psf60",
-        default="galaxy_basic3Shift_psf60",
+        default="galaxy_unif3_cosmo170_psf60",
+        # default="galaxy_unif3_cosmo085_psf60",
+        # default="galaxy_basic3Shift_psf60",
         # default="galaxy_basic3Center_psf60",
         # default="small2_psf60",
         doc="Input galaxy directory"
@@ -78,6 +78,7 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     outDir      = pexConfig.Field(
         dtype=str,
+        # default="./test/",
         default="./",
         doc="output directory"
     )
@@ -149,7 +150,6 @@ class processBasicDriverTask(BatchPoolTask):
         pixScale    =   0.168
         galDir      =   cache.galDir
         psfFWHM     =   galDir.split('_psf')[-1]
-        # psfFWHMF    =   eval(psfFWHM)/100.
 
         # FPFS Basic
         # beta      =   0.4# try1
@@ -167,7 +167,7 @@ class processBasicDriverTask(BatchPoolTask):
             else:
                 gid  =   nid
             gbegin=0;gend=6400
-            ngrid2      =   6400
+            ngrid2   =   6400
         elif 'star' in galDir:
             self.log.info('Using stars')
             if "var0em0" not in cache.outDir:
@@ -177,13 +177,16 @@ class processBasicDriverTask(BatchPoolTask):
             ngrid2  =   6400
         elif 'basic' in galDir:
             self.log.info('Using cosmos parametric galaxies to simulate the isolated case.')
-            gid  =  nid%1024
+            if nid >= 3000:
+                return
+            gid  =  nid%3000
             gbegin=0;gend=6400
             ngrid2  =   6400
         elif 'cosmo' in galDir:
-            # for COSMOS galaxies, 4 noise realizations share one galaxy
             self.log.info('Using cosmos parametric galaxies to simulate the blended case.')
-            gid  =   nid%1024
+            if nid >= 3000:
+                return
+            gid  =   nid%3000
             gbegin=700;gend=5700
             ngrid2  =   5000
         else:
@@ -223,7 +226,7 @@ class processBasicDriverTask(BatchPoolTask):
             # by default noiFit=None
             measTask    =   fpfs.image.measure_source(psfData2,beta=beta)
             noiData     =   None
-        # self.log.info('%s' %(measTask.klim/measTask._dk))
+        self.log.info('The upper limit of wave number is %s pixels' %(measTask.klim_pix))
         self.log.info('%s' %measTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
