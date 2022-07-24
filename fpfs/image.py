@@ -66,7 +66,7 @@ def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,pixel
     return coords
 
 @numba.njit
-def get_klim(psf_array,sigma):
+def get_klim(psf_array,sigma,thres=1e-20):
     """
     Get klim, the region outside klim is supressed by the shaplet Gaussian
     kernel in FPFS shear estimation method; therefore we set values in this
@@ -74,11 +74,11 @@ def get_klim(psf_array,sigma):
     Args:
         psf_array (ndarray):    PSF's Fourier power or Fourier transform
         sigma (float):          one sigma of Gaussian Fourier power
+        thres (float):          the threshold for a tuncation on Gaussian (default: 1e-20)
     Returns:
         klim (float):           the limit radius
     """
     ngrid   =   psf_array.shape[0]
-    thres   =   1.e-20 # better to be small otherwise suffer from blending
     klim    =   ngrid//2-1
     for dist in range(ngrid//5,ngrid//2-1):
         ave =  abs(np.exp(-dist**2./2./sigma**2.)\
