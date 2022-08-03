@@ -56,8 +56,8 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        default="galaxy_unif3_cosmo170_psf60",
-        # default="galaxy_unif3_cosmo085_psf60",
+        # default="galaxy_unif3_cosmo170_psf60",
+        default="galaxy_unif3_cosmo085_psf60",
         # default="galaxy_basic3Shift_psf60",
         # default="galaxy_basic3Center_psf60",
         # default="small2_psf60",
@@ -88,7 +88,7 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
-        tname   =   'try2'
+        tname   =   'try3'
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
         self.outDir  =  os.path.join(self.outDir,'srcfs3_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
@@ -152,9 +152,8 @@ class processBasicDriverTask(BatchPoolTask):
         psfFWHM     =   galDir.split('_psf')[-1]
 
         # FPFS Basic
-        # beta      =   0.4# try1
-        beta        =   0.50# try2
-        # beta      =   0.75# try3
+        # sigma_as  =   0.5944 # try2
+        sigma_as    =   0.45 #[arcsec] try3
         rcut        =   32
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
@@ -219,15 +218,14 @@ class processBasicDriverTask(BatchPoolTask):
             powIn       =   np.load('corPre/noiPows3.npy',allow_pickle=True).item()['%s'%rcut]*noiVar*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
             powModel[0] =   powIn
-            measTask    =   fpfs.image.measure_source(psfData2,noiFit=powModel[0],beta=beta)
+            measTask    =   fpfs.image.measure_source(psfData2,sigma_arcsec=sigma_as,noiFit=powModel[0])
         else:
             noiVar      =   1e-20
             self.log.info('We are using noiseless setup')
             # by default noiFit=None
-            measTask    =   fpfs.image.measure_source(psfData2,beta=beta)
+            measTask    =   fpfs.image.measure_source(psfData2,sigma_arcsec=sigma_as)
             noiData     =   None
         self.log.info('The upper limit of wave number is %s pixels' %(measTask.klim_pix))
-        self.log.info('%s' %measTask.sigmaF)
         # isList        =   ['g1-0000','g2-0000','g1-2222','g2-2222']
         # isList        =   ['g1-1111']
         isList          =   ['g1-0000','g1-2222']
@@ -267,13 +265,13 @@ class processBasicDriverTask(BatchPoolTask):
                     del indX,indY,inds
                 else:
                     magz        =   27.
-                    cutmag      =   26.
+                    cutmag      =   25.5
                     thres       =   10**((magz-cutmag)/2.5)*scale**2.
-                    thres2      =   -thres/13.
+                    thres2      =   -thres/20.
                     coords  =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
                                 thres=thres,thres2=thres2,klim=measTask.klim)
                 gc.collect()
-                self.log.info('number of sources: %d' %len(coords))
+                self.log.info('pre-selected number of sources: %d' %len(coords))
                 imgList =   [galData[cc['fpfs_y']-rcut:cc['fpfs_y']+rcut,\
                             cc['fpfs_x']-rcut:cc['fpfs_x']+rcut] for cc in coords]
                 out     =   measTask.measure(imgList)
@@ -283,7 +281,6 @@ class processBasicDriverTask(BatchPoolTask):
                 gc.collect()
             else:
                 self.log.info('Skip FPFS measurement: %04d, %s' %(nid,ishear))
-            # self.log.info('The memory used is: %.3f' %(psutil.Process().memory_info().rss/1024**3.))
             del galData,outFname
             gc.collect()
         self.log.info('finish %s' %(nid))

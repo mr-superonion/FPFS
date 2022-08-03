@@ -57,6 +57,8 @@ def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
     elif deriv==3:
         func4= lambda t:(-(np.pi)**2./2./sigma**3.*np.cos(np.pi*t))
         return np.piecewise(t, [t<-1+0.01,(t>=-1+0.01)&(t<=1-0.01),t>1-0.01],[0.,lambda t: func4(t)/func(t),0.] )
+    else:
+        raise ValueError('deriv can only be 0,1,2,3')
 
 def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
     """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
@@ -98,7 +100,7 @@ def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
     if use_sig:
         out = sigfunc(x,deriv=deriv,mu=cut,sigma=sigma)
     else:
-        out = tsfunc2(x,deriv=deriv,mu=cut,sigma=sigma)
+        out = tsfunc1(x,deriv=deriv,mu=cut,sigma=sigma)
     return out
 
 def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
@@ -248,13 +250,14 @@ def fpfsM2E(mm,const=1.,noirev=False):
     return out
 
 class summary_stats():
-    def __init__(self,mm,ell,use_sig=False):
+    def __init__(self,mm,ell,use_sig=False,ratio=1.9):
         """
         Args:
             mm (ndarray):   FPFS moments
             ell (ndarray):  FPFS ellipticity
             use_sig (bool): whether use sigmoid (True) of truncated sine (False)
         """
+        self.ratio = ratio
         self.use_sig= use_sig
         self.mm =   mm
         self.ell=   ell
@@ -297,9 +300,11 @@ class summary_stats():
             if selnm=='detect':
                 for iid in range(8):
                     self._update_selection_weight('det_v%d' %iid,cut,cutsig)
+            elif selnm=='detect2':
+                for iid in range(8):
+                    self._update_selection_weight('det2_v%d' %iid,cut,cutsig)
             else:
                 self._update_selection_weight(selnm,cut,cutsig)
-        # logging.info('weight updated. we have %d selection cuts' %self.nsel)
         return
 
     def _update_selection_weight(self,selnm,cut,cutsig):
@@ -314,7 +319,7 @@ class summary_stats():
 
         cut_final=cut
         if selnm=='M00':
-            scol=self.mm['fpfs_M00']
+            scol=self.mm['fpfs_M00']*self.ratio
         elif selnm=='M20':
             scol=-self.mm['fpfs_M20']
         elif selnm=='R2':
@@ -328,6 +333,10 @@ class summary_stats():
         elif 'det_' in selnm:
             vn=selnm.split('_')[-1]
             scol=self.mm['fpfs_%s'%vn]
+        elif 'det2_' in selnm:
+            vn=selnm.split('_')[-1]
+            scol=self.mm['fpfs_%s'%vn]-self.mm['fpfs_M00']*cut
+            cut_final=cutsig
         else:
             raise ValueError('Do not support selection vector name: %s' %selnm)
         # update weight
@@ -352,6 +361,9 @@ class summary_stats():
             if selnm=='detect':
                 for iid in range(8):
                     self._update_selection_bias('det_v%d' %iid,cut,cutsig)
+            if selnm=='detect2':
+                for iid in range(8):
+                    self._update_selection_bias('det2_v%d' %iid,cut,cutsig)
             else:
                 self._update_selection_bias(selnm,cut,cutsig)
         assert self.nsel==self.ncor
@@ -374,13 +386,13 @@ class summary_stats():
             raise TypeError('cutsig should be float')
         cut_final=cut
         if selnm=='M00':
-            scol=self.mm['fpfs_M00']
-            ccol1=self.ell['fpfs_RS0']
-            ccol2=self.ell['fpfs_RS0']
+            scol=self.mm['fpfs_M00']*self.ratio
+            ccol1=self.ell['fpfs_RS0']*self.ratio
+            ccol2=self.ell['fpfs_RS0']*self.ratio
             if self.noirev:
-                dcol=self.ell['fpfs_HR00']
-                ncol1=self.ell['fpfs_HE100']
-                ncol2=self.ell['fpfs_HE200']
+                dcol=self.ell['fpfs_HR00']*self.ratio
+                ncol1=self.ell['fpfs_HE100']*self.ratio
+                ncol2=self.ell['fpfs_HE200']*self.ratio
             else:
                 dcol=None
                 ncol1=None
@@ -415,10 +427,10 @@ class summary_stats():
                 ncol1=None
                 ncol2=None
         elif 'det_' in selnm:
-            vn=selnm.split('_')[-1]
-            scol=self.mm['fpfs_%s' %vn]
-            ccol1=self.ell['fpfs_R1S%s' %vn]
-            ccol2=self.ell['fpfs_R2S%s' %vn]
+            vn   =  selnm.split('_')[-1]
+            scol =  self.mm['fpfs_%s' %vn]
+            ccol1=  self.ell['fpfs_R1S%s' %vn]
+            ccol2=  self.ell['fpfs_R2S%s' %vn]
             if self.noirev:
                 dcol=self.ell['fpfs_HR%s' %vn]
                 ncol1=self.ell['fpfs_HE1%s' %vn]
@@ -427,6 +439,20 @@ class summary_stats():
                 dcol=None
                 ncol1=None
                 ncol2=None
+        elif 'det2_' in selnm:
+            cut_final=cutsig
+            vn  =   selnm.split('_')[-1]
+            scol=   self.mm['fpfs_%s' %vn]-self.mm['fpfs_M00']*cut
+            ccol1=  self.ell['fpfs_R1S%s' %vn]-self.ell['fpfs_RS0']*cut
+            ccol2=  self.ell['fpfs_R2S%s' %vn]-self.ell['fpfs_RS0']*cut
+            if self.noirev:
+                dcol =  self.ell['fpfs_HR%s' %vn]-self.ell['fpfs_HR00']*cut
+                ncol1=  self.ell['fpfs_HE1%s' %vn]-self.ell['fpfs_HE100']*cut
+                ncol2=  self.ell['fpfs_HE2%s' %vn]-self.ell['fpfs_HE200']*cut
+            else:
+                dcol =  None
+                ncol1=  None
+                ncol2=  None
         else:
             raise ValueError('Do not support selection vector name: %s' %selnm)
         corSR1= get_wbias(scol,cut_final,cutsig,self.use_sig,self.ws,ccol1)
