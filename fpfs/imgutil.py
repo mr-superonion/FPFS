@@ -236,7 +236,7 @@ def shapelets2D(ngrid,nord,sigma):
             cc=cc/dd
             chi[nn,mm,:,:]=pow(-1.,d1)*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]\
                     *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm*(1j)**nn
-    # return chi*dk^2
+    # return chi*dk^2 (assuming pixel scale in configuration space is 1)
     chi=chi/ngrid**2.
     return chi
 
@@ -373,8 +373,8 @@ def find_peaks(imgCov,thres,thres2=0.,negBd=20.):
     footprint[1, 1] = 0
     footprint[0, 0] = 0
     footprint[0, 2] = 0
-    footprint[2, 2] = 0
     footprint[2, 0] = 0
+    footprint[2, 2] = 0
     filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
     data    =   np.int_(np.asarray(np.where(((imgCov > filtered+thres2)&(imgCov>thres)))))
     out     =   np.array(np.zeros(data.size//2),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])

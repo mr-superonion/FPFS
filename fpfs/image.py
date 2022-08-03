@@ -108,11 +108,9 @@ class measure_source():
         pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec (HSC)]
     """
     _DefaultName = "measure_source"
-    def __init__(self,psfData,beta,nnord=4,noiModel=None,noiFit=None,debug=False,pix_scale=0.168,sigma_arcsec=0.5944):
-        if not isinstance(beta,(float,int)):
-            raise TypeError('Input beta should be float.')
-        if beta>=1. or beta<=0.:
-            raise ValueError('Input beta should be in range (0,1)')
+    def __init__(self,psfData,sigma_arcsec,nnord=4,noiModel=None,noiFit=None,debug=False,pix_scale=0.168):
+        if sigma_arcsec<=0. or sigma_arcsec>5.:
+            raise ValueError('sigma_arcsec should be positive and less than 5 arcsec')
         self.ngrid  =   psfData.shape[0]
         # Preparing noise
         self.noise_correct=False
@@ -145,16 +143,16 @@ class measure_source():
         # A few import scales
         self.pix_scale= pix_scale # this is only used to normalize basis functions
         self._dk    =   2.*np.pi/self.ngrid # assuming pixel scale is 1
-        if sigma_arcsec<0. or sigma_arcsec>6.:
-            # scale radius of PSF's Fourier transform (in units of dk)
-            sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
-            # shapelet scale
-            sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
-            self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
-            sigma_arcsec  =   1./self.sigmaF*self.pix_scale
-        else:
-            self.sigmaF =   self.pix_scale/sigma_arcsec
-            sigma_pix   =   self.sigmaF/self._dk
+        # beta
+        # # scale radius of PSF's Fourier transform (in units of dk)
+        # sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
+        # # shapelet scale
+        # sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
+        # self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
+        # sigma_arcsec  =   1./self.sigmaF*self.pix_scale
+
+        self.sigmaF =   self.pix_scale/sigma_arcsec
+        sigma_pix   =   self.sigmaF/self._dk
         logging.info('Gaussian in configuration space: sigma= %.4f arcsec' %(sigma_arcsec))
         # effective nyquest wave number
         self.klim_pix=  get_klim(self.psfPow,sigma_pix/np.sqrt(2.)) # in pixel units
@@ -180,9 +178,9 @@ class measure_source():
             raise ValueError('only support for nnord= 4 or nnord=6, but your input\
                     is nnord=%d' %nnord)
         self.nnord=nnord
-        chi   =    imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF)\
-                .reshape(((nnord+1)**2,self.ngrid,self.ngrid))[self._indM,self._indY,self._indX]
-        psi   =    imgutil.detlets2D(self.ngrid,self.sigmaF)[:,:,self._indY,self._indX]
+        chi   = imgutil.shapelets2D(self.ngrid,nnord,self.sigmaF)\
+                    .reshape(((nnord+1)**2,self.ngrid,self.ngrid))[self._indM,self._indY,self._indX]
+        psi   = imgutil.detlets2D(self.ngrid,self.sigmaF)[:,:,self._indY,self._indX]
         self.prepare_Chi(chi)
         self.prepare_Psi(psi)
         if self.noise_correct:
@@ -396,7 +394,8 @@ class measure_source():
         """
 
         # Here we divide by self.pix_scale**2. for modes since pixel value are
-        # flux in pixel (in unit of nano Jy for HSC)
+        # flux in pixel (in unit of nano Jy for HSC). After dividing pix_scale**2.,
+        # in units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
         # Correspondingly, covariances are divided by self.pix_scale**4.
         if out_type=='Chi':
             # Chivatives/Moments
