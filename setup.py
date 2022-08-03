@@ -8,6 +8,7 @@ setup(
     author_email='mr.superonion@hotmail.com',
     python_requires='>=3.6',
     install_requires=[
+        'fitsio',
         'numba',
         'numpy',
         'scipy',
