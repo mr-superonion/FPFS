@@ -263,87 +263,47 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
     noiSub= np.sum(par[:,None,None]*noiModel,axis=0)
     return noiSub
 
-class pcaVector():
-    def __init__(self,X=None,fname=None):
-        """Building PC space
+def pcaimages(X,nmodes):
+    """
+    Estimate the principal components of array list X
 
-        Parameters:
-            X (ndarray):        input data array (mean subtracted) [shape=(nobj,ndim)]
+    Args:
+        X (ndarray):        input data array
+        nmodes (int):       number of pcs to keep
 
-        Atributes:
-            shape (tuple):      shape of the data vector (nobj, ndim)
-            bases (ndarray):    principal vectors
-            stds (ndarray):     stds of theses axes
-            projs (ndarray):    projection coefficients of the initializing data
-        """
+    Returns:
+        out (ndarray):      pc images,
+        stds (ndarray):     stds on the axis
+        eVout (ndarray):    eigen values
+    """
 
-        if X is not None:
-            if fname is not None:
-                raise ValueError('fname should be None when X is not None')
-            # initialize with X
-            assert len(X.shape)==2
-            nobj=X.shape[0]
+    assert len(X.shape)==3
+    # vectorize
+    nobj,nn2,nn1=   X.shape
+    dim         =   nn1*nn2
+    # X is (x1,x2,x3..,xnobj).T [x_i is column vectors of data]
+    X           =   X.reshape((nobj,dim))
+    # Xave  = X.mean(axis=0)
+    # X     = X-Xave
+    # Xave  = Xave.reshape((1,nn2,nn1))
+    # out =   np.vstack([Xave,V])
 
-            # subtract average
-            self.ave=np.average(X,axis=0)
-            X   =   X-self.ave
-            # normalize data vector
-            self.norm = np.sqrt(np.average(X**2.,axis=0))
-            X   =   X/self.norm
-            self.data=X
-
-            # Get covariance matrix
-            Cov =   np.dot(X,X.T)/(nobj-1)
-            # Solve the Eigen function of the covariance matrix
-            # e is eigen value and eVec is eigen vector
-            eVal,eVec=   np.linalg.eigh(Cov)
-
-            # The Eigen vector tells the combination of these data vectors
-            # Rank from maximum eigen value to minimum and only keep the first nmodes
-            bases=  np.dot(eVec.T,X)[::-1]
-            var  =  eVal[::-1]
-            projs=  eVec[:,::-1]
-
-            # remove those bases with extremely small stds
-            msk  =  var>var[0]/1e8
-            self.stds=np.sqrt(var[msk])
-            self.bases=bases[msk]
-            self.projs=projs[:,msk]
-            base_norm=np.sum(self.bases**2.,axis=1)
-            self.bases_inv=self.bases/base_norm[:,None]
-        elif fname is not None:
-            # initialize with fname
-            pass
-        else:
-            raise ValueError('X and fname cannot all be None')
-        return
-
-    def transform(self,X):
-        """ transform from data space to pc coefficients
-        Parameters:
-            X (ndarray): input data vectors [shape=(nobj,ndim)]
-        Returns:
-            proj (ndarray): projection array
-        """
-        assert len(X.shape)==2
-        X   =   X-self.ave
-        X   =   X/self.norm
-        proj=   X.dot(self.bases_inv.T)
-        return proj
-
-    def itransform(self,projs):
-        """ transform from pc space to data
-        Parameters:
-            projs (ndarray): projection coefficients
-        Returns:
-            X (ndarray): data vector
-        """
-        assert len(projs.shape)==2
-        nm= projs.shape[1]
-        X= projs.dot(self.bases[0:nm])
-        X= X*self.norm
-        X= X+self.ave
-        return X
+    # Get covariance matrix
+    M   =   np.dot(X,X.T)/(nobj-1)
+    # Solve the Eigen function of the covariance matrix
+    # e is eigen value and eV is eigen vector
+    # eV: (p1,p2,..,pnobj) [p_i is column vectors of parameters]
+    e,eV=   np.linalg.eigh(M)
+    # The Eigen vector tells the combination of ndata
+    tmp =   np.dot(eV.T,X)
+    # Rank from maximum eigen value to minimum
+    # and only keep the first nmodes
+    V   =   tmp[::-1][:nmodes]
+    e   =   e[::-1][:nmodes+10]
+    stds=   np.sqrt(e)
+    out =   V.reshape((nmodes,nn2,nn1))
+    eVout=  eV.T[:nmodes]
+    return out,stds,eVout
 
 def cut_img(img,rcut):
     """
