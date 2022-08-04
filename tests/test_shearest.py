@@ -23,8 +23,7 @@ def analyze_FPFS(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
     for i in range(num_tests):
         noii    =   noi_stds[i]
         # initialize FPFS task with psf and noise variance
-        # beta<1 is the FPFS scale parameter
-        fpTask  =   fpfs.image.measure_source(psf,noiFit=noii**2.,beta=0.75)
+        fpTask  =   fpfs.image.measure_source(psf,noiFit=noii**2.,sigma_arcsec=0.59)
         if noii<=1e-10:
             print('noise level is too small; therefore, we only simulate one galaxy')
             num_tmp=1
