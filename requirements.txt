@@ -1,7 +1,7 @@
 flake8
 fitsio
 pytest
-numpy
+numpy>=1.20
 scipy
 numba
 galsim

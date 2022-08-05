@@ -3,5 +3,5 @@ galsim
 fitsio
 scipy
 numba
-numpy
+numpy>=1.20
 matplotlib
