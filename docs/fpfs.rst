@@ -1,29 +1,53 @@
 fpfs package
 ============
 
-.. include:: macros.hrst
+Submodules
+----------
 
+fpfs.catalog module
+-------------------
 
-fpfs.fpfsBase
--------------
-
-.. automodule:: fpfs.fpfsBase
+.. automodule:: fpfs.catalog
    :members:
    :undoc-members:
    :show-inheritance:
 
-fpfs.imgutil
-------------
+fpfs.image module
+-----------------
+
+.. automodule:: fpfs.image
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+fpfs.imgutil module
+-------------------
 
 .. automodule:: fpfs.imgutil
    :members:
    :undoc-members:
    :show-inheritance:
 
-fpfs.simutil
-------------
+fpfs.pltutil module
+-------------------
+
+.. automodule:: fpfs.pltutil
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+fpfs.simutil module
+-------------------
 
 .. automodule:: fpfs.simutil
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: fpfs
    :members:
    :undoc-members:
    :show-inheritance:
