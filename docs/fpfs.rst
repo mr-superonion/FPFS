@@ -4,7 +4,7 @@ fpfs package
 Submodules
 ----------
 
-fpfs.catalog module
+fpfs.catalog
 -------------------
 
 .. automodule:: fpfs.catalog
@@ -12,7 +12,7 @@ fpfs.catalog module
    :undoc-members:
    :show-inheritance:
 
-fpfs.image module
+fpfs.image
 -----------------
 
 .. automodule:: fpfs.image
@@ -20,7 +20,7 @@ fpfs.image module
    :undoc-members:
    :show-inheritance:
 
-fpfs.imgutil module
+fpfs.imgutil
 -------------------
 
 .. automodule:: fpfs.imgutil
@@ -28,7 +28,7 @@ fpfs.imgutil module
    :undoc-members:
    :show-inheritance:
 
-fpfs.pltutil module
+fpfs.pltutil
 -------------------
 
 .. automodule:: fpfs.pltutil
@@ -36,7 +36,7 @@ fpfs.pltutil module
    :undoc-members:
    :show-inheritance:
 
-fpfs.simutil module
+fpfs.simutil
 -------------------
 
 .. automodule:: fpfs.simutil
