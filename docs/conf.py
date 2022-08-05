@@ -33,6 +33,8 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.napoleon',
     'sphinx.ext.coverage',
+    'myst_parser',
+    'sphinx.ext.mathjax',
 ]
 
 intersphinx_mapping = {
@@ -42,6 +44,7 @@ intersphinx_mapping = {
     'matplotlib': ('http://matplotlib.org/stable', None),
 }
 
+autosectionlabel_prefix_document = True
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 napoleon_include_init_with_doc = False
@@ -66,7 +69,11 @@ napoleon_custom_sections = [('Returns', 'params_style')]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-source_suffix = '.rst'
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
+
 master_doc = 'index'
 
 # -- Options for HTML output -------------------------------------------------
