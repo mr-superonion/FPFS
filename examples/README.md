@@ -1,7 +1,8 @@
 # Examples
 
 This directory gives some examples on simulating galaxy images with Galsim; and
-galaxy detection and shape estimation with FPFS.
+galaxy detection and shape estimation with FPFS. Before running the sripts,
+please source [this file](./install.sh) after modifying it.
 
 ## simulate noise
 This [code](./noiSim.py) simulates pure noise with the third-order Lanczos

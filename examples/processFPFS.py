@@ -88,7 +88,7 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
-        tname   =   'try3'
+        tname   =   'try2'
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
         self.outDir  =  os.path.join(self.outDir,'srcfs3_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
@@ -152,8 +152,8 @@ class processBasicDriverTask(BatchPoolTask):
         psfFWHM     =   galDir.split('_psf')[-1]
 
         # FPFS Basic
-        # sigma_as  =   0.5944 # try2
-        sigma_as    =   0.45 #[arcsec] try3
+        sigma_as  =   0.5944 #[arcsec] try2
+        # sigma_as    =   0.45 #[arcsec] try3
         rcut        =   32
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
@@ -176,16 +176,16 @@ class processBasicDriverTask(BatchPoolTask):
             ngrid2  =   6400
         elif 'basic' in galDir:
             self.log.info('Using cosmos parametric galaxies to simulate the isolated case.')
-            if nid >= 3000:
+            if nid >= 3000: # 3000 is enough for dm<0.1%
                 return
-            gid  =  nid%3000
+            gid  =  nid
             gbegin=0;gend=6400
             ngrid2  =   6400
         elif 'cosmo' in galDir:
             self.log.info('Using cosmos parametric galaxies to simulate the blended case.')
-            if nid >= 3000:
+            if nid >= 10000: # 10000 is enough for dm<0.15%
                 return
-            gid  =   nid%3000
+            gid  =   nid
             gbegin=700;gend=5700
             ngrid2  =   5000
         else:
@@ -265,7 +265,10 @@ class processBasicDriverTask(BatchPoolTask):
                     del indX,indY,inds
                 else:
                     magz        =   27.
-                    cutmag      =   25.5
+                    if  sigma_as<0.5:
+                        cutmag      =   25.5
+                    else:
+                        cutmag      =   26.0
                     thres       =   10**((magz-cutmag)/2.5)*scale**2.
                     thres2      =   -thres/20.
                     coords  =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
