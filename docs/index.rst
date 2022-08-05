@@ -9,9 +9,10 @@ FPFS: A fast, accurate shear estimator
 .. toctree::
     :maxdepth: 2
 
+    demos
+
     fpfs
 
-    demos
 
 Indices and tables
 ==================

@@ -43,11 +43,3 @@ fpfs.simutil
    :members:
    :undoc-members:
    :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: fpfs
-   :members:
-   :undoc-members:
-   :show-inheritance:

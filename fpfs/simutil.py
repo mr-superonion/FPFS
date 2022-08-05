@@ -401,7 +401,7 @@ def generate_cosmos_gal(record,truncr=5.,gsparams=None):
     Args:
         record (ndarray):   one row of the COSMOS galaxy catalog
         truncr (float):     truncation ratio
-        gsparams:           An `GSParams` argument.
+        gsparams:           An GSParams argument.
     Returns:
         gal:    Galsim galaxy
     """
