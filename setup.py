@@ -18,7 +18,7 @@ setup(
     author_email='mr.superonion@hotmail.com',
     python_requires='>=3.6',
     install_requires=[
-        'numpy',
+        'numpy<1.23',
         'numba',
         'scipy',
         'galsim',
