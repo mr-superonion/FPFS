@@ -1,8 +1,5 @@
-fpfs package
+fpfs modules
 ============
-
-Submodules
-----------
 
 fpfs.catalog
 -------------------
