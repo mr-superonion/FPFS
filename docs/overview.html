@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>overview</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="http://gfarm.ipmu.jp/~xiangchong.li/me/mystyle.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<h1 id="overview">Overview</h1>
+<p>FPFS is an open-source software for fast and accurate shear
+estimation.</p>
+<h2 id="basic-installation">Basic installation</h2>
+<p>For stable version:</p>
+<pre class="shell"><code>pip install fpfs</code></pre>
+<p>Or clone the repository:</p>
+<pre class="shell"><code>git clone https://github.com/mr-superonion/FPFS.git
+cd FPFS
+pip install -e .</code></pre>
+<h2 id="references">References</h2>
+<p>We expect users of the code to cite the following papers:</p>
+<ul>
+<li><p><a href="">version 3.0</a> This paper derives the correction for
+<em>detection bias</em>. Scripts used to produce plots in the paper can
+be found <a href="">here</a>.</p></li>
+<li><p><a
+href="https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract">version
+2.0</a>: This paper derives the covariance matrix of FPFS measurements
+and corrects for <em>noise bias</em> to second-order. In addition, it
+derives the correction for galaxy sample <em>selection bias</em>.
+Scripts used to produce plots in the paper can be found <a
+href="https://github.com/mr-superonion/FPFS/tree/master/notebook/paper-FPFS2021">here</a>.</p></li>
+<li><p><a
+href="https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract">version
+1.0</a>: This paper builds up the FPFS formalism based on <a
+href="https://arxiv.org/abs/1312.5514">Fourier_Quad</a> and <a
+href="https://arxiv.org/abs/astro-ph/0408445">Shapelets</a>.</p></li>
+</ul>
+<h2 id="developers">Developers</h2>
+<ul>
+<li>Xiangchong Li (xiangchl at andrew.cmu.edu)</li>
+</ul>
+<p>If you have any trouble installing or using the code, or find a bug,
+or have a suggestion for a new feature, please open up an Issue on our
+<a href="https://github.com/mr-superonion/FPFS">GitHub repository</a>.
+We also accept pull requests if you have something you’d like to
+contribute to the code base.</p>
+</body>
+</html>

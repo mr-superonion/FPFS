@@ -33,7 +33,7 @@ extensions = [
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.napoleon',
     'sphinx.ext.coverage',
-    'sphinxext.opengraph',
+    'sphinx.ext.opengraph',
     'myst_parser',
 ]
 

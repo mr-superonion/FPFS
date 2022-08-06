@@ -1,4 +1,4 @@
-fpfs modules
+Modules
 ============
 
 fpfs.catalog
