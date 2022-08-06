@@ -19,10 +19,10 @@
 
 import os
 import gc
-import fitsio
 import galsim
 import logging
 import numpy as np
+import astropy.io.fits as pyfits
 import numpy.lib.recfunctions as rfn
 
 class cosmoHSTGal():
@@ -36,7 +36,7 @@ class cosmoHSTGal():
         else:
             raise ValueError('Does not support version=%s' %version)
         self.finName    =   os.path.join(self.directory,'cat_used.fits')
-        self.catused    =   fitsio.read(self.finName)
+        self.catused    =   np.array(pyfits.getdata(self.finName))
         return
 
     def prepare_sample(self):
@@ -51,14 +51,14 @@ class cosmoHSTGal():
                 # used catalog
                 paracat     =   cosmos_cat.param_cat[index_use]
                 # parametric catalog
-                oricat      =   fitsio.read(cosmos_cat.real_cat.getFileName())[index_use]
+                oricat      =   np.array(pyfits.getdata(cosmos_cat.real_cat.getFileName()))[index_use]
                 ra          =   oricat['RA']
                 dec         =   oricat['DEC']
                 indexNew    =   np.arange(len(ra),dtype=int)
                 __tmp=np.stack([ra,dec,indexNew]).T
                 radec=np.array([tuple(__t) for __t in __tmp],dtype=[('ra','>f8'),('dec','>f8'),('index','i8')])
                 catfinal    =   rfn.merge_arrays([paracat,radec], flatten = True, usemask = False)
-                fitsio.write(self.finName,catfinal)
+                pyfits.writeto(self.finName,catfinal)
                 self.catused    =   catfinal
             else:
                 return
@@ -274,7 +274,7 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
         if do_write:
             logging.info('Nothing to write.')
         if return_array:
-            return fitsio.read(outFname)
+            return pyfits.getdata(outFname)
         else:
             return None
 
@@ -521,12 +521,12 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
         if do_write:
             logging.info('Nothing to write.')
         if return_array:
-            return fitsio.read(outFname)
+            return pyfits.getdata(outFname)
         else:
             return None
 
     # Basic parameters
-    ngal    =   nx*ny
+    ngal   =   nx*ny
     ngrid  =   64
     scale  =   0.168
     # Get the shear information

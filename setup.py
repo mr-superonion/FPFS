@@ -1,17 +1,28 @@
+import os
 from setuptools import setup, find_packages
+
+# version of the package
+__version__ = ''
+fname = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)),
+    "fpfs",
+    "__version__.py")
+with open(fname, 'r') as ff:
+    exec(ff.read())
 
 setup(
     name='fpfs',
-    version='3.0.1',
+    version=__version__,
     description='FPFS shear estimator',
     author='Xiangchong Li',
     author_email='mr.superonion@hotmail.com',
     python_requires='>=3.6',
     install_requires=[
+        'numpy',
         'numba',
         'scipy',
         'galsim',
-        'fitsio',
+        'astropy',
         'matplotlib',
     ],
     packages=find_packages(),
