@@ -1,2 +1,2 @@
-sphinx >=2
-myst-parser[linkify]
+sphinx >=4
+myst-parser
