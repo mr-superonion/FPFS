@@ -21,13 +21,13 @@ Documentation for FPFS modules can be found [here](https://fpfs.readthedocs.io/e
 ## Demos
 
 ### Isolated galaxies
-[demo1](https://github.com/mr-superonion/FPFS/blob/master/notebook/demos/demo1.ipynb)
+[demo1](https://github.com/mr-superonion/FPFS/blob/master/notebooks/demos/demo1.ipynb)
 simulates noisy galaxies with different SNRs and processes the galaxies with FPFS
 shear estimator.
 +   fpfs.simutil.sim_test: a wrapper of galsim to simulate galaxies for simple tests;
 +   fpfs.fpfsBase.fpfsTask: a task to process galaxy images and measure shear.
 
-[demo2](https://github.com/mr-superonion/FPFS/blob/master/notebook/demos/demo2.ipynb)
+[demo2](https://github.com/mr-superonion/FPFS/blob/master/notebooks/demos/demo2.ipynb)
 estimates shear under a more realistic situation with *PSF errors*.
 
 ### blended galaxies
@@ -41,7 +41,7 @@ This paper derives the covariance matrix of FPFS measurements and corrects for
 noise bias to second-order. In addition, it derives the correction for
 selection bias (including Kaiser flow and ellipticity-flux measurement error
 correlation). Scripts used to produce plots in the paper can be found
-[here](https://github.com/mr-superonion/FPFS/tree/master/notebook/paper-FPFS2021).
+[here](https://github.com/mr-superonion/FPFS/tree/master/notebooks/paper-FPFS2021).
 + [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract):
 This paper builds up the FPFS formalism based on
 [Fourier_Quad](https://arxiv.org/abs/1312.5514) and
