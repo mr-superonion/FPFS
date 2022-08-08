@@ -19,7 +19,7 @@ with random knots (for very small galaxies). The galaxies are render into 64x64
 postage stamps. Note, the galaxies are isolated here. Users can use the
 following command to run the simulation in parallel:
 ```shell
-cgcSimCosmoBatchRun.py $s19w --output ./ --batch-type=pbs --nodes 2 --procs 52 --time 100000000 --job simC --queue small --minIndex 0 --maxIndex 1
+cgcSimBasicBatchRun.py $s19w --output ./ --batch-type=pbs --nodes 2 --procs 52 --time 100000000 --job simB --queue small --minIndex 0 --maxIndex 1
 ```
 
 
@@ -38,7 +38,7 @@ This [code](./processFPFS.py) detects galaxies from images and measure the FPFS
 shapes for shear inference.
 Users can use the following command to run the measurement in parallel:
 ```shell
-processFPFSBatchRun.py $s19w --output ./ --batch-type=pbs --nodes 2 --procs 52 --time 100000 --job process --queue small --minIndex 0 --maxIndex 1
+processFPFSBatchRun.py $s19w --output ./ --batch-type=pbs --nodes 2 --procs 52 --time 100000 --job proF --queue small --minIndex 0 --maxIndex 1
 ```
 
 ## estimate average shear
