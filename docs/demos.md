@@ -10,5 +10,7 @@ shear estimator.
 [demo2](./notebooks/demos/demo2.ipynb)
 estimates shear under a more realistic situation with *PSF errors*.
 
-[demo3]()
+
+## Isolated galaxies
+[demo1]()
 estimates shear from blended galaxies distorted by the same shear.

@@ -22,14 +22,14 @@ We expect users of the code to cite the following papers:
 
 + [version 3.0]()
 This paper derives the correction for *detection bias*. Scripts used to produce
-plots in the paper can be found [here](./notebooks/paper_2022).
+plots in the paper can be found [here](../notebooks/paper_2022).
 
 + [version 2.0](https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract):
 This paper derives the covariance matrix of FPFS measurements and corrects for
 *noise bias* to second-order. In addition, it derives the correction for galaxy
 sample *selection bias*. Scripts used to produce plots in the paper can be
 found
-[here](./notebooks/paper_2021).
+[here](../notebooks/paper_2021).
 
 + [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract):
 This paper builds up the FPFS formalism based on
