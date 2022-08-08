@@ -56,8 +56,8 @@ class processBasicDriverConfig(pexConfig.Config):
     )
     galDir      = pexConfig.Field(
         dtype=str,
-        # default="galaxy_unif3_cosmo170_psf60",
-        default="galaxy_unif3_cosmo085_psf60",
+        default="galaxy_unif3_cosmo170_psf60",
+        # default="galaxy_unif3_cosmo085_psf60",
         # default="galaxy_basic3Shift_psf60",
         # default="galaxy_basic3Center_psf60",
         # default="small2_psf60",
@@ -88,7 +88,7 @@ class processBasicDriverConfig(pexConfig.Config):
         self.readDataSim.doWrite=   False
         self.readDataSim.doDeblend= True
         self.readDataSim.doAddFP=   False
-        tname   =   'try2'
+        tname   =   'try3'
         psfFWHM =   self.galDir.split('_psf')[-1]
         gnm     =   self.galDir.split('galaxy_')[-1].split('_psf')[0]
         self.outDir  =  os.path.join(self.outDir,'srcfs3_%s-%s_%s' %(gnm,self.noiName,tname),'psf%s'%(psfFWHM))
@@ -152,8 +152,8 @@ class processBasicDriverTask(BatchPoolTask):
         psfFWHM     =   galDir.split('_psf')[-1]
 
         # FPFS Basic
-        sigma_as  =   0.5944 #[arcsec] try2
-        # sigma_as    =   0.45 #[arcsec] try3
+        # sigma_as  =   0.5944 #[arcsec] try2
+        sigma_as    =   0.45 #[arcsec] try3
         rcut        =   32
         beg         =   ngrid//2-rcut
         end         =   beg+2*rcut
