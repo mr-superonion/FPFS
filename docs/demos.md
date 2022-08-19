@@ -11,6 +11,6 @@ shear estimator.
 estimates shear under a more realistic situation with *PSF errors*.
 
 
-## Isolated galaxies
+## Blended galaxies
 [demo1]()
 estimates shear from blended galaxies distorted by the same shear.
