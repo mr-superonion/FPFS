@@ -122,14 +122,10 @@ if with_lsst:
 def make_ringrot_radians(nord=8):
     """
     Generate rotation angle array for ring test
-
     Args:
-        nord (int):
-            up to 1/2**nord*pi rotation
-
+        nord (int):             up to 1/2**nord*pi rotation
     Returns:
-        rotArray (ndarray):
-            rotation array [in units of radians]
+        rotArray (ndarray):     rotation array [in units of radians]
     """
     rotArray=   np.zeros(2**nord)
     nnum    =   0
@@ -146,9 +142,8 @@ class sim_test():
         """
         simulate an exponential object with moffat PSF, this class has the same observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
-
         Args:
-            shear (tuple):      (g1, g2),The shear in each component
+            shear (tuple):      tuple of [g1, g2]. The shear in each component
             rng (randState):    The random number generator
         """
         self.rng=   rng
@@ -186,7 +181,6 @@ class sim_test():
             noise (float):      Noise for the image
             psf_noise (float):  Noise for the PSF [defalut: 0.]
             do_shift (bool):    whether shift the galaxy [default: False]
-
         Returns:
             im (ndarray):       galaxy image
             psf_im (ndarray):   PSF image
@@ -210,16 +204,16 @@ class sim_test():
 def coord_distort(x,y,xref,yref,gamma1,gamma2,kappa=0.):
     '''
     Args:
-        x (ndarray):    input coordinates (x)
-        y (ndarray):    input coordinates (y)
-        xref (float):   reference point (x)
-        yref (float):   reference point (y)
+        x (ndarray):    input coordinates [x]
+        y (ndarray):    input coordinates [y]
+        xref (float):   reference point [x]
+        yref (float):   reference point [y]
         gamma1 (float): first component of shear distortion
         gamma2 (float): second component of shear distortion
-        kappa (float):  kappa distortion (default: 0)
+        kappa (float):  kappa distortion [default: 0]
     Returns:
-        x2 (ndarray):   distorted coordiantes (x)
-        y2 (ndarray):   distorted coordiantes
+        x2 (ndarray):   distorted coordiantes [x]
+        y2 (ndarray):   distorted coordiantes [y]
     '''
     xu  =   x-xref
     yu  =   y-yref
@@ -230,14 +224,14 @@ def coord_distort(x,y,xref,yref,gamma1,gamma2,kappa=0.):
 def coord_rotate(x,y,xref,yref,theta):
     '''
     Args:
-        x (ndarray):    input coordinates (x)
-        y (ndarray):    input coordinates (y)
-        xref (float):   reference point (x)
-        yref (float):   reference point (y)
+        x (ndarray):    input coordinates [x]
+        y (ndarray):    input coordinates [y]
+        xref (float):   reference point [x]
+        yref (float):   reference point [y]
         theta (float):  rotation angle [rads]
     Returns:
-        x2 (ndarray):   rotated coordiantes (x)
-        y2 (ndarray):   rotated coordiantes (y)
+        x2 (ndarray):   rotated coordiantes [x]
+        y2 (ndarray):   rotated coordiantes [y]
     '''
     xu  =   x-xref
     yu  =   y-yref
@@ -255,17 +249,17 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
         Id0 (int):
             index of the simulation
         ny (int):
-            number of galaxies in y direction (default: 5000)
+            number of galaxies in y direction [default: 5000]
         nx (int):
-            number of galaxies in x direction (default: 5000)
+            number of galaxies in x direction [default: 5000]
         rfrac(float):
-            fraction of radius to min(nx,ny)
+            fraction of radius to minimum between nx and ny
         do_write (bool):
-            whether write output (default: True)
+            whether write output [default: True]
         return_array (bool):
-            whether return galaxy array (default: False)
+            whether return galaxy array [default: False]
         rot2 (float):
-            additional rotational angle (in units of radians)
+            additional rotational angle [in units of radians]
     """
     np.random.seed(Id0)
     outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
@@ -496,24 +490,16 @@ def galsim_round_sersic(n, sersic_prec):
     return float(int(n/sersic_prec + 0.5)) * sersic_prec
 
 def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=False,rot2=0):
-    """Makes basic galaxy image simulation (isolated)
+    """Makes basic **isolated** galaxy image simulation
     Args:
-        outDir (str):
-            output directory
-        gname (str):
-            shear distortion setup
-        Id0 (int):
-            index of the simulation
-        ny (int):
-            number of galaxies in y direction
-        nx (int):
-            number of galaxies in x direction
-        do_write (bool):
-            whether write output [default: True]
-        return_array (bool):
-            whether return galaxy array [default: False]
-        rot2 (float):
-            additional rotation angle
+        outDir (str):           output directory
+        gname (str):            shear distortion setup
+        Id0 (int):              index of the simulation
+        ny (int):               number of galaxies in y direction
+        nx (int):               number of galaxies in x direction
+        do_write (bool):        whether write output [default: True]
+        return_array (bool):    whether return galaxy array [default: False]
+        rot2 (float):           additional rotation angle
     """
     outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
     if os.path.isfile(outFname):
@@ -669,20 +655,14 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
     a source background noise ratio (r0)
 
     Args:
-        shear (tuple):
-           (g1, g2),The shear in each component
-        rng (randState):
-            The random number generator
-        r1  (float):
-            The source background noise variance ratio
-        r0  (float):
-            The SNR of galaxy
-        psf (galsim.Moffat):
-            galsim.Moffat(beta=2.5,fwhm=psf_fwhm,).shear(g1=0.02, g2=-0.01,)
+        shear (tuple):          [g1, g2]. The shear in each component
+        rng (randState):        The random number generator
+        r1  (float):            The source background noise variance ratio
+        r0  (float):            The SNR of galaxy
+        psf (galsim.Moffat):    a Moffat PSF
 
     Returns:
-       img (ndarray):
-            noisy image array
+       img (ndarray):           noisy image array
     """
     scale   =   0.263
     gal_hlr =   0.5

@@ -20,17 +20,18 @@ import numpy as np
 
 # functions used for selection
 def tsfunc1(x,deriv=0,mu=0.,sigma=1.5):
-    """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
-    the weight function for first order derivative (deriv=1)
+    """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
+    the weight function for first order derivative [deriv=1]. This is for C1
+    function.
     Args:
-        deriv (int):    whether do derivative (1) or not (0)
+        deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
         mu (float):     center of the cut
         sigma (sigma):  widthe of the selection function
     Returns:
-        out (ndarray):  the weight funciton (deriv=0), or the *multiplicative
-                        factor* to the weight function for first order derivative
-                        (deriv=1)
+        out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
+                        factor* to the weight function for first order
+                        derivative [deriv=1]
     """
     t=(x-mu)/sigma
     if deriv==0:
@@ -43,6 +44,19 @@ def tsfunc1(x,deriv=0,mu=0.,sigma=1.5):
         raise ValueError('deriv should be 0 or 1')
 
 def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
+    """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
+    the weight function for first order derivative [deriv=1]. This is for C2
+    funciton.
+    Args:
+        deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
+        x (ndarray):    input data vector
+        mu (float):     center of the cut
+        sigma (sigma):  widthe of the selection function
+    Returns:
+        out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
+                        factor* to the weight function for first order
+                        derivative [deriv=1]
+    """
     t=(x-mu)/sigma
     func=lambda t:1./2.+t/2.+1./2./np.pi*np.sin(t*np.pi)
 
@@ -61,17 +75,17 @@ def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
         raise ValueError('deriv can only be 0,1,2,3')
 
 def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
-    """Returns the weight funciton (deriv=0), or the *multiplicative factor* to
-    the weight function for first order derivative (deriv=1)
+    """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
+    the weight function for first order derivative [deriv=1].
     Args:
-        deriv (int):    whether do derivative (1) or not (0)
+        deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
         mu (float):     center of the cut
         sigma (sigma):  widthe of the selection function
     Returns:
-        out (ndarray):  the weight funciton (deriv=0), or the *multiplicative
+        out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
                         factor* to the weight function for first order derivative
-                        (deriv=1)
+                        [deriv=1]
     """
     expx=np.exp(-(x-mu)/sigma)
     if deriv==0:
@@ -84,18 +98,18 @@ def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
         raise ValueError('deriv should be 0 or 1')
 
 def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
-    """Returns the weight funciton (deriv=0), or the *multiplicative
-    factor* to the weight function for first order derivative (deriv=1)
+    """Returns the weight funciton [deriv=0], or the *multiplicative
+    factor* to the weight function for first order derivative [deriv=1]
     Args:
         x (ndarray):    input selection observable
         cut (float):    the cut on selection observable
         sigma (sigma):  width of the selection function
-        use_sig (bool): whether use sigmoid (True) of truncated sine (False)
+        use_sig (bool): whether use sigmoid [True] of truncated sine [False]
         deriv (int):    whether do derivative (1) or not (0)
     Returns:
-        out (ndarray):  the weight funciton (deriv=0), or the *multiplicative
+        out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
                         factor* to the weight function for first order
-                        derivative (deriv=1)
+                        derivative [deriv=1]
     """
     if use_sig:
         out = sigfunc(x,deriv=deriv,mu=cut,sigma=sigma)
@@ -110,7 +124,7 @@ def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
         x (ndarray):        selection observable
         cut (float):        the cut on selection observable
         sigma (sigma):      width of the selection function
-        use_sig (bool):     whether use sigmoid (True) of truncated sine (False)
+        use_sig (bool):     whether use sigmoid [True] of truncated sine [False]
         w_sel (ndarray):    selection weights as function of selection observable
         rev  (ndarray):     selection response array
     Returns:
@@ -135,8 +149,8 @@ def fpfsM2E(mm,const=1.,noirev=False):
             revise the second-order noise bias? [default: False]
     Returns:
         out (ndarray):
-            an array of (FPFS ellipticities, FPFS ellipticity response, FPFS
-            flux, size and FPFS selection response)
+            an array of [FPFS ellipticities, FPFS ellipticity response, FPFS
+            flux, size and FPFS selection response]
     """
     # ellipticity, q-ellipticity, sizes, e^2, eq
     types   =   [('fpfs_e1','<f8'), ('fpfs_e2','<f8') , ('fpfs_ee','<f8'), \
@@ -255,7 +269,7 @@ class summary_stats():
         Args:
             mm (ndarray):   FPFS moments
             ell (ndarray):  FPFS ellipticity
-            use_sig (bool): whether use sigmoid (True) of truncated sine (False)
+            use_sig (bool): whether use sigmoid [True] of truncated sine [False]
         """
         self.ratio = ratio
         self.use_sig= use_sig
@@ -373,10 +387,10 @@ class summary_stats():
         """Updates the selection bias correction term with the current
         selection weight
         Args:
-            selnm (str):    name of the selection variable ('M00', 'M20', 'R2')
+            selnm (str):    name of the selection variable ['M00', 'M20', 'R2']
             cut (float):    selection cut
-            cutsig (float): width of the selection weight function (it is closer
-                            to heavy step when cutsig is smaller)
+            cutsig (float): width of the selection weight function. Note, it is
+                            closer to heavy step when cutsig is smaller
         """
         if not isinstance(selnm,str):
             raise TypeError('selnm should be str')

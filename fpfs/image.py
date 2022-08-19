@@ -25,11 +25,12 @@ import numpy.lib.recfunctions as rfn
 from . import imgutil
 
 def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,pixel_scale=1.):
-    """Returns the coordinates of detected sources
+    """Returns the coordinates of detected sources.
     Args:
         imgData (ndarray):      observed image
-        psfData (ndarray):      PSF image (well centered)
-        gsigma (float):         sigma of the Gaussian smoothing kernel in *Fourier* space
+        psfData (ndarray):      PSF image [well-centered]
+        gsigma (float):         sigma of the Gaussian smoothing kernel in
+                                *Fourier* space
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
@@ -74,7 +75,7 @@ def get_klim(psf_array,sigma,thres=1e-20):
     Args:
         psf_array (ndarray):    PSF's Fourier power or Fourier transform
         sigma (float):          one sigma of Gaussian Fourier power
-        thres (float):          the threshold for a tuncation on Gaussian (default: 1e-20)
+        thres (float):          the threshold for a tuncation on Gaussian [default: 1e-20]
     Returns:
         klim (float):           the limit radius
     """
@@ -102,10 +103,10 @@ class measure_source():
         noiModel (ndarray): Models to be used to fit noise power function using the pixels at
                             large k for each galaxy (if you wish FPFS code to estiamte noise
                             power). [default: None]
-        noiFit (ndarray):   Estimated noise power function (if you have already estimated noise
-                            power) [default: None]
+        noiFit (ndarray):   Estimated noise power function, if you have already estimated noise
+                            power [default: None]
         deubg (bool):       Whether debug or not [default: False]
-        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec (HSC)]
+        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
     """
     _DefaultName = "measure_source"
     def __init__(self,psfData,sigma_arcsec,nnord=4,noiModel=None,noiFit=None,debug=False,pix_scale=0.168):
@@ -368,14 +369,15 @@ class measure_source():
         Deconvolve input data with the PSF or PSF power
         Args:
             data (ndarray):
-                galaxy power or galaxy Fourier transfer (ngrid//2,ngrid//2) is origin
+                galaxy power or galaxy Fourier transfer, origin is set to
+                [ngrid//2,ngrid//2]
             prder (float):
                 deconvlove order of PSF FT power
             frder (float):
                 deconvlove order of PSF FT
         Returns:
             out (ndarray):
-                Deconvolved galaxy power (truncated at klim)
+                Deconvolved galaxy power [truncated at klim]
         """
         out  =   np.zeros(data.shape,dtype=np.complex64)
         out[self._ind2D]=data[self._ind2D]\
@@ -469,7 +471,7 @@ class measure_source():
         """
         Measure the FPFS moments
         Args:
-            data (ndarray):     galaxy image array (centroid does not matter)
+            data (ndarray):     galaxy image array [centroid does not matter]
         Returns:
             mm (ndarray):       FPFS moments
         """
