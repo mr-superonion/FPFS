@@ -21,8 +21,8 @@ import numpy as np
 import scipy.ndimage as ndi
 
 def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
-    """
-    Generate a Gaussian kernel on grids for np.fft.fft transform
+    """Generates a Gaussian kernel on grids for np.fft.fft transform
+
     Args:
         ny (int):    		    grid size in y-direction
         nx (int):    		    grid size in x-direction
@@ -50,8 +50,7 @@ def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
         return out,(Y,X)
 
 def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
-    """
-    Generate a Gaussian kernel on grids for np.fft.rfft transform
+    """Generates a Gaussian kernel on grids for np.fft.rfft transform
 
     Args:
         ny (int):    		    grid size in y-direction
@@ -74,8 +73,7 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
         return out,(Y,X)
 
 def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
-    """
-    Generate a Gaussian kernel in Fourier space on grids
+    """Generates a Gaussian kernel in Fourier space on grids
 
     Args:
         ny (int):    		    grid size in y-direction
@@ -104,8 +102,7 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
         return _gauss_kernel_rfft(ny,nx,sigma,return_grid)
 
 def getFouPow_rft(arrayIn):
-    """
-    Get Fourier power function
+    """Gets Fourier power function
 
     Args:
         arrayIn (ndarray):  image array. The centroid does not matter.
@@ -124,8 +121,7 @@ def getFouPow_rft(arrayIn):
     return foupow
 
 def getFouPow(arrayIn, noiPow=None):
-    """
-    Get Fourier power function
+    """Gets Fourier power function
 
     Args:
         arrayIn (ndarray):  image array [centroid does not matter]
@@ -140,9 +136,8 @@ def getFouPow(arrayIn, noiPow=None):
     return out
 
 def getRnaive(arrayIn):
-    """
-    A naive way to estimate Radius.
-    Note, this naive estimation is heavily influenced by noise.
+    """A naive way to estimate Radius. Note, this naive estimation is heavily
+    influenced by noise.
 
     Args:
         arrayIn (ndarray):  image array, centroid does not matter
@@ -160,6 +155,7 @@ def getRnaive(arrayIn):
 def detlets2D(ngrid,sigma):
     """Generates shapelets function in Fourier space, chi00 are normalized to 1.
     This function only supports square stamps: ny=nx=ngrid.
+
     Args:
         ngrid (int):    number of pixels in x and y direction
         sigma (float):  scale of shapelets in Fourier space
@@ -189,9 +185,9 @@ def detlets2D(ngrid,sigma):
     return psi
 
 def shapelets2D(ngrid,nord,sigma):
-    """
-    Generate shapelets function in Fourier space, chi00 are normalized to 1
-    (only support square stamps: ny=nx=ngrid)
+    """Generates shapelets function in Fourier space, chi00 are normalized to 1
+    [only support square stamps: ny=nx=ngrid]
+
     Args:
         ngrid (int):    number of pixels in x and y direction
         nord (int):     radial order of the shaplets
@@ -257,8 +253,7 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
     return noiSub
 
 def pcaimages(X,nmodes):
-    """
-    Estimate the principal components of array list X
+    """Estimates the principal components of array list X
 
     Args:
         X (ndarray):        input data array
@@ -298,8 +293,8 @@ def pcaimages(X,nmodes):
     return out,stds,eVout
 
 def cut_img(img,rcut):
-    """
-    cutout img into postage stamp with width=2rcut
+    """Cuts img into postage stamp with width=2rcut
+
     Args:
         img (ndarray):  input image
         rcut (int):     cutout radius
@@ -314,6 +309,7 @@ def cut_img(img,rcut):
 
 def find_peaks(imgCov,thres,thres2=0.,negBd=20.):
     """Detects peaks and returns the coordinates (y,x)
+
     Args:
         imgCov (ndarray):       convolved image
         thres (float):          detection threshold

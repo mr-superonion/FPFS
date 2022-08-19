@@ -25,7 +25,8 @@ import numpy.lib.recfunctions as rfn
 from . import imgutil
 
 def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,pixel_scale=1.):
-    """Returns the coordinates of detected sources.
+    """Returns the coordinates of detected sources
+
     Args:
         imgData (ndarray):      observed image
         psfData (ndarray):      PSF image [well-centered]
@@ -68,10 +69,10 @@ def detect_sources(imgData,psfData,gsigma,thres=0.04,thres2=-0.01,klim=-1.,pixel
 
 @numba.njit
 def get_klim(psf_array,sigma,thres=1e-20):
-    """
-    Get klim, the region outside klim is supressed by the shaplet Gaussian
+    """Gets klim, the region outside klim is supressed by the shaplet Gaussian
     kernel in FPFS shear estimation method; therefore we set values in this
-    region to zeros.
+    region to zeros
+
     Args:
         psf_array (ndarray):    PSF's Fourier power or Fourier transform
         sigma (float):          one sigma of Gaussian Fourier power
@@ -93,8 +94,7 @@ def get_klim(psf_array,sigma,thres=1e-20):
     return klim
 
 class measure_source():
-    """
-    A class to measure FPFS shapelet mode estimation.
+    """A class to measure FPFS shapelet mode estimation
 
     Args:
         psfData (ndarray):  an average PSF image used to initialize the task
@@ -226,8 +226,8 @@ class measure_source():
         return
 
     def prepare_Chi(self,chi):
-        """
-        prepare the basis to estimate shapelet modes
+        """Prepares the basis to estimate shapelet modes
+
         Args:
             chi (ndarray):  2D shapelet basis
         """
@@ -267,8 +267,8 @@ class measure_source():
         return
 
     def prepare_Psi(self,psi):
-        """
-        prepare the basis to estimate Chivatives (or equivalent moments)
+        """Prepares the basis to estimate Chivatives (or equivalent moments)
+
         Args:
             psi (ndarray):  2D shapelet basis
         """
@@ -288,8 +288,8 @@ class measure_source():
         return
 
     def prepare_ChiCov(self,chi):
-        """
-        prepare the basis to estimate covariance of measurement error
+        """Prepares the basis to estimate covariance of measurement error
+
         Args:
             chi (ndarray):    2D shapelet basis
         """
@@ -332,8 +332,8 @@ class measure_source():
         return
 
     def prepare_detCov(self,chi,psi):
-        """
-        prepare the basis to estimate covariance for detection
+        """Prepares the basis to estimate covariance for detection
+
         Args:
             chi (ndarray):      2D shapelet basis
             psi (ndarray):      2D pixel basis
@@ -365,8 +365,8 @@ class measure_source():
         return
 
     def deconvolve(self,data,prder=1.,frder=1.):
-        """
-        Deconvolve input data with the PSF or PSF power
+        """Deconvolves input data with the PSF or PSF power
+
         Args:
             data (ndarray):
                 galaxy power or galaxy Fourier transfer, origin is set to
@@ -386,8 +386,8 @@ class measure_source():
         return out
 
     def itransform(self,data,out_type='Chi'):
-        """
-        Project image onto shapelet basis vectors
+        """Projects image onto shapelet basis vectors
+
         Args:
             data (ndarray): image to transfer
             out_type (str): transform type ('Chi', 'Psi', 'Cov', or 'detCov')
@@ -425,8 +425,7 @@ class measure_source():
         return out
 
     def measure(self,galData,psfFou=None,noiFit=None):
-        """
-        Measure the FPFS moments
+        """Measures the FPFS moments
 
         Args:
             galData (ndarray|list):     galaxy image
@@ -468,8 +467,8 @@ class measure_source():
             raise TypeError("Input galaxy data has wrong type (neither list nor ndarray).")
 
     def __measure(self,data):
-        """
-        Measure the FPFS moments
+        """Measures the FPFS moments
+
         Args:
             data (ndarray):     galaxy image array [centroid does not matter]
         Returns:
@@ -514,16 +513,12 @@ class test_noise():
         return
 
     def test(self,galData):
-        """
-        # test the noise subtraction
+        """Tests the noise subtraction
 
-        Parameters:
-        galData:    galaxy image [float array (list)]
-
+        Args:
+            galData:    galaxy image [float array (list)]
         Returns:
-        out :   FPFS moments
-
-
+            out :   FPFS moments
         """
         if isinstance(galData,np.ndarray):
             # single galaxy
@@ -540,11 +535,10 @@ class test_noise():
             return out
 
     def __test(self,data):
-        """
-        # test the noise subtraction
+        """Tests the noise subtraction
 
-        Parameters:
-        data:    image array (centroid does not matter)
+        Args:
+            data:    image array [centroid does not matter]
         """
         assert len(data.shape)==2
         galPow  =   imgutil.getFouPow(data)

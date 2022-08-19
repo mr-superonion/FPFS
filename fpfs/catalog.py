@@ -22,7 +22,8 @@ import numpy as np
 def tsfunc1(x,deriv=0,mu=0.,sigma=1.5):
     """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
     the weight function for first order derivative [deriv=1]. This is for C1
-    function.
+    function
+
     Args:
         deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
@@ -46,7 +47,8 @@ def tsfunc1(x,deriv=0,mu=0.,sigma=1.5):
 def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
     """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
     the weight function for first order derivative [deriv=1]. This is for C2
-    funciton.
+    funciton
+
     Args:
         deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
@@ -76,7 +78,8 @@ def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
 
 def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
     """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
-    the weight function for first order derivative [deriv=1].
+    the weight function for first order derivative [deriv=1]
+
     Args:
         deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
@@ -100,6 +103,7 @@ def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
 def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
     """Returns the weight funciton [deriv=0], or the *multiplicative
     factor* to the weight function for first order derivative [deriv=1]
+
     Args:
         x (ndarray):    input selection observable
         cut (float):    the cut on selection observable
@@ -118,8 +122,9 @@ def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
     return out
 
 def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
-    """Returns the weight bias due to shear dependence and noise bias (first
-    order in w)
+    """Returns the weight bias due to shear dependence and noise bias [first
+    order in w]
+
     Args:
         x (ndarray):        selection observable
         cut (float):        the cut on selection observable
@@ -138,8 +143,8 @@ def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
 
 # functions to get derived observables from fpfs modes
 def fpfsM2E(mm,const=1.,noirev=False):
-    """
-    Estimate FPFS ellipticities from fpfs moments
+    """Estimates FPFS ellipticities from fpfs moments
+
     Args:
         mm (ndarray):
             input FPFS moments
@@ -265,7 +270,9 @@ def fpfsM2E(mm,const=1.,noirev=False):
 
 class summary_stats():
     def __init__(self,mm,ell,use_sig=False,ratio=1.9):
-        """
+        """A class to get the summary statistics [e.g., mean shear] of from the
+        moments and ellipticity.
+
         Args:
             mm (ndarray):   FPFS moments
             ell (ndarray):  FPFS ellipticity
@@ -386,6 +393,7 @@ class summary_stats():
     def _update_selection_bias(self,selnm,cut,cutsig):
         """Updates the selection bias correction term with the current
         selection weight
+
         Args:
             selnm (str):    name of the selection variable ['M00', 'M20', 'R2']
             cut (float):    selection cut

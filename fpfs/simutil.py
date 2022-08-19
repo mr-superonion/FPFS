@@ -77,8 +77,7 @@ except ImportError as error:
 
 if with_lsst:
     def makeLsstExposure(galData,psfData,pixScale,variance):
-        """
-        make an LSST exposure object
+        """Makes an LSST exposure object
 
         Args:
             galData (ndarray):  array of galaxy image
@@ -120,8 +119,8 @@ if with_lsst:
 
 ## For ring tests
 def make_ringrot_radians(nord=8):
-    """
-    Generate rotation angle array for ring test
+    """Generates rotation angle array for ring test
+
     Args:
         nord (int):             up to 1/2**nord*pi rotation
     Returns:
@@ -139,9 +138,10 @@ def make_ringrot_radians(nord=8):
 
 class sim_test():
     def __init__(self,shear,rng,scale=0.263,psf_fwhm=0.9,gal_hlr=0.5,ngrid=32):
-        """
-        simulate an exponential object with moffat PSF, this class has the same observational setup as
+        """Simulates an exponential object with moffat PSF, this class has the same
+        observational setup as
         https://github.com/esheldon/ngmix/blob/38c379013840b5a650b4b11a96761725251772f5/examples/metacal/metacal.py#L199
+
         Args:
             shear (tuple):      tuple of [g1, g2]. The shear in each component
             rng (randState):    The random number generator
@@ -174,8 +174,7 @@ class sim_test():
         return
 
     def make_image(self,noise,psf_noise=0.,do_shift=False):
-        """
-        generate a galaxy image
+        """Generates a galaxy image
 
         Args:
             noise (float):      Noise for the image
@@ -202,7 +201,8 @@ class sim_test():
         return img,psf
 
 def coord_distort(x,y,xref,yref,gamma1,gamma2,kappa=0.):
-    '''
+    '''Distorts coordinates by shear
+
     Args:
         x (ndarray):    input coordinates [x]
         y (ndarray):    input coordinates [y]
@@ -222,7 +222,8 @@ def coord_distort(x,y,xref,yref,gamma1,gamma2,kappa=0.):
     return x2,y2
 
 def coord_rotate(x,y,xref,yref,theta):
-    '''
+    '''Rotates coordinates by an angle theta
+
     Args:
         x (ndarray):    input coordinates [x]
         y (ndarray):    input coordinates [y]
@@ -241,6 +242,7 @@ def coord_rotate(x,y,xref,yref,theta):
 
 def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,return_array=False,rot2=0.):
     """Makes cosmo galaxy image simulation (blended)
+
     Args:
         outDir (str):
             output directory
@@ -392,6 +394,7 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
 def generate_cosmos_gal(record,truncr=5.,gsparams=None):
     """Generates COSMOS galaxies; modified version of
     https://github.com/GalSim-developers/GalSim/blob/releases/2.3/galsim/scene.py#L626
+
     Args:
         record (ndarray):   one row of the COSMOS galaxy catalog
         truncr (float):     truncation ratio
@@ -491,6 +494,7 @@ def galsim_round_sersic(n, sersic_prec):
 
 def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=False,rot2=0):
     """Makes basic **isolated** galaxy image simulation
+
     Args:
         outDir (str):           output directory
         gname (str):            shear distortion setup
@@ -650,9 +654,8 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
         return gal_image.array
 
 def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
-    """
-    simulate an exponential object with moffat PSF, given a SNR (r0) and
-    a source background noise ratio (r0)
+    """Simulates an exponential object with moffat PSF, given a SNR [r0] and a
+    source background noise ratio [r0]
 
     Args:
         shear (tuple):          [g1, g2]. The shear in each component

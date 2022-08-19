@@ -52,7 +52,8 @@ cred=[
     ]
 
 def make_figure_axes(ny=1,nx=1,square=True):
-    """
+    """Makes figure and axes
+
     Args:
         ny (int):       number of subplots in y direction
         nx (int):       number of subplots in y direction
