@@ -28,7 +28,7 @@ def tsfunc1(x,deriv=0,mu=0.,sigma=1.5):
         deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
         mu (float):     center of the cut
-        sigma (sigma):  widthe of the selection function
+        sigma (float):  width of the selection function
     Returns:
         out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
                         factor* to the weight function for first order
@@ -53,7 +53,7 @@ def tsfunc2(x,mu=0.,sigma=1.5,deriv=0):
         deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
         mu (float):     center of the cut
-        sigma (sigma):  widthe of the selection function
+        sigma (float):  width of the selection function
     Returns:
         out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
                         factor* to the weight function for first order
@@ -84,7 +84,7 @@ def sigfunc(x,deriv=0,mu=0.,sigma=1.5):
         deriv (int):    whether do derivative [deriv=1] or not [deriv=0]
         x (ndarray):    input data vector
         mu (float):     center of the cut
-        sigma (sigma):  widthe of the selection function
+        sigma (float):  width of the selection function
     Returns:
         out (ndarray):  the weight funciton [deriv=0], or the *multiplicative
                         factor* to the weight function for first order derivative
@@ -107,7 +107,7 @@ def get_wsel_eff(x,cut,sigma,use_sig,deriv=0):
     Args:
         x (ndarray):    input selection observable
         cut (float):    the cut on selection observable
-        sigma (sigma):  width of the selection function
+        sigma (float):  width of the selection function
         use_sig (bool): whether use sigmoid [True] of truncated sine [False]
         deriv (int):    whether do derivative (1) or not (0)
     Returns:
@@ -128,7 +128,7 @@ def get_wbias(x,cut,sigma,use_sig,w_sel,rev=None):
     Args:
         x (ndarray):        selection observable
         cut (float):        the cut on selection observable
-        sigma (sigma):      width of the selection function
+        sigma (float):      width of the selection function
         use_sig (bool):     whether use sigmoid [True] of truncated sine [False]
         w_sel (ndarray):    selection weights as function of selection observable
         rev  (ndarray):     selection response array
