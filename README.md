@@ -1,6 +1,14 @@
 # `FPFS`: Fourier Power Function Shaplets (A fast, accurate shear estimator)
 ----
 [![Python application](https://github.com/mr-superonion/FPFS/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/mr-superonion/FPFS/actions/workflows/python-app.yml)
+[![Documentation Status](https://readthedocs.org/projects/fpfs/badge/?version=latest)](https://fpfs.readthedocs.io/en/latest/?badge=latest)
+
+`FPFS` is a perturbation-based coordinate-wise shear estimator. It uses the
+leading order perturbations of shear (which is a vector perturbation) and noise
+(which is a tensor perturbation) to construct shear estimator and revise noise
+bias, respectively. The response of galaxy ellipticity to shear perturbation is
+dervied using the shear response of a set of basis functions (basis
+coordinates).
 
 Documentation for FPFS modules can be found [here](https://fpfs.readthedocs.io/en/latest/)
 
