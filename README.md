@@ -32,16 +32,16 @@ pip install -e .
 
 ## Reference
 + [version 3.0](https://arxiv.org/abs/2208.10522):
-This paper correct for detection bias by interpreting smoothed pixel values as
-a projection of signal onto a set of basis functions.
+This paper corrects for detection bias from pixel level by interpreting smoothed
+pixel values as a projection of signal onto a set of basis functions.
 
 + [version 2.0](https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract):
 This paper derives the covariance matrix of FPFS measurements and corrects for
 noise bias to second-order. In addition, it derives the correction for
-selection bias (including Kaiser flow and ellipticity-flux measurement error
-correlation).
+selection bias.
+
 + [version 1.0](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract):
 This paper builds up the FPFS formalism based on
 [Fourier_Quad](https://arxiv.org/abs/1312.5514) and
-[Shapelets](https://arxiv.org/abs/astro-ph/0408445).
+[polar shapelets](https://arxiv.org/abs/astro-ph/0408445).
 ----
