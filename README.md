@@ -35,16 +35,16 @@ The following papers are ready to be cited if you find any of these papers
 interesting or use the pipeline. Comments are welcome.
 
 + [version 3](https://ui.adsabs.harvard.edu/abs/2022arXiv220810522L/abstract):
-  This paper corrects for detection bias from pixel level by interpreting
+  Li & Mandelbaum (2022) correct for detection bias from pixel level by interpreting
   smoothed pixel values as a projection of signal onto a set of basis functions.
 
 + [version 2](https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract):
-  This paper derives the covariance matrix of FPFS measurements and corrects for
-  noise bias to second-order. In addition, it derives the correction for
-  selection bias.
+  Li , Li & Massey (2022) derive the covariance matrix of FPFS measurements and
+  corrects for noise bias to second-order. In addition, it derives the
+  correction for selection bias.
 
 + [version 1](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract):
-  This paper builds up the FPFS formalism based on
+  Li et. al (2018) build up the FPFS formalism based on
   [Fourier_Quad](https://arxiv.org/abs/1312.5514) and [polar
   shapelets](https://arxiv.org/abs/astro-ph/0408445).
 ----
