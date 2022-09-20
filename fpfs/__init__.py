@@ -4,5 +4,6 @@ from . import imgutil
 from . import catalog
 from . import simutil
 from . import pltutil
+from . import default
 
-__all__= ["image", "imgutil", "catalog", "simutil", "pltutil"]
+__all__= ["image", "imgutil", "catalog", "simutil", "pltutil", "default"]
