@@ -8,8 +8,7 @@ shear estimator.
 +   fpfs.fpfsBase.fpfsTask: a task to process galaxy images and measure shear.
 
 [demo2](../notebooks/demos/demo2.ipynb)
-estimates shear under a more realistic situation with *PSF errors*.
-
+estimates shear under a more realistic situation with **PSF errors**.
 
 ## Blended galaxies
 [demo1]()

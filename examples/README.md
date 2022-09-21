@@ -30,5 +30,5 @@ distributed within a circle. Note the galaxies are blended here. It supports
 simulations with different number densities. Users can use the following
 command to run the simulation in parallel:
 ```shell
-fpfs_sim.py --config ./config_sim_gal.ini --minId 0 --maxId 1 --ncores 1
+fpfs_sim.py --config ./config_sim_galB.ini --minId 0 --maxId 1 --ncores 1
 ```
