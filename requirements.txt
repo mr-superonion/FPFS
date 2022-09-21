@@ -6,3 +6,4 @@ scipy
 numba
 galsim
 matplotlib
+schwimmbad

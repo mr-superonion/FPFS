@@ -21,6 +21,7 @@ setup(
         'numpy<1.23',
         'numba',
         'scipy',
+        'schwimmbad',
         'galsim',
         'astropy',
         'matplotlib',
