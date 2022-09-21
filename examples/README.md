@@ -2,7 +2,7 @@
 
 This directory gives some examples on simulating galaxy images with Galsim; and
 galaxy detection and shape estimation with FPFS. Before running the sripts,
-please source [this file](../bin/fpfs_config) after modifying it.
+please source [this file](../bin/fpfs_config.sh) after modifying it.
 
 ## Image Simulations
 ### simulate noise

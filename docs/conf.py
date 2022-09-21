@@ -13,6 +13,7 @@
 
 import os
 import sys
+import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../fpfs'))
 
 import fpfs
@@ -36,7 +37,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.napoleon',
-    'sphinx.ext.coverage',
+    'sphinx.ext.autosummary',
+    'sphinx.ext.intersphinx',
     'myst_parser',
 ]
 
@@ -84,7 +86,11 @@ master_doc = 'index'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinxdoc'
+html_theme = 'sphinx_rtd_theme'
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+def setup(app):
+    app.add_css_file('xtheme.css')
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -117,4 +123,7 @@ myst_number_code_blocks = ["typescript"]
 myst_heading_anchors = 2
 myst_footnote_transition = True
 myst_dmath_double_inline = True
+
+htmlhelp_basename = 'fpfs_doc'
+
 
