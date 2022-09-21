@@ -63,7 +63,6 @@ class Worker(object):
         return
 
     def run(self,Id):
-
         if 'noise' in self.simname:
             # do pure noise image simulation
             fpfs.simutil.make_noise_sim(self.simname,self.infname,Id,scale=self.scale)
