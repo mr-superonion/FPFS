@@ -11,7 +11,7 @@ FPFS: A fast, accurate shear estimator
 
     Overview <overview.md>
 
-    Examples <../examples/README.md>
+    Examples <examples/README.md>
 
     Demos <demos.md>
 
