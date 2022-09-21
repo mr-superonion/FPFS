@@ -40,8 +40,7 @@ class cosmoHSTGal():
         return
 
     def prepare_sample(self):
-        """
-        # read the HST galaxy training sample
+        """Reads the HST galaxy training sample
         """
         if not os.path.isfile(self.finName):
             if self.version=='252':
@@ -242,7 +241,8 @@ def coord_rotate(x,y,xref,yref,theta):
 
 def make_cosmo_sim(outDir,incname,psfInt,gname,Id0,ny=5000,nx=5000,rfrac=0.46,scale=0.168,\
         do_write=True,return_array=False,rot2=0.):
-    """Makes cosmo galaxy image simulation (blended)
+    """Makes cosmo-like blended galaxy image simulations.
+
     Args:
         outDir (str):           output directory
         incname (str):          input catalog Name
@@ -474,7 +474,8 @@ def galsim_round_sersic(n, sersic_prec):
 
 def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=100,nx=100,scale=0.168,\
         do_write=True,return_array=False,rot2=0):
-    """Makes basic **isolated** galaxy image simulation
+    """Makes basic **isolated** galaxy image simulation.
+
     Args:
         outDir (str):           output directory
         incname (str):          input catalog Name
@@ -630,7 +631,8 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=100,nx=100,scale=0.168,\
 
 def make_noise_sim(outDir,infname,Id0,ny=6400,nx=6400,scale=0.168,\
         do_write=True,return_array=False):
-    """Makes pure noise for galaxy image simulation
+    """Makes pure noise for galaxy image simulation.
+
     Args:
         outDir (str):           output directory
         incname (str):          input correlation function name
