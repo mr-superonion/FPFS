@@ -89,6 +89,7 @@ class Worker(object):
         return
 
     def __call__(self,Id):
+        print('start ID: %d' %(Id))
         logging.info('start ID: %d' %(Id))
         return self.run(Id)
 
@@ -108,11 +109,9 @@ if __name__=='__main__':
     args = parser.parse_args()
 
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
-    print(pool)
 
     worker  =   Worker(args.config)
     refs    =   list(range(args.minId,args.maxId))
-    print(refs)
     # worker(1)
     for r in pool.map(worker,refs):
         pass
