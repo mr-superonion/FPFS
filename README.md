@@ -34,17 +34,17 @@ pip install -e .
 The following papers are ready to be cited if you find any of these papers
 interesting or use the pipeline. Comments are welcome.
 
-+ *version 3:* [Li & Mandelbaum
++ **version 3:** [Li & Mandelbaum
   (2022)](https://ui.adsabs.harvard.edu/abs/2022arXiv220810522L/abstract)
   correct for detection bias from pixel level by interpreting smoothed pixel
   values as a projection of signal onto a set of basis functions.
 
-+ *version 2:* [Li , Li & Massey
++ **version 2:** [Li , Li & Massey
   (2022)](https://ui.adsabs.harvard.edu/abs/2021arXiv211001214L/abstract)
   derive the covariance matrix of FPFS measurements and corrects for noise bias
   to second-order. In addition, it derives the correction for selection bias.
 
-+ *version 1:* [Li et. al
++ **version 1:** [Li et. al
   (2018)](https://ui.adsabs.harvard.edu/abs/2018MNRAS.481.4445L/abstract)
   build up the FPFS formalism based on
   [Fourier_Quad](https://arxiv.org/abs/1312.5514) and [polar
