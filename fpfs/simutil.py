@@ -240,28 +240,21 @@ def coord_rotate(x,y,xref,yref,theta):
     y2  =   np.sin(theta)*xu+np.cos(theta)*yu+yref
     return x2,y2
 
-def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,return_array=False,rot2=0.):
+def make_cosmo_sim(outDir,incname,psfInt,gname,Id0,ny=5000,nx=5000,rfrac=0.46,scale=0.168,\
+        do_write=True,return_array=False,rot2=0.):
     """Makes cosmo galaxy image simulation (blended)
-
     Args:
-        outDir (str):
-            output directory
-        gname (str):
-            shear distortion setup
-        Id0 (int):
-            index of the simulation
-        ny (int):
-            number of galaxies in y direction [default: 5000]
-        nx (int):
-            number of galaxies in x direction [default: 5000]
-        rfrac(float):
-            fraction of radius to minimum between nx and ny
-        do_write (bool):
-            whether write output [default: True]
-        return_array (bool):
-            whether return galaxy array [default: False]
-        rot2 (float):
-            additional rotational angle [in units of radians]
+        outDir (str):           output directory
+        incname (str):          input catalog Name
+        psfInt (PSF):           input PSF object of galsim
+        gname (str):            shear distortion setup
+        Id0 (int):              index of the simulation
+        ny (int):               number of galaxies in y direction [default: 5000]
+        nx (int):               number of galaxies in x direction [default: 5000]
+        rfrac(float):           fraction of radius to minimum between nx and ny
+        do_write (bool):        whether write output [default: True]
+        return_array (bool):    whether return galaxy array [default: False]
+        rot2 (float):           additional rotational angle [in units of radians]
     """
     np.random.seed(Id0)
     outFname=   os.path.join(outDir,'image-%d-%s.fits' %(Id0,gname))
@@ -281,36 +274,23 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
     gList   =   gList[[eval(i) for i in gname.split('-')[-1]]]
 
     # PSF
-    pix_scale=  0.168 #[arcsec]
-    if 'HSC' in outDir:
-        psfFname=   os.path.join(outDir,'psf-HSC.fits')
-        assert os.path.isfile(psfFname), 'Cannot find input HSC PSF files'
-        psfImg  =   galsim.fits.read(psfFname)
-        psfInt  =   galsim.InterpolatedImage(psfImg,scale=pix_scale,flux = 1.)
-        logging.info('Using HSC PSF')
-    else:
-        psfFWHM =   int(outDir.split('_psf')[-1])/100.
-        psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
-        psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
-        logging.info('Using Moffat PSF with FWHM: %s arcsec'%psfFWHM)
+    scale=  0.168 #[arcsec]
 
     # number of galaxy
     # we only have `ngeff' galsim galaxies but with `nrot' rotation
     nrot    =   4
     r2      =   (min(nx,ny)*rfrac)**2.
     density =   int(outDir.split('_psf')[0].split('_cosmo')[-1])
-    ngal    =   max(int(r2*np.pi*pix_scale**2./3600.*density),nrot)
+    ngal    =   max(int(r2*np.pi*scale**2./3600.*density),nrot)
     ngal    =   int(ngal//nrot*nrot)
     ngeff   =   ngal//nrot
     logging.info('We have %d galaxies in total, and each %d are the same' %(ngal,nrot))
 
     # get the cosmos catalog
-    cosmo252=   cosmoHSTGal('252')
-    ntrain  =   len(cosmo252.catused)
+    inCat   =   pyfits.getdata(incname)
+    ntrain  =   len(inCat)
     inds    =   np.random.randint(0,ntrain,ngeff)
-    inCat   =   cosmo252.catused[inds]
-    # inCat   =   cosmo252.catused[np.argsort(cosmo252.catused['mag_auto'])][:ngal]
-    # print(inCat['mag_auto'])
+    inCat   =   inCat[inds]
 
     # evenly distributed within a radius, min(nx,ny)*rfrac
     farray  =   2.*(np.random.randint(2,size=ngeff)-0.5) #-1 or 1
@@ -324,7 +304,7 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
 
     zbound  =   np.array([1e-5,0.5477,0.8874,1.3119,12.0]) #sim 3
 
-    gal_image=  galsim.ImageF(nx,ny,scale=pix_scale)
+    gal_image=  galsim.ImageF(nx,ny,scale=scale)
     gal_image.setOrigin(0,0)
     for ii in range(ngal):
         ig      =   ii//nrot; irot    =   ii%nrot
@@ -364,12 +344,12 @@ def make_cosmo_sim(outDir,gname,Id0,ny=5000,nx=5000,rfrac=0.46,do_write=True,ret
         # position and subpixel offset
         xi,yi=  coord_distort(xi,yi,nx//2,ny//2,g1,g2)
         xu  =   int(xi);yu  =   int(yi)
-        dx  =   (0.5+xi-xu)*pix_scale;dy  =   (0.5+yi-yu)*pix_scale
+        dx  =   (0.5+xi-xu)*scale;dy  =   (0.5+yi-yu)*scale
         gal =   gal.shift(dx,dy)
         # PSF
         gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
         # Bounary
-        gPix=   max(gal.getGoodImageSize(pix_scale),32)
+        gPix=   max(gal.getGoodImageSize(scale),32)
         rx1 =   np.min([gPix,xu])
         rx2 =   np.min([gPix,nx-xu-1])
         rx  =   int(min(rx1,rx2))
@@ -492,11 +472,13 @@ def generate_cosmos_gal(record,truncr=5.,gsparams=None):
 def galsim_round_sersic(n, sersic_prec):
     return float(int(n/sersic_prec + 0.5)) * sersic_prec
 
-def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=False,rot2=0):
+def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=100,nx=100,scale=0.168,\
+        do_write=True,return_array=False,rot2=0):
     """Makes basic **isolated** galaxy image simulation
-
     Args:
         outDir (str):           output directory
+        incname (str):          input catalog Name
+        psfInt (PSF):           input PSF object of galsim
         gname (str):            shear distortion setup
         Id0 (int):              index of the simulation
         ny (int):               number of galaxies in y direction
@@ -518,7 +500,6 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
     # Basic parameters
     ngal   =   nx*ny
     ngrid  =   64
-    scale  =   0.168
     # Get the shear information
     gList  =   np.array([-0.02,0.,0.02])
     gList  =   gList[[eval(i) for i in gname.split('-')[-1]]]
@@ -531,12 +512,6 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
     else:
         raise ValueError('cannot decide g1 or g2')
     logging.info('Processing for %s, and shears for four redshift bins are %s.' %(gname,gList))
-    # PSF
-    psfFWHM =   int(outDir.split('_psf')[-1])/100.
-    logging.info('The FWHM for PSF is: %s arcsec'%psfFWHM)
-    psfInt  =   galsim.Moffat(beta=3.5,fwhm=psfFWHM,trunc=psfFWHM*4.)
-    psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
-    #psfImg =   psfInt.drawImage(nx=45,ny=45,scale=scale)
 
     gal_image=  galsim.ImageF(nx*ngrid,ny*ngrid,scale=scale)
     gal_image.setOrigin(0,0)
@@ -554,12 +529,12 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
         # catName     =   'real_galaxy_catalog_25.2.fits'
         # cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
         # catalog
-        cosmo252=   cosmoHSTGal('252')
-        ntrain  =   len(cosmo252.catused)
+        inCat   =   pyfits.getdata(incname)
+        ntrain  =   len(inCat)
         nrot    =   2
         ngeff   =   ngal//nrot
         inds    =   np.random.randint(0,ntrain,ngeff)
-        inCat   =   cosmo252.catused[inds]
+        inCat   =   inCat[inds]
         gal0    =   None
         for i in range(ngal):
             # boundary
@@ -605,7 +580,7 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
             sub_img =   gal_image[b]
             gal.drawImage(sub_img,add_to_image=True)
             del gal,b,sub_img,ss
-        del inCat,cosmo252,psfInt
+        del inCat
         gc.collect()
     elif 'small' in outDir:
         ud      =   galsim.UniformDeviate(Id0)
@@ -653,9 +628,47 @@ def make_basic_sim(outDir,gname,Id0,ny=100,nx=100,do_write=True,return_array=Fal
     if return_array:
         return gal_image.array
 
+def make_noise_sim(outDir,infname,Id0,ny=6400,nx=6400,scale=0.168,\
+        do_write=True,return_array=False):
+    """Makes pure noise for galaxy image simulation
+    Args:
+        outDir (str):           output directory
+        incname (str):          input correlation function name
+        Id0 (int):              index of the simulation
+        ny (int):               number of pixels in y direction
+        nx (int):               number of pixels in x direction
+        do_write (bool):        whether write output [default: True]
+        return_array (bool):    whether return galaxy array [default: False]
+    """
+    logging.info('begining for field %04d' %(Id0))
+    outFname    =   os.path.join(outDir,'noi%04d.fits' %(Id0))
+    if os.path.exists(outFname):
+        if do_write:
+            logging.info('Nothing to write.')
+        if return_array:
+            return pyfits.getdata(outFname)
+        else:
+            return None
+    logging.info('simulating noise for field %s' %(Id0))
+    variance    =   0.01
+    ud          =   galsim.UniformDeviate(Id0*10000+1)
+
+    # setup the galaxy image and the noise image
+    noi_image   =   galsim.ImageF(nx,ny,scale=scale)
+    noi_image.setOrigin(0,0)
+    corNoise    =   galsim.getCOSMOSNoise(file_name=infname,\
+                    rng=ud,cosmos_scale=scale,variance=variance)
+    corNoise.applyTo(noi_image)
+    if do_write:
+        pyfits.writeto(outFname,noi_image.array)
+    if return_array:
+        return noi_image.array
+    return
+
 def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
-    """Simulates an exponential object with moffat PSF, given a SNR [r0] and a
-    source background noise ratio [r0]
+    """This function is for the simulation for source photon noise. It
+    simulates an exponential object with moffat PSF, given a SNR [r0] and a
+    source background noise ratio [r0].
 
     Args:
         shear (tuple):          [g1, g2]. The shear in each component
@@ -706,3 +719,4 @@ def make_gal_ssbg(shear,psf,rng,r1,r0=20.):
     noimg   =   noimg*np.sqrt(B)
     img     =   img+noimg
     return img
+
