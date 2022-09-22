@@ -17,11 +17,13 @@ class Worker(object):
         cparser      =   ConfigParser()
         cparser.read(config_name)
         self.simname=cparser.get('simulation', 'sim_name')
+        self.imgdir=cparser.get('simulation', 'img_dir')
         self.infname=cparser.get('simulation','input_name')
         self.scale=cparser.getfloat('survey','pixel_scale')
         self.psfInt=None
-        if not os.path.exists(self.simname):
-            os.mkdir(self.simname)
+        self.outdir=os.path.join(self.imgdir,self.simname)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
         if 'galaxy' in self.simname:
             assert 'basic' in self.simname or 'small' in self.simname or 'cosmo' in self.simname
             if cparser.has_option('survey','psf_fwhm'):
@@ -58,14 +60,14 @@ class Worker(object):
         else:
             raise ValueError('Only support moffat PSF.')
         psfImg  =   psfInt.drawImage(nx=45,ny=45,scale=self.scale)
-        psffname=   os.path.join(self.simname,'psf-%d.fits' %(seeing*100))
+        psffname=   os.path.join(self.outdir,'psf-%d.fits' %(seeing*100))
         psfImg.write(psffname)
         return
 
     def run(self,Id):
         if 'noise' in self.simname:
             # do pure noise image simulation
-            fpfs.simutil.make_noise_sim(self.simname,self.infname,Id,scale=self.scale)
+            fpfs.simutil.make_noise_sim(self.outdir,self.infname,Id,scale=self.scale)
         else:
             if self.psfInt is None:
                 if '%' in self.psffname:
@@ -79,10 +81,10 @@ class Worker(object):
             for pp in self.pendList:
                 if 'basic' in self.simname or 'small' in self.simname:
                     # do basic stamp-like image simulation
-                    fpfs.simutil.make_basic_sim(self.simname,self.infname,self.psfInt,pp,Id,scale=self.scale)
+                    fpfs.simutil.make_basic_sim(self.outdir,self.infname,self.psfInt,pp,Id,scale=self.scale)
                 elif 'cosmo' in self.simname:
                     # do blended cosmo-like image simulation
-                    fpfs.simutil.make_cosmo_sim(self.simname,self.infname,self.psfInt,pp,Id,scale=self.scale)
+                    fpfs.simutil.make_cosmo_sim(self.outdir,self.infname,self.psfInt,pp,Id,scale=self.scale)
         gc.collect()
         logging.info('finish ID: %d' %(Id))
         return

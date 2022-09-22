@@ -23,98 +23,6 @@ import galsim
 import logging
 import numpy as np
 import astropy.io.fits as pyfits
-import numpy.lib.recfunctions as rfn
-
-class cosmoHSTGal():
-    def __init__(self,version):
-        self.version=version
-        if version=='252':
-            self.directory  =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
-            self.catName    =   'real_galaxy_catalog_25.2.fits'
-        elif version=='252E':
-            self.directory  =   os.path.join(os.environ['homeWrk'],'COSMOS/galsim_train/COSMOS_25.2_extended/')
-        else:
-            raise ValueError('Does not support version=%s' %version)
-        self.finName    =   os.path.join(self.directory,'cat_used.fits')
-        self.catused    =   np.array(pyfits.getdata(self.finName))
-        return
-
-    def prepare_sample(self):
-        """Reads the HST galaxy training sample
-        """
-        if not os.path.isfile(self.finName):
-            if self.version=='252':
-                cosmos_cat  =   galsim.COSMOSCatalog(self.catName,dir=self.directory)
-                # used index
-                index_use   =   cosmos_cat.orig_index
-                # used catalog
-                paracat     =   cosmos_cat.param_cat[index_use]
-                # parametric catalog
-                oricat      =   np.array(pyfits.getdata(cosmos_cat.real_cat.getFileName()))[index_use]
-                ra          =   oricat['RA']
-                dec         =   oricat['DEC']
-                indexNew    =   np.arange(len(ra),dtype=int)
-                __tmp=np.stack([ra,dec,indexNew]).T
-                radec=np.array([tuple(__t) for __t in __tmp],dtype=[('ra','>f8'),('dec','>f8'),('index','i8')])
-                catfinal    =   rfn.merge_arrays([paracat,radec], flatten = True, usemask = False)
-                pyfits.writeto(self.finName,catfinal)
-                self.catused    =   catfinal
-            else:
-                return
-        return
-
-# LSST Task
-try:
-    import lsst.geom as geom
-    import lsst.afw.math as afwMath
-    import lsst.afw.image as afwImg
-    import lsst.afw.geom as afwGeom
-    import lsst.meas.algorithms as meaAlg
-    with_lsst=True
-except ImportError as error:
-    with_lsst=False
-
-if with_lsst:
-    def makeLsstExposure(galData,psfData,pixScale,variance):
-        """Makes an LSST exposure object
-
-        Args:
-            galData (ndarray):  array of galaxy image
-            psfData (ndarray):  array of PSF image
-            pixScale (float):   pixel scale
-            variance (float):   noise variance
-
-        Returns:
-            exposure:   LSST exposure object
-        """
-        if not with_lsst:
-            raise ImportError('Do not have lsstpipe!')
-        ny,nx       =   galData.shape
-        exposure    =   afwImg.ExposureF(nx,ny)
-        exposure.getMaskedImage().getImage().getArray()[:,:]=galData
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
-        #Set the PSF
-        ngridPsf    =   psfData.shape[0]
-        psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-        psfLsst.getArray()[:,:]= psfData
-        psfLsst     =   psfLsst.convertD()
-        kernel      =   afwMath.FixedKernel(psfLsst)
-        kernelPSF   =   meaAlg.KernelPsf(kernel)
-        exposure.setPsf(kernelPSF)
-        #prepare the wcs
-        #Rotation
-        cdelt   =   (pixScale*geom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, geom.Angle(0.))#no rotation
-        #wcs
-        crval   =   geom.SpherePoint(geom.Angle(0.,geom.degrees),geom.Angle(0.,geom.degrees))
-        #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
-        crpix   =   geom.Point2D(0.0, 0.0)
-        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
-        exposure.setWcs(dataWcs)
-        #prepare the frc
-        dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
-        exposure.setPhotoCalib(dataCalib)
-        return exposure
 
 ## For ring tests
 def make_ringrot_radians(nord=8):
@@ -528,9 +436,9 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
         np.random.seed(Id0)
         logging.info('Making Basic Simulation. ID: %d' %(Id0))
         # Galsim galaxies
-        directory   =   os.path.join(os.environ['homeWrk'],\
-                        'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
-        assert os.path.isdir(directory), 'cannot find galsim galaxies'
+        # directory   =   os.path.join(os.environ['homeWrk'],\
+        #                 'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
+        # assert os.path.isdir(directory), 'cannot find galsim galaxies'
         # catName     =   'real_galaxy_catalog_25.2.fits'
         # cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
         # catalog
