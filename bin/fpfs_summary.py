@@ -109,5 +109,6 @@ if __name__=='__main__':
     if len(outs.shape)==3:
         outs    =   np.sum(outs,axis=0)
 
-    print((outs[1]/outs[5]/2.-0.02)/0.02)
+    print('Bins:',outs[0])
+    print('multiplicative biases are: ',(outs[1]/outs[5]/2.-0.02)/0.02)
     pool.close()

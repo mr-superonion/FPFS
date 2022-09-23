@@ -32,3 +32,20 @@ command to run the simulation in parallel:
 ```shell
 fpfs_sim.py --config ./config_sim_galB.ini --minId 0 --maxId 1 --ncores 1
 ```
+
+## Shear Estimation
+
+### stamp-based galaxies
+First, run the FPFS shear estimator to generate a shear catalog:
+```shell
+fpfs_procsim.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
+```
+Then get the summary statistics from the shear catalog:
+```shell
+fpfs_summary.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
+```
+In this example (noiseless image simulation), we estimate the multiplicative
+biases in six magnitude bins.
+
+### galaxies in the universe
+
