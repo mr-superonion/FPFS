@@ -426,9 +426,6 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
     gal_image.setOrigin(0,0)
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     if 'basic' in outDir:
-        if Id0>= 4000:
-            logging.info('galaxy image index greater than 8000' )
-            return
         np.random.seed(Id0)
         logging.info('Making Basic Simulation. ID: %d' %(Id0))
         # Galsim galaxies
@@ -440,7 +437,7 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
         # catalog
         inCat   =   pyfits.getdata(incname)
         ntrain  =   len(inCat)
-        nrot    =   2
+        nrot    =   4
         ngeff   =   ngal//nrot
         inds    =   np.random.randint(0,ntrain,ngeff)
         inCat   =   inCat[inds]

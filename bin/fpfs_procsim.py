@@ -127,6 +127,7 @@ class Worker(object):
             measTask    =   fpfs.image.measure_source(psfData2,sigma_arcsec=self.sigma_as)
             noiData     =   0.
         print('The upper limit of wave number is %s pixels' %(measTask.klim_pix))
+
         for ishear in self.pendList:
             print('FPFS measurement on simulation: %04d, %s' %(Id,ishear))
             galFname    =   os.path.join(gal_dir,'image-%s-%s.fits' %(Id,ishear))

@@ -259,8 +259,8 @@ def fpfsM2E(mm,const=1.,noirev=False):
     out['fpfs_R2E'] =   (s0-s4+2.*e2e2)/np.sqrt(2.)
     del s0,s2,s4,e1e1,e2e2
     # response for selection process (not response for selection function)
-    out['fpfs_RS0']  =  -1.*eM22/np.sqrt(2.)
-    out['fpfs_RS2']  =  -1.*eM42*np.sqrt(6.)/2.
+    out['fpfs_RS0']  =  -1.*eM22/np.sqrt(2.)    # this has spin-4 leakage
+    out['fpfs_RS2']  =  -1.*eM42*np.sqrt(6.)/2. # this has spin-4 leakage
     del eM22,eM42
     return out
 
