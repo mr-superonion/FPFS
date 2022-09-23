@@ -1,13 +1,23 @@
 #!/usr/bin/env python
 #
+# FPFS shear estimator
 # Copyright 20220312 Xiangchong Li.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
 #
 import os
 import gc
 import fpfs
 import json
 import galsim
-import logging
 import schwimmbad
 from argparse import ArgumentParser
 from configparser import ConfigParser
@@ -29,13 +39,13 @@ class Worker(object):
             if cparser.has_option('survey','psf_fwhm'):
                 seeing=cparser.getfloat('survey','psf_fwhm')
                 self.prepare_psf(seeing,psf_type='moffat')
-                logging.info('Using PSF model')
+                print('Using PSF model')
             else:
                 if not cparser.has_option('survey','psf_filename'):
                     raise ValueError('Do not have survey-psf_file option')
                 else:
                     self.psffname=cparser.get('survey','psf_filename')
-            logging.info('Using PSF from input file')
+            print('Using PSF from input file')
             glist=[]
             if cparser.getboolean('distortion','test_g1'):
                 glist.append('g1')
@@ -86,12 +96,11 @@ class Worker(object):
                     # do blended cosmo-like image simulation
                     fpfs.simutil.make_cosmo_sim(self.outdir,self.infname,self.psfInt,pp,Id,scale=self.scale)
         gc.collect()
-        logging.info('finish ID: %d' %(Id))
+        print('finish ID: %d' %(Id))
         return
 
     def __call__(self,Id):
         print('start ID: %d' %(Id))
-        logging.info('start ID: %d' %(Id))
         return self.run(Id)
 
 if __name__=='__main__':

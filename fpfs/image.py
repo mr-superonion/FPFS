@@ -11,10 +11,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
-#
 # python lib
 
 import numba
@@ -122,7 +118,7 @@ class measure_source():
                 'the input noise power should have the same shape with input psf image'
                 self.noiFit  =  np.array(noiFit,dtype='<f8')
             elif isinstance(noiFit,float):
-                self.noiFit  =  np.ones(psfData.shape,dtype='<f8')*noiFit*(self.ngrid)**2.
+                self.noiFit  =  np.ones_like(psfData,dtype='<f8')*noiFit*(self.ngrid)**2.
             else:
                 raise TypeError('noiFit should be either np.ndarray or float')
         else:
