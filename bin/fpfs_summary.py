@@ -50,13 +50,14 @@ class Worker(object):
 
         fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig=False,ratio=1.)
         fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig=False,ratio=1.)
-        # selnm=  ['M00']
-        selnm=  []
         dcc =   -0.6
         cutB=   29.5
-        #cutsig= [sigM]
-        cutsig= []
         ncut=   7
+        # prepare
+        selnm=  ['M00']
+        # selnm=  []
+        cutsig= [sigM]
+        # cutsig= []
 
         #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
         out=np.zeros((6,ncut))
@@ -64,8 +65,8 @@ class Worker(object):
             fs1.clear_outcomes()
             fs2.clear_outcomes()
             mcut=cutB+dcc*i
-            # cut=[10**((27.-mcut)/2.5)]
-            cut=[]
+            cut=[10**((27.-mcut)/2.5)]
+            # cut=[]
             # weight array
             fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
             fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)
