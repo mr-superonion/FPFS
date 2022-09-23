@@ -59,20 +59,17 @@ class Worker(object):
 
         # setup WL distortion parameter
         glist=[]
-        if cparser.getboolean('distortion','test_halo'):
-            # this is for halo shear tests
-            glist.append('ghalo')
+        # this is for const shear tests
+        if cparser.getboolean('distortion','test_g1'):
+            glist.append('g1')
+        if cparser.getboolean('distortion','test_g2'):
+            glist.append('g2')
+        if len(glist)>0:
+            zlist=json.loads(cparser.get('distortion','shear_z_list'))
+            self.pendList=['%s-%s' %(i1,i2) for i1 in glist for i2 in zlist]
         else:
-            # this is for const shear tests
-            if cparser.getboolean('distortion','test_g1'):
-                glist.append('g1')
-            if cparser.getboolean('distortion','test_g2'):
-                glist.append('g2')
-            if len(glist)>0:
-                zlist=json.loads(cparser.get('distortion','shear_z_list'))
-                self.pendList=['%s-%s' %(i1,i2) for i1 in glist for i2 in zlist]
-            else:
-                raise ValueError('Cannot process, at least test on g1 or g2.')
+            # this is for non-distorted image simulation
+            glist.append('g1-1111')
         return
 
     def prepare_PSF(self,psffname,rcut,ngrid2):

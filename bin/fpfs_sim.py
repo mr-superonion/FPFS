@@ -55,7 +55,9 @@ class Worker(object):
                 zlist=json.loads(cparser.get('distortion','shear_z_list'))
                 self.pendList=['%s-%s' %(i1,i2) for i1 in glist for i2 in zlist]
             else:
-                raise ValueError('Cannot process, at least test on g1 or g2.')
+                # this is for non-distorted image simulation
+                glist.append('g1-1111')
+            self.shear_cat=cparser.getboolean('distortion','use_catalog_distortion')
         elif 'noise' in self.simname:
             self.pendList=[0]
         else:
