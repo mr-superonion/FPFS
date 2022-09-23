@@ -20,6 +20,10 @@ import logging
 import numpy as np
 import astropy.io.fits as pyfits
 
+nrot_default=4
+# use 4 rotations for ring test (to remove any spin-2 and spin-4 residuals in
+# the simulated images)
+
 ## For ring tests
 def make_ringrot_radians(nord=8):
     """Generates rotation angle array for ring test
@@ -184,7 +188,7 @@ def make_cosmo_sim(outDir,incname,psfInt,gname,Id0,ny=5000,nx=5000,rfrac=0.46,sc
 
     # number of galaxy
     # we only have `ngeff' galsim galaxies but with `nrot' rotation
-    nrot    =   4
+    nrot    =   nrot_default
     r2      =   (min(nx,ny)*rfrac)**2.
     density =   int(outDir.split('_psf')[0].split('_cosmo')[-1])
     ngal    =   max(int(r2*np.pi*scale**2./3600.*density),nrot)
@@ -437,7 +441,7 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
         # catalog
         inCat   =   pyfits.getdata(incname)
         ntrain  =   len(inCat)
-        nrot    =   4
+        nrot    =   nrot_default
         ngeff   =   ngal//nrot
         inds    =   np.random.randint(0,ntrain,ngeff)
         inCat   =   inCat[inds]
