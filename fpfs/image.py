@@ -101,7 +101,7 @@ class measure_source():
                             power). [default: None]
         noiFit (ndarray):   Estimated noise power function, if you have already estimated noise
                             power [default: None]
-        deubg (bool):       Whether debug or not [default: False]
+        debug (bool):       Whether debug or not [default: False]
         pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
     """
     _DefaultName = "measure_source"

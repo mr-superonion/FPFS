@@ -24,6 +24,8 @@ from argparse import ArgumentParser
 from configparser import ConfigParser
 import numpy.lib.recfunctions as rfn
 
+_DefaultImgSize=6400
+
 class Worker(object):
     def __init__(self,config_name):
         cparser     =   ConfigParser()
@@ -44,7 +46,10 @@ class Worker(object):
             raise FileNotFoundError('Cannot find input noise directory!')
         self.outdir=os.path.join(self.catdir,'src_%s_%s'%(self.simname,proc_name))
         if not os.path.exists(self.outdir):
-            os.makedirs(self.outdir)
+            os.makedirs(self.outdir,exist_ok=True)
+        print('The input directory for noise images is %s. ' %self.noidir)
+        print('The input directory for galaxy images is %s. ' %self.indir)
+        print('The output directory for shear catalogs is %s. ' %self.outdir)
 
         # setup survey parameters
         self.scale=cparser.getfloat('survey','pixel_scale')
@@ -56,6 +61,12 @@ class Worker(object):
             self.noiPfname=cparser.get('survey', 'noiP_filename')
         else:
             self.noiPfname=None
+        # size of the image
+        self.image_nx=  cparser.getint('survey', 'image_nx')
+        self.image_ny=  cparser.getint('survey', 'image_ny')
+        assert self.image_ny==self.image_nx, 'image_nx must equals image_ny!'
+        assert self.image_ny<=_DefaultImgSize, 'image_nx (image_ny) should \
+                    cannot be greater than %d !' %_DefaultImgSize
 
         # setup WL distortion parameter
         glist=[]
@@ -69,7 +80,7 @@ class Worker(object):
             self.pendList=['%s-%s' %(i1,i2) for i1 in glist for i2 in zlist]
         else:
             # this is for non-distorted image simulation
-            glist.append('g1-1111')
+            self.pendList=['g1-1111']
         return
 
     def prepare_PSF(self,psffname,rcut,ngrid2):
@@ -87,21 +98,20 @@ class Worker(object):
         print('running for galaxy field: %d' %(Id))
         if 'cosmo' in self.simname:
             # 10000 is enough for dm<0.15%
-            print('Using cosmos parametric galaxies to simulate the blended case.')
-            gbegin=700
-            gend=5700
+            print('Using cosmos parametric galaxies to simulate the blended case. ')
+            nbegin  =   700
+            nend    =   5700
         else:
             # 3000 is enough for dm<0.1%
-            gbegin=0
-            gend=6400
+            nbegin  =   (_DefaultImgSize-self.image_nx)//2
+            nend    =   nbegin+self.image_nx
         gal_dir     =   os.path.join(self.imgdir,self.simname)
         # PSF
         if '%' in self.psffname:
             psffname=   self.psffname %Id
         else:
             psffname=   self.psffname
-        ngrid2      =   gend-gbegin
-        psfData2,psfData3=self.prepare_PSF(psffname,self.rcut,ngrid2)
+        psfData2,psfData3=self.prepare_PSF(psffname,self.rcut,self.image_nx)
 
         # FPFS Task
         if self.noi_var>1e-20:
@@ -112,7 +122,7 @@ class Worker(object):
                 print('Cannot find input noise file: %s' %noiFname)
                 return
             # multiply by 10 since the noise has variance 0.01
-            noiData     =   pyfits.getdata(noiFname)[gbegin:gend,gbegin:gend]*10.*np.sqrt(self.noi_var)
+            noiData     =   pyfits.getdata(noiFname)[nbegin:nend,nbegin:nend]*10.*np.sqrt(self.noi_var)
             # Also times 100 for the noivar model
             powIn       =   np.load(self.noiPfname,allow_pickle=True).item()['%s'%self.rcut]*self.noi_var*100
             powModel    =   np.zeros((1,powIn.shape[0],powIn.shape[1]))
@@ -131,25 +141,25 @@ class Worker(object):
             if not os.path.isfile(galFname):
                 print('Cannot find input galaxy file: %s' %galFname)
                 return
-            galData     =   pyfits.getdata(galFname)+noiData
+            galData     =   pyfits.getdata(galFname)[0:self.image_ny,0:self.image_nx]+noiData
             outFname    =   os.path.join(self.outdir,'src-%04d-%s.fits' %(Id,ishear))
             pp          =   'cut%d' %self.rcut
             outFname    =   os.path.join(self.outdir,'fpfs-%s-%04d-%s.fits' %(pp,Id,ishear))
             if  os.path.exists(outFname):
-                print('Already has measurement for this simulation.')
+                print('Already has measurement for this simulation. ')
                 continue
             if not self.do_det:
                 if 'Center' in gal_dir:
                     # fake detection
-                    indX    =   np.arange(32,ngrid2,64)
-                    indY    =   np.arange(32,ngrid2,64)
+                    indX    =   np.arange(32,self.image_nx,64)
+                    indY    =   np.arange(32,self.image_ny,64)
                     inds    =   np.meshgrid(indY,indX,indexing='ij')
                     coords  =   np.array(np.zeros(inds[0].size),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
                     coords['fpfs_y']=   np.ravel(inds[0])
                     coords['fpfs_x']=   np.ravel(inds[1])
                     del indX,indY,inds
                 else:
-                    raise ValueError('Do not support the case without detection on galaxies with center offsets.')
+                    raise ValueError('Do not support the case without detection on galaxies with center offsets. ')
             else:
                 magz        =   27.
                 if  self.sigma_as<0.5:
@@ -158,8 +168,8 @@ class Worker(object):
                     cutmag  =   26.0
                 thres       =   10**((magz-cutmag)/2.5)*self.scale**2.
                 thres2      =   -thres/20.
-                coords  =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
-                            thres=thres,thres2=thres2,klim=measTask.klim)
+                coords      =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
+                                thres=thres,thres2=thres2,klim=measTask.klim)
             print('pre-selected number of sources: %d' %len(coords))
             imgList =   [galData[cc['fpfs_y']-self.rcut:cc['fpfs_y']+self.rcut,\
                         cc['fpfs_x']-self.rcut:cc['fpfs_x']+self.rcut] for cc in coords]

@@ -30,22 +30,25 @@ class Worker(object):
         self.imgdir=cparser.get('simulation', 'img_dir')
         self.infname=cparser.get('simulation','input_name')
         self.scale=cparser.getfloat('survey','pixel_scale')
+        self.image_nx=cparser.getint('survey', 'image_nx')
+        self.image_ny=cparser.getint('survey', 'image_ny')
+        assert self.image_ny==self.image_nx, 'image_nx must equals image_ny!'
         self.psfInt=None
         self.outdir=os.path.join(self.imgdir,self.simname)
         if not os.path.exists(self.outdir):
-            os.makedirs(self.outdir)
+            os.makedirs(self.outdir,exist_ok=True)
         if 'galaxy' in self.simname:
             assert 'basic' in self.simname or 'small' in self.simname or 'cosmo' in self.simname
             if cparser.has_option('survey','psf_fwhm'):
                 seeing=cparser.getfloat('survey','psf_fwhm')
                 self.prepare_psf(seeing,psf_type='moffat')
-                print('Using PSF model')
+                print('Using modelled Moffat PSF with seeing %.2f arcsec. ' %seeing)
             else:
                 if not cparser.has_option('survey','psf_filename'):
                     raise ValueError('Do not have survey-psf_file option')
                 else:
                     self.psffname=cparser.get('survey','psf_filename')
-            print('Using PSF from input file')
+                    print('Using PSF from input file. ')
             glist=[]
             if cparser.getboolean('distortion','test_g1'):
                 glist.append('g1')
@@ -56,7 +59,8 @@ class Worker(object):
                 self.pendList=['%s-%s' %(i1,i2) for i1 in glist for i2 in zlist]
             else:
                 # this is for non-distorted image simulation
-                glist.append('g1-1111')
+                self.pendList=['g1-1111']
+            print('We will test the following constant shear distortion setups %s. ' % self.pendList)
             self.shear_cat=cparser.getboolean('distortion','use_catalog_distortion')
         elif 'noise' in self.simname:
             self.pendList=[0]
@@ -70,7 +74,7 @@ class Worker(object):
             psfInt  =   galsim.Moffat(beta=3.5,fwhm=seeing,trunc=seeing*4.)
             self.psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
         else:
-            raise ValueError('Only support moffat PSF.')
+            raise ValueError('Only support moffat PSF. ')
         psfImg  =   psfInt.drawImage(nx=45,ny=45,scale=self.scale)
         psffname=   os.path.join(self.outdir,'psf-%d.fits' %(seeing*100))
         psfImg.write(psffname)
@@ -93,10 +97,12 @@ class Worker(object):
             for pp in self.pendList:
                 if 'basic' in self.simname or 'small' in self.simname:
                     # do basic stamp-like image simulation
-                    fpfs.simutil.make_basic_sim(self.outdir,self.infname,self.psfInt,pp,Id,scale=self.scale)
+                    fpfs.simutil.make_basic_sim(self.outdir,self.infname,self.psfInt,pp,Id,\
+                            scale=self.scale,ny=self.image_ny,nx=self.image_nx)
                 elif 'cosmo' in self.simname:
                     # do blended cosmo-like image simulation
-                    fpfs.simutil.make_cosmo_sim(self.outdir,self.infname,self.psfInt,pp,Id,scale=self.scale)
+                    fpfs.simutil.make_cosmo_sim(self.outdir,self.infname,self.psfInt,pp,Id,\
+                            scale=self.scale)
         gc.collect()
         print('finish ID: %d' %(Id))
         return
