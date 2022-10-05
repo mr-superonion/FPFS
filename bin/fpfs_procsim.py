@@ -97,14 +97,16 @@ class Worker(object):
     def run(self,Id):
         print('running for galaxy field: %d' %(Id))
         if 'cosmo' in self.simname:
-            # 10000 is enough for dm<0.15%
-            print('Using cosmos parametric galaxies to simulate the blended case. ')
-            nbegin  =   700
-            nend    =   5700
+            print('cosmos parametric galaxies for blended galaxy image simulation. ')
+        elif 'basic' in self.simname:
+            print('cosmos parametric galaxies for isolate galaxy image simulation. ')
+        elif 'small' in self.simname:
+            print('Random walk galaxies for isolate galaxy image simulation. ')
         else:
-            # 3000 is enough for dm<0.1%
-            nbegin  =   (_DefaultImgSize-self.image_nx)//2
-            nend    =   nbegin+self.image_nx
+            raise ValueError('simname not supported. ')
+
+        nbegin  =   (_DefaultImgSize-self.image_nx)//2
+        nend    =   nbegin+self.image_nx
         gal_dir     =   os.path.join(self.imgdir,self.simname)
         # PSF
         if '%' in self.psffname:

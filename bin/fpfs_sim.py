@@ -102,7 +102,7 @@ class Worker(object):
                 elif 'cosmo' in self.simname:
                     # do blended cosmo-like image simulation
                     fpfs.simutil.make_cosmo_sim(self.outdir,self.infname,self.psfInt,pp,Id,\
-                            scale=self.scale)
+                            scale=self.scale,ny=self.image_ny,nx=self.image_nx)
         gc.collect()
         print('finish ID: %d' %(Id))
         return
