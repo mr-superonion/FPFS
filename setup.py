@@ -10,6 +10,15 @@ fname = os.path.join(
 with open(fname, 'r') as ff:
     exec(ff.read())
 
+
+
+scripts = [
+    'bin/fpfs_sim.py',
+    'bin/fpfs_procsim.py',
+    'bin/fpfs_summary.py',
+    'bin/setup_fpfs',
+]
+
 setup(
     name='fpfs',
     version=__version__,
@@ -27,6 +36,7 @@ setup(
         'matplotlib',
     ],
     packages=find_packages(),
+    scripts=scripts,
     include_package_data=True,
     zip_safe=False,
     url = "https://github.com/mr-superonion/FPFS/",
