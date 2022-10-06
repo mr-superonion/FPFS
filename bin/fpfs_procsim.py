@@ -172,6 +172,10 @@ class Worker(object):
                 thres2      =   -thres/20.
                 coords      =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
                                 thres=thres,thres2=thres2,klim=measTask.klim)
+            # # for test
+            # coords  =   np.array(np.zeros(1),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
+            # coords['fpfs_y'][0]=   self.image_ny//2
+            # coords['fpfs_x'][0]=   self.image_nx//2
             print('pre-selected number of sources: %d' %len(coords))
             imgList =   [galData[cc['fpfs_y']-self.rcut:cc['fpfs_y']+self.rcut,\
                         cc['fpfs_x']-self.rcut:cc['fpfs_x']+self.rcut] for cc in coords]

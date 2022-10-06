@@ -53,7 +53,6 @@ class Worker(object):
         self.test_name= cparser.get('FPFS', 'test_name')
         assert self.test_name in self.selnm
         self.test_ind=  np.where(self.selnm==self.test_name)[0]
-        print(self.selnm,self.cutsig,self.cut)
 
         self.indir  =   os.path.join(self.catdir,'src_%s_%s'%(self.simname,proc_name))
         if not os.path.exists(self.indir):
@@ -77,8 +76,8 @@ class Worker(object):
 
         fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig=False,ratio=1.)
         fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig=False,ratio=1.)
-        ncut=   10
         if self.test_name=='M00':
+            ncut=   6
             dcc =   -0.6
             cutB=   25.5
         else:
@@ -125,7 +124,7 @@ if __name__=='__main__':
     args    =   parser.parse_args()
     pool    =   schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
-    cparser     =   ConfigParser()
+    cparser =   ConfigParser()
     cparser.read(args.config)
     glist=[]
     if cparser.getboolean('distortion','test_g1'):
@@ -134,6 +133,7 @@ if __name__=='__main__':
         glist.append('g2')
     if len(glist)<1:
         raise ValueError('Cannot test nothing!! Must test g1 or test g2. ')
+    shear_value =   cparser.getfloat('distortion','shear_value')
 
     for gver in glist:
         print('Testing for %s . ' %gver)
@@ -147,6 +147,6 @@ if __name__=='__main__':
             outs    =   np.sum(outs,axis=0)
 
         print('Separate galaxies into %d bins: %s'  %(len(outs[0]),outs[0]))
-        print('Multiplicative biases for those bins are: ',(outs[1]/outs[5]/2.-0.02)/0.02)
+        print('Multiplicative biases for those bins are: ',(outs[1]/outs[5]/2.-shear_value)/shear_value)
         del worker
     pool.close()

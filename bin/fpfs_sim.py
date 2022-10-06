@@ -64,6 +64,7 @@ class Worker(object):
                 self.pendList=['g1-1111']
             print('We will test the following constant shear distortion setups %s. ' % self.pendList)
             self.add_halo=cparser.getboolean('distortion','add_halo')
+            self.shear_value= cparser.getfloat('distortion','shear_value')
             if self.add_halo:
                 assert self.pendList==['g1-1111'], 'Do not support adding both \
                         shear from halo and constant shear.'
@@ -103,11 +104,11 @@ class Worker(object):
                 if 'basic' in self.simname or 'small' in self.simname:
                     # do basic stamp-like image simulation
                     fpfs.simutil.make_basic_sim(self.outdir,self.infname,self.psfInt,pp,Id,\
-                            scale=self.scale,ny=self.image_ny,nx=self.image_nx)
+                            scale=self.scale,ny=self.image_ny,nx=self.image_nx,shear_value=self.shear_value)
                 elif 'cosmo' in self.simname:
                     # do blended cosmo-like image simulation
                     fpfs.simutil.make_cosmo_sim(self.outdir,self.infname,self.psfInt,pp,Id,\
-                            scale=self.scale,ny=self.image_ny,nx=self.image_nx)
+                            scale=self.scale,ny=self.image_ny,nx=self.image_nx,shear_value=self.shear_value)
         gc.collect()
         print('finish ID: %d' %(Id))
         return
