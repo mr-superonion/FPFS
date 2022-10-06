@@ -41,13 +41,9 @@ class Worker(object):
         self.indir  =   os.path.join(self.imgdir,self.simname)
         if not os.path.exists(self.indir):
             raise FileNotFoundError('Cannot find input images directory!')
-        self.noidir=os.path.join(self.imgdir,'noise')
-        if not os.path.exists(self.noidir):
-            raise FileNotFoundError('Cannot find input noise directory!')
         self.outdir=os.path.join(self.catdir,'src_%s_%s'%(self.simname,proc_name))
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir,exist_ok=True)
-        print('The input directory for noise images is %s. ' %self.noidir)
         print('The input directory for galaxy images is %s. ' %self.indir)
         print('The output directory for shear catalogs is %s. ' %self.outdir)
 
@@ -58,8 +54,13 @@ class Worker(object):
             raise FileNotFoundError('Cannot find the PSF file: %s' %self.psffname)
         self.noi_var=cparser.getfloat('survey','noi_var')
         if self.noi_var>1e-20:
+            self.noidir=os.path.join(self.imgdir,'noise')
+            if not os.path.exists(self.noidir):
+                raise FileNotFoundError('Cannot find input noise directory!')
             self.noiPfname=cparser.get('survey', 'noiP_filename')
+            print('The input directory for noise images is %s. ' %self.noidir)
         else:
+            self.noidir= None
             self.noiPfname=None
         # size of the image
         self.image_nx=  cparser.getint('survey', 'image_nx')
@@ -119,6 +120,7 @@ class Worker(object):
         if self.noi_var>1e-20:
             # noise
             print('Using noisy setup with variance: %.3f' %self.noi_var)
+            assert self.noidir is not None
             noiFname    =   os.path.join(self.noidir,'noi%04d.fits' %Id)
             if not os.path.isfile(noiFname):
                 print('Cannot find input noise file: %s' %noiFname)
