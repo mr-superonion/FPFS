@@ -306,11 +306,11 @@ class summary_stats():
     def update_selection_weight(self,snms,cuts,cutsigs):
         """Updates the selection weight term with the current selection weight
         """
-        if not isinstance(snms,list):
+        if not isinstance(snms,np.ndarray):
             if isinstance(snms,str) and isinstance(cuts,float) and isinstance(cutsigs,float):
-                snms=[snms]
-                cuts=[cuts]
-                cutsigs=[cutsigs]
+                snms=np.array([snms])
+                cuts=np.array([cuts])
+                cutsigs=np.array([cutsigs])
             else:
                 raise TypeError('snms, cuts and cutsigs should be str, float, float')
         for selnm,cut,cutsig in zip(snms,cuts,cutsigs):
@@ -367,7 +367,7 @@ class summary_stats():
         """Updates the selection bias correction term with the current
         selection weight
         """
-        if not isinstance(snms,list):
+        if not isinstance(snms,np.ndarray):
             if isinstance(snms,str) and isinstance(cuts,float) and isinstance(cutsigs,float):
                 snms=[snms]
                 cuts=[cuts]

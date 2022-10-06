@@ -63,7 +63,10 @@ class Worker(object):
                 # this is for non-distorted image simulation
                 self.pendList=['g1-1111']
             print('We will test the following constant shear distortion setups %s. ' % self.pendList)
-            self.shear_cat=cparser.getboolean('distortion','use_catalog_distortion')
+            self.add_halo=cparser.getboolean('distortion','add_halo')
+            if self.add_halo:
+                assert self.pendList==['g1-1111'], 'Do not support adding both \
+                        shear from halo and constant shear.'
         elif 'noise' in self.simname:
             self.pendList=[0]
         else:

@@ -30,9 +30,31 @@ class Worker(object):
         self.catdir =   cparser.get('procsim', 'cat_dir')
         self.simname=   cparser.get('procsim', 'sim_name')
         proc_name   =   cparser.get('procsim', 'proc_name')
-        self.do_det =   cparser.getboolean('FPFS', 'do_det')
         self.do_noirev= cparser.getboolean('FPFS', 'do_noirev')
         self.rcut   =   cparser.getint('FPFS', 'rcut')
+
+        self.selnm  =   []
+        self.cutsig =   []
+        self.cut    =   []
+        self.do_detcut =   cparser.getboolean('FPFS', 'do_detcut')
+        if self.do_detcut:
+            self.selnm.append('detect2')
+            self.cutsig.append(sigP)
+            self.cut.append(cutP)
+        self.do_magcut= cparser.getboolean('FPFS', 'do_magcut')
+        if self.do_magcut:
+            self.selnm.append('M00')
+            self.cutsig.append(sigM)
+            self.cut.append(10**((27.-cutM)/2.5))
+        assert len(self.selnm)>=1, "Must do at least one selection."
+        self.selnm  =   np.array(self.selnm)
+        self.cutsig =   np.array(self.cutsig)
+        self.cut    =   np.array(self.cut)
+        self.test_name= cparser.get('FPFS', 'test_name')
+        assert self.test_name in self.selnm
+        self.test_ind=  np.where(self.selnm==self.test_name)[0]
+        print(self.selnm,self.cutsig,self.cut)
+
         self.indir  =   os.path.join(self.catdir,'src_%s_%s'%(self.simname,proc_name))
         if not os.path.exists(self.indir):
             raise FileNotFoundError('Cannot find input directory!')
@@ -55,26 +77,27 @@ class Worker(object):
 
         fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig=False,ratio=1.)
         fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig=False,ratio=1.)
-        dcc =   -0.6
-        cutB=   25.5
         ncut=   10
-        # Here I only show an example of cutting on magnitude
-        selnm=  ['M00']
-        cutsig= [sigM]
+        if self.test_name=='M00':
+            dcc =   -0.6
+            cutB=   25.5
+        else:
+            raise ValueError('only support mag cut')
 
         #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
         out =   np.zeros((6,ncut))
         for i in range(ncut):
             fs1.clear_outcomes()
             fs2.clear_outcomes()
-            mcut=cutB+dcc*i
-            cut=[10**((27.-mcut)/2.5)]
-            # cut=[]
-            # weight array
-            fs1.update_selection_weight(selnm,cut,cutsig);fs2.update_selection_weight(selnm,cut,cutsig)
-            fs1.update_selection_bias(selnm,cut,cutsig);fs2.update_selection_bias(selnm,cut,cutsig)
+            icut=cutB+dcc*i
+            if self.test_name=='M00':
+                self.cut[self.test_ind]=10**((27.-icut)/2.5)
+            fs1.update_selection_weight(self.selnm,self.cut,self.cutsig)
+            fs2.update_selection_weight(self.selnm,self.cut,self.cutsig)
+            fs1.update_selection_bias(self.selnm,self.cut,self.cutsig)
+            fs2.update_selection_bias(self.selnm,self.cut,self.cutsig)
             fs1.update_ellsum();fs2.update_ellsum()
-            out[0,i]= mcut
+            out[0,i]= icut
             out[1,i]= fs2.sumE1-fs1.sumE1
             out[2,i]= (fs1.sumE1+fs2.sumE1)/2.
             out[3,i]= (fs1.sumE1+fs2.sumE1+fs1.corE1+fs2.corE1)/2.
