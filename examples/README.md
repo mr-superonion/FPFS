@@ -1,8 +1,8 @@
 # Examples
 
-This directory gives some examples on simulating galaxy images with Galsim; and
-galaxy detection and shape estimation with FPFS. Before running the sripts,
-please source [this file](../bin/setup_fpfs.sh) after modifying it.
+This directory gives some examples on simulating galaxy images with
+[Galsim](https://github.com/GalSim-developers/GalSim); and galaxy detection and
+shape estimation with [FPFS](https://github.com/mr-superonion/FPFS).
 
 ## Image Simulations
 ### simulate noise
@@ -36,15 +36,16 @@ fpfs_sim.py --config ./config_sim_galB.ini --minId 0 --maxId 1 --ncores 1
 ## Shear Estimation
 
 ### stamp-based simulations
-First, run the FPFS shear estimator to generate a shear catalog:
+First, run the FPFS shear estimator on simulated images to generate shear
+catalogs:
 ```shell
 fpfs_procsim.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
 ```
-Then get the summary statistics from the shear catalog:
+Then get the summary statistics (average shear) from the shear catalog:
 ```shell
 fpfs_summary.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
 ```
-In this example (noiseless image simulation), we estimate the multiplicative
+In this example for noiseless image simulation, we estimate the multiplicative
 biases in six magnitude bins.
 
 ### blended galaxies
