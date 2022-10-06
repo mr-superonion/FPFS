@@ -32,7 +32,9 @@ class Worker(object):
         self.scale=cparser.getfloat('survey','pixel_scale')
         self.image_nx=cparser.getint('survey', 'image_nx')
         self.image_ny=cparser.getint('survey', 'image_ny')
-        assert self.image_ny==self.image_nx, 'image_nx must equals image_ny!'
+        assert self.image_ny==self.image_nx, "'image_nx' must equals 'image_ny'!"
+        if 'basic' in self.simname or 'small' in self.simname:
+            assert self.image_nx%256==0, "'image_nx' must be divisible by 256 ."
         self.psfInt=None
         self.outdir=os.path.join(self.imgdir,self.simname)
         if not os.path.exists(self.outdir):
