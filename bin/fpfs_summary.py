@@ -79,7 +79,7 @@ class Worker(object):
         if self.test_name=='M00':
             ncut=   6
             dcc =   -0.6
-            cutB=   25.5
+            cutB=   27.5
         else:
             raise ValueError('only support mag cut')
 
@@ -144,9 +144,21 @@ if __name__=='__main__':
             outs.append(r)
         outs    =   np.vstack(outs)
         if len(outs.shape)==3:
-            outs    =   np.sum(outs,axis=0)
+            res     =   np.average(outs,axis=0)
+            err     =   np.std(outs,axis=0)
+        else:
+            res     =   outs
+            err     =   np.zeros_like(res)
+        mbias   =   (res[1]/res[5]/2.-shear_value)/shear_value
+        merr    =   (err[1]/res[5]/2.)/shear_value
+        cbias   =   res[2]/res[5]
+        cerr    =   err[2]/res[5]
 
-        print('Separate galaxies into %d bins: %s'  %(len(outs[0]),outs[0]))
-        print('Multiplicative biases for those bins are: ',(outs[1]/outs[5]/2.-shear_value)/shear_value)
+
+        print('Separate galaxies into %d bins: %s'  %(len(res[0]),res[0]))
+        print('Multiplicative biases for those bins are: ', mbias)
+        print(merr)
+        print(cbias)
+        print(cerr)
         del worker
     pool.close()

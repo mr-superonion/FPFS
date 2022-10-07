@@ -76,13 +76,12 @@ class Worker(object):
         return
 
     def prepare_psf(self,seeing,psf_type):
-        if psf_type.lower()=="moffat":
-            psfInt  =   galsim.Moffat(beta=3.5,fwhm=seeing,trunc=seeing*4.)
-            self.psfInt  =   psfInt.shear(e1=0.02,e2=-0.02)
-        else:
-            raise ValueError('Only support moffat PSF. ')
-        psfImg  =   psfInt.drawImage(nx=45,ny=45,scale=self.scale)
         psffname=   os.path.join(self.outdir,'psf-%d.fits' %(seeing*100))
+        if psf_type.lower()=="moffat":
+            self.psfInt      =   galsim.Moffat(beta=3.5,fwhm=seeing,trunc=seeing*4.).shear(e1=0.02,e2=-0.02)
+        else:
+            raise ValueError('Only support moffat PSF.')
+        psfImg=   self.psfInt.drawImage(nx=45,ny=45,scale=self.scale)
         psfImg.write(psffname)
         return
 

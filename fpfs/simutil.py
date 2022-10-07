@@ -428,7 +428,7 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
     bigfft  =   galsim.GSParams(maximum_fft_size=10240)
     if 'basic' in outDir.lower():
         np.random.seed(Id0)
-        logging.info('Making Basic Simulation. ID: %d' %(Id0))
+        print('Making Basic Simulation. ID: %d' %(Id0))
         # Galsim galaxies
         # directory   =   os.path.join(os.environ['homeWrk'],\
         #                 'COSMOS/galsim_train/COSMOS_25.2_training_sample/')
@@ -467,6 +467,7 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
                 # rotate by 'ang'
                 ang     =   (np.random.uniform(0.,np.pi*2.)+rot2)*galsim.radians
                 gal0    =   gal0.rotate(ang)
+                gal0    =   galsim.Exponential(half_light_radius=0.8)
             else:
                 assert gal0 is not None
                 ang     =   np.pi/nrot*galsim.radians
@@ -480,8 +481,8 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
                 dy  =   np.random.uniform(-0.5,0.5)*scale
                 gal =   gal.shift(dx,dy)
             # shift to (ngrid//2,ngrid//2)
-            gal =   gal.shift(0.5*scale,0.5*scale)
             gal =   galsim.Convolve([psfInt,gal],gsparams=bigfft)
+            gal =   gal.shift(0.5*scale,0.5*scale)
             # draw galaxy
             sub_img =   gal_image[b]
             gal.drawImage(sub_img,add_to_image=True)

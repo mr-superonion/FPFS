@@ -17,6 +17,7 @@ import os
 import gc
 import fpfs
 import json
+import galsim
 import schwimmbad
 import numpy as np
 import astropy.io.fits as pyfits
@@ -91,6 +92,7 @@ class Worker(object):
         psfData     =   pyfits.getdata(psffname)
         npad        =   (ngrid-psfData.shape[0])//2
         psfData2    =   np.pad(psfData,(npad+1,npad),mode='constant')[beg:end,beg:end]
+        del npad
         npad        =   (ngrid2-psfData.shape[0])//2
         psfData3    =   np.pad(psfData,(npad+1,npad),mode='constant')
         return psfData2,psfData3
@@ -108,12 +110,17 @@ class Worker(object):
 
         nbegin  =   (_DefaultImgSize-self.image_nx)//2
         nend    =   nbegin+self.image_nx
-        gal_dir     =   os.path.join(self.imgdir,self.simname)
+        gal_dir =   os.path.join(self.imgdir,self.simname)
         # PSF
         if '%' in self.psffname:
             psffname=   self.psffname %Id
         else:
             psffname=   self.psffname
+
+        psfInt =   galsim.Moffat(beta=3.5,fwhm=0.6,trunc=0.6*4.)
+        psfInt =   psfInt.shear(e1=0.02,e2=-0.02).shift(0.5*self.scale,0.5*self.scale)
+        psfData2=   psfInt.drawImage(nx=64,ny=64,scale=self.scale).array
+        self.ppt=psfData2
         psfData2,psfData3=self.prepare_PSF(psffname,self.rcut,self.image_nx)
 
         # FPFS Task
@@ -145,7 +152,8 @@ class Worker(object):
             if not os.path.isfile(galFname):
                 print('Cannot find input galaxy file: %s' %galFname)
                 return
-            galData     =   pyfits.getdata(galFname)[0:self.image_ny,0:self.image_nx]+noiData
+            galData     =   pyfits.getdata(galFname)+noiData
+            assert galData.shape==(self.image_ny,self.image_nx)
             outFname    =   os.path.join(self.outdir,'src-%04d-%s.fits' %(Id,ishear))
             pp          =   'cut%d' %self.rcut
             outFname    =   os.path.join(self.outdir,'fpfs-%s-%04d-%s.fits' %(pp,Id,ishear))
