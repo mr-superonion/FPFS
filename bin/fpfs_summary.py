@@ -17,6 +17,7 @@ import os
 import fpfs
 import schwimmbad
 import numpy as np
+import pandas as pd
 from fpfs.default import *
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
@@ -153,7 +154,17 @@ if __name__=='__main__':
         merr    =   (err[1]/res[5]/2.)/shear_value
         cbias   =   res[2]/res[5]
         cerr    =   err[2]/res[5]
-
+        df      =   pd.DataFrame({
+            'simname': eval(worker.simname.split('Center')[-1]),
+            'binave': res[0],
+            'mbias': mbias,
+            'merr': merr,
+            'cbias': cbias,
+            'cerr': cerr,
+            })
+        summary_base_fname='summary_output'
+        os.makedirs(summary_base_fname,exist_ok=True)
+        df.to_csv(os.path.join(summary_base_fname,'shear_%s.csv' %worker.simname),index=False)
 
         print('Separate galaxies into %d bins: %s'  %(len(res[0]),res[0]))
         print('Multiplicative biases for those bins are: ', mbias)

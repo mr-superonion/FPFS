@@ -467,7 +467,8 @@ def make_basic_sim(outDir,incname,psfInt,gname,Id0,ny=6400,nx=6400,scale=0.168,\
                 # rotate by 'ang'
                 ang     =   (np.random.uniform(0.,np.pi*2.)+rot2)*galsim.radians
                 gal0    =   gal0.rotate(ang)
-                gal0    =   galsim.Exponential(half_light_radius=0.8)
+                # used for simple tests
+                # gal0    =   galsim.Exponential(half_light_radius=0.8)
             else:
                 assert gal0 is not None
                 ang     =   np.pi/nrot*galsim.radians

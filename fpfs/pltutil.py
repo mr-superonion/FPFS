@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 colors0=[
-    "black",
+    "#000000",
     "#1A85FF",
     "#D41159",
     "#DE8817",
