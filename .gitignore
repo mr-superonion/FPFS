@@ -25,3 +25,4 @@ examples/output
 *.synctex.gz
 *.egg-info
 pip-wheel*
+*wrkDir
