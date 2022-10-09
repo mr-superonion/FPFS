@@ -155,6 +155,7 @@ if __name__=='__main__':
         for r in pool.map(worker,refs):
             outs.append(r)
         outs    =   np.stack(outs)
+        nsims   =   outs.shape[0]
         summary_dirname='summary_output'
         os.makedirs(summary_dirname,exist_ok=True)
         pyfits.writeto(os.path.join(summary_dirname,'bin_%s_sim_%s.fits'%(worker.test_name,worker.simname)), outs, overwrite=True)
@@ -163,17 +164,17 @@ if __name__=='__main__':
         res     =   np.average(outs,axis=0)
         err     =   np.std(outs,axis=0)
         mbias   =   (res[1]/res[5]/2.-shear_value)/shear_value
-        merr    =   (err[1]/res[5]/2.)/shear_value
-        cbias   =   res[2]/res[5]
-        cerr    =   err[2]/res[5]
+        merr    =   (err[1]/res[5]/2.)/shear_value/np.sqrt(nsims)
+        cbias   =   res[3]/res[5]
+        cerr    =   err[3]/res[5]/np.sqrt(nsims)
         df      =   pd.DataFrame({
-            'simname': worker.simname.split('galaxy_')[-1],
-            'binave': res[0],
-            'mbias': mbias,
-            'merr': merr,
-            'cbias': cbias,
-            'cerr': cerr,
-            })
+                    'simname': worker.simname.split('galaxy_')[-1],
+                    'binave': res[0],
+                    'mbias': mbias,
+                    'merr': merr,
+                    'cbias': cbias,
+                    'cerr': cerr,
+                    })
         df.to_csv(os.path.join(summary_dirname,'bin_%s_sim_%s.csv' %(worker.test_name,worker.simname)),index=False)
 
         print('Separate galaxies into %d bins: %s'  %(len(res[0]),res[0]))
