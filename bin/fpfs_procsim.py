@@ -66,6 +66,7 @@ class Worker(object):
         # size of the image
         self.image_nx=  cparser.getint('survey', 'image_nx')
         self.image_ny=  cparser.getint('survey', 'image_ny')
+        self.magz   =   cparser.getint('survey', 'mag_zero')
         assert self.image_ny==self.image_nx, 'image_nx must equals image_ny!'
         assert self.image_ny<=_DefaultImgSize, 'image_nx (image_ny) should \
                     cannot be greater than %d !' %_DefaultImgSize
@@ -173,12 +174,11 @@ class Worker(object):
                 else:
                     raise ValueError('Do not support the case without detection on galaxies with center offsets. ')
             else:
-                magz        =   27.
                 if  self.sigma_as<0.5:
                     cutmag  =   25.5
                 else:
                     cutmag  =   26.0
-                thres       =   10**((magz-cutmag)/2.5)*self.scale**2.
+                thres       =   10**((self.magz-cutmag)/2.5)*self.scale**2.
                 thres2      =   -thres/20.
                 coords      =   fpfs.image.detect_sources(galData,psfData3,gsigma=measTask.sigmaF,\
                                 thres=thres,thres2=thres2,klim=measTask.klim)

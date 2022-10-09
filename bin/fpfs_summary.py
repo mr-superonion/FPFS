@@ -27,6 +27,9 @@ class Worker(object):
     def __init__(self,config_name,gver='g1'):
         cparser     =   ConfigParser()
         cparser.read(config_name)
+        # survey parameter
+        self.magz   =   cparser.getint('survey', 'mag_zero')
+
         # setup processor
         self.catdir =   cparser.get('procsim', 'cat_dir')
         self.simname=   cparser.get('procsim', 'sim_name')
@@ -46,7 +49,7 @@ class Worker(object):
         if self.do_magcut:
             self.selnm.append('M00')
             self.cutsig.append(sigM)
-            self.cut.append(10**((27.-cutM)/2.5))
+            self.cut.append(10**((self.magz-cutM)/2.5))
         self.do_magcut= cparser.getboolean('FPFS', 'do_rcut') # resolution cut
         if self.do_magcut:
             self.selnm.append('R2')
@@ -97,7 +100,9 @@ class Worker(object):
             fs2.clear_outcomes()
             icut=self.cutB+self.dcut*i
             if self.test_name=='M00':
-                self.cut[self.test_ind]=10**((27.-icut)/2.5)
+                self.cut[self.test_ind]=10**((self.magz-icut)/2.5)
+            else:
+                self.cut[self.test_ind]=icut
             fs1.update_selection_weight(self.selnm,self.cut,self.cutsig)
             fs2.update_selection_weight(self.selnm,self.cut,self.cutsig)
             fs1.update_selection_bias(self.selnm,self.cut,self.cutsig)
@@ -149,33 +154,32 @@ if __name__=='__main__':
         outs    =   []
         for r in pool.map(worker,refs):
             outs.append(r)
-        outs    =   np.vstack(outs)
-        if len(outs.shape)==3:
-            res     =   np.average(outs,axis=0)
-            err     =   np.std(outs,axis=0)
-        else:
-            res     =   outs
-            err     =   np.zeros_like(res)
+        outs    =   np.stack(outs)
+        summary_dirname='summary_output'
+        os.makedirs(summary_dirname,exist_ok=True)
+        pyfits.writeto(os.path.join(summary_dirname,'bin_%s_sim_%s.fits'%(worker.test_name,worker.simname)), outs, overwrite=True)
+
+
+        res     =   np.average(outs,axis=0)
+        err     =   np.std(outs,axis=0)
         mbias   =   (res[1]/res[5]/2.-shear_value)/shear_value
         merr    =   (err[1]/res[5]/2.)/shear_value
         cbias   =   res[2]/res[5]
         cerr    =   err[2]/res[5]
         df      =   pd.DataFrame({
-            'simname': eval(worker.simname.split('Center')[-1]),
+            'simname': worker.simname.split('galaxy_')[-1],
             'binave': res[0],
             'mbias': mbias,
             'merr': merr,
             'cbias': cbias,
             'cerr': cerr,
             })
-        summary_base_fname='summary_output'
-        os.makedirs(summary_base_fname,exist_ok=True)
-        df.to_csv(os.path.join(summary_base_fname,'shear_%s.csv' %worker.simname),index=False)
+        df.to_csv(os.path.join(summary_dirname,'bin_%s_sim_%s.csv' %(worker.test_name,worker.simname)),index=False)
 
         print('Separate galaxies into %d bins: %s'  %(len(res[0]),res[0]))
         print('Multiplicative biases for those bins are: ', mbias)
-        print(merr)
-        print(cbias)
-        print(cerr)
+        print('Errors are: ', merr)
+        print('Additive biases for those bins are: ', cbias)
+        print('Errors are: ', cerr)
         del worker
     pool.close()
