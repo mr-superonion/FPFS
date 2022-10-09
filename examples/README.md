@@ -45,8 +45,16 @@ Then get the summary statistics (average shear) from the shear catalog:
 ```shell
 fpfs_summary.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
 ```
-In this example for noiseless image simulation, we estimate the multiplicative
-biases in six magnitude bins.
+The outputs are the multiplicative biases in different magnitude bins.
 
 ### blended galaxies
 
+Again, from images to shear catalogs:
+```shell
+fpfs_procsim.py --config ./config_procsimB.ini --minId 0 --maxId 1 --ncores 1
+```
+Then get the summary statistics (average shear) from the shear catalog:
+```shell
+fpfs_summary.py --config ./config_procsimB.ini --minId 0 --maxId 1 --ncores 1
+```
+The outputs are the multiplicative biases in different magnitude bins.
