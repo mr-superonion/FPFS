@@ -58,3 +58,6 @@ Then get the summary statistics (average shear) from the shear catalog:
 fpfs_summary.py --config ./config_procsimB.ini --minId 0 --maxId 1 --ncores 1
 ```
 The outputs are the multiplicative biases in different magnitude bins.
+
+<img src="m_vs_gamma2.png" alt="mbias" width="400">
+

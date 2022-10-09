@@ -30,7 +30,7 @@ for _ic,_cc in enumerate(colors0):
     colors.append((cc2[0], cc2[1], cc2[2], 1-0.1*_ic))
     del cc2
 
-cblue=[
+cblues=[
     "#004c6d",
     "#346888",
     "#5886a5",
@@ -39,7 +39,7 @@ cblue=[
     "#c1e7ff"
     ]
 
-cred=[
+creds=[
     "#DC1C13",
     "#EA4C46",
     "#F07470",
