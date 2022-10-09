@@ -20,22 +20,22 @@ def do_process(ref):
     wrkDir= os.environ['homeWrk']
     simDir= os.path.join(wrkDir,'FPFS2/sim/')
     # read noiseless data
-    mm1  =  pyfits.getdata(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
-    mm2  =  pyfits.getdata(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
+    mm1 =   pyfits.getdata(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-0000.fits' %(gver,nver,ver,dver,ref)))
+    mm2 =   pyfits.getdata(os.path.join(simDir,'srcfs3_%s-%s_%s/psf60/fpfs-%s-%04d-g1-2222.fits' %(gver,nver,ver,dver,ref)))
 
-    ellM1  =fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
-    ellM2  =fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)
+    ellM1=  fpfs.catalog.fpfsM2E(mm1,const=Const,noirev=noirev)
+    ellM2=  fpfs.catalog.fpfsM2E(mm2,const=Const,noirev=noirev)
 
-    fs1=fpfs.catalog.summary_stats(mm1,ellM1,use_sig,ratio=1.1)
-    fs2=fpfs.catalog.summary_stats(mm2,ellM2,use_sig,ratio=1.1)
-    selnm=['detect2','R2','R2_upp','M00']
-    dcc=-0.6
-    cutB=25.5
-    cutsig=[sigP,sigR,sigR,sigM]
-    ncut=7
+    fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig,ratio=1.1)
+    fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig,ratio=1.1)
+    selnm=  ['detect2','R2','R2_upp','M00']
+    dcc =   -0.6
+    cutB=   25.5
+    cutsig= [sigP,sigR,sigR,sigM]
+    ncut=   7
 
     #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
-    out=np.zeros((6,ncut))
+    out =   np.zeros((6,ncut))
     for i in range(ncut):
         # clean outcome
         fs1.clear_outcomes()

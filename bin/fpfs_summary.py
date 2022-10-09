@@ -36,27 +36,38 @@ class Worker(object):
         self.selnm  =   []
         self.cutsig =   []
         self.cut    =   []
-        self.do_detcut =   cparser.getboolean('FPFS', 'do_detcut')
+        self.do_detcut =   cparser.getboolean('FPFS', 'do_detcut')# detection cut
         if self.do_detcut:
             self.selnm.append('detect2')
             self.cutsig.append(sigP)
             self.cut.append(cutP)
-        self.do_magcut= cparser.getboolean('FPFS', 'do_magcut')
+        self.do_magcut= cparser.getboolean('FPFS', 'do_magcut') # magnitude cut
         if self.do_magcut:
             self.selnm.append('M00')
             self.cutsig.append(sigM)
             self.cut.append(10**((27.-cutM)/2.5))
+        self.do_magcut= cparser.getboolean('FPFS', 'do_rcut') # resolution cut
+        if self.do_magcut:
+            self.selnm.append('R2')
+            self.cutsig.append(sigR)
+            self.cut.append(cutR)
         assert len(self.selnm)>=1, "Must do at least one selection."
         self.selnm  =   np.array(self.selnm)
         self.cutsig =   np.array(self.cutsig)
         self.cut    =   np.array(self.cut)
+
+        # This task change the cut on one observable and see how the biases changes.
+        # Here is  the observable used for test
         self.test_name= cparser.get('FPFS', 'test_name')
         assert self.test_name in self.selnm
         self.test_ind=  np.where(self.selnm==self.test_name)[0]
+        self.cutB   =   cparser.getfloat('FPFS', 'cutB')
+        self.dcut   =   cparser.getfloat('FPFS', 'dcut')
+        self.ncut   =   cparser.getint('FPFS', 'ncut')
 
         self.indir  =   os.path.join(self.catdir,'src_%s_%s'%(self.simname,proc_name))
         if not os.path.exists(self.indir):
-            raise FileNotFoundError('Cannot find input directory!')
+            raise FileNotFoundError('Cannot find input directory: %s!' %self.indir)
         print('The input directory for galaxy shear catalogs is %s. ' %self.indir)
         # setup WL distortion parameter
         self.gver   =   gver
@@ -68,7 +79,8 @@ class Worker(object):
         in_nm1= os.path.join(self.indir,'fpfs-%s-%04d-%s-0000.fits' %(pp,Id,self.gver))
         in_nm2= os.path.join(self.indir,'fpfs-%s-%04d-%s-2222.fits' %(pp,Id,self.gver))
         assert os.path.isfile(in_nm1) & os.path.isfile(in_nm2), 'Cannot find\
-                input galaxy shear catalog distorted by positive and negative shear'
+                input galaxy shear catalog distorted by positive and negative shear\
+                : %s , %s' %(in_nm1,in_nm2)
         mm1   = pyfits.getdata(in_nm1)
         mm2   = pyfits.getdata(in_nm2)
         ellM1 = fpfs.catalog.fpfsM2E(mm1,const=self.Const,noirev=self.do_noirev)
@@ -76,19 +88,13 @@ class Worker(object):
 
         fs1 =   fpfs.catalog.summary_stats(mm1,ellM1,use_sig=False,ratio=1.)
         fs2 =   fpfs.catalog.summary_stats(mm2,ellM2,use_sig=False,ratio=1.)
-        if self.test_name=='M00':
-            ncut=   6
-            dcc =   -0.6
-            cutB=   27.5
-        else:
-            raise ValueError('only support mag cut')
 
         #names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
-        out =   np.zeros((6,ncut))
-        for i in range(ncut):
+        out =   np.zeros((6,self.ncut))
+        for i in range(self.ncut):
             fs1.clear_outcomes()
             fs2.clear_outcomes()
-            icut=cutB+dcc*i
+            icut=self.cutB+self.dcut*i
             if self.test_name=='M00':
                 self.cut[self.test_ind]=10**((27.-icut)/2.5)
             fs1.update_selection_weight(self.selnm,self.cut,self.cutsig)
