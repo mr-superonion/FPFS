@@ -33,6 +33,8 @@ command to run the simulation in parallel:
 fpfs_sim.py --config ./config_sim_galB.ini --minId 0 --maxId 1 --ncores 1
 ```
 
+<img src="./simulation_isoblend.png" alt="sim_demo" width="800">
+
 ## Shear Estimation
 
 ### stamp-based simulations
@@ -57,7 +59,11 @@ Then get the summary statistics (average shear) from the shear catalog:
 ```shell
 fpfs_summary.py --config ./config_procsimB.ini --minId 0 --maxId 1 --ncores 1
 ```
-The outputs are the multiplicative biases in different magnitude bins.
+The outputs are the multiplicative biases and additive biases in different
+magnitude bins. If you are interested in doing that (simulation, processing,
+summary) repeatedly for different input shears, you are able to reproduce the
+following plot
 
 <img src="m_vs_gamma2.png" alt="mbias" width="400">
 
+Note, the plot is from noiseless image simulation.
