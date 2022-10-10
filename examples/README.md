@@ -35,6 +35,9 @@ fpfs_sim.py --config ./config_sim_galB.ini --minId 0 --maxId 1 --ncores 1
 
 <img src="./simulation_isoblend.png" alt="sim_demo" width="800">
 
+The example here rote each intrinsic galaxy four times to remove any spin-$4$
+anisotropy in the intrinsic galaxy sample.
+
 ## Shear Estimation
 
 ### stamp-based simulations
