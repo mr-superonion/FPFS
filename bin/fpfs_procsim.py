@@ -66,10 +66,10 @@ class Worker(object):
         # size of the image
         self.image_nx=  cparser.getint('survey', 'image_nx')
         self.image_ny=  cparser.getint('survey', 'image_ny')
-        self.magz   =   cparser.getint('survey', 'mag_zero')
+        self.magz   =   cparser.getfloat('survey', 'mag_zero')
         assert self.image_ny==self.image_nx, 'image_nx must equals image_ny!'
         assert self.image_ny<=_DefaultImgSize, 'image_nx (image_ny) should \
-                    cannot be greater than %d !' %_DefaultImgSize
+                    not be greater than %d !' %_DefaultImgSize
 
         # setup WL distortion parameter
         glist=[]

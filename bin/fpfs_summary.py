@@ -28,7 +28,7 @@ class Worker(object):
         cparser     =   ConfigParser()
         cparser.read(config_name)
         # survey parameter
-        self.magz   =   cparser.getint('survey', 'mag_zero')
+        self.magz   =   cparser.getfloat('survey', 'mag_zero')
 
         # setup processor
         self.catdir =   cparser.get('procsim', 'cat_dir')
