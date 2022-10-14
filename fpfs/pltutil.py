@@ -15,7 +15,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
-colors0=[
+colors0 = [
     "#000000",
     "#1A85FF",
     "#D41159",
@@ -23,32 +23,19 @@ colors0=[
     "#A3D68A",
     "#35C3D7",
     "#8B0F8C",
-    ]
-colors=[]
-for _ic,_cc in enumerate(colors0):
-    cc2= mcolors.ColorConverter().to_rgb(_cc)
-    colors.append((cc2[0], cc2[1], cc2[2], 1-0.1*_ic))
+]
+colors = []
+for _ic, _cc in enumerate(colors0):
+    cc2 = mcolors.ColorConverter().to_rgb(_cc)
+    colors.append((cc2[0], cc2[1], cc2[2], 1 - 0.1 * _ic))
     del cc2
 
-cblues=[
-    "#004c6d",
-    "#346888",
-    "#5886a5",
-    "#7aa6c2",
-    "#9dc6e0",
-    "#c1e7ff"
-    ]
+cblues = ["#004c6d", "#346888", "#5886a5", "#7aa6c2", "#9dc6e0", "#c1e7ff"]
 
-creds=[
-    "#DC1C13",
-    "#EA4C46",
-    "#F07470",
-    "#F1959B",
-    "#F6BDC0",
-    "#F8D8E3"
-    ]
+creds = ["#DC1C13", "#EA4C46", "#F07470", "#F1959B", "#F6BDC0", "#F8D8E3"]
 
-def make_figure_axes(ny=1,nx=1,square=True):
+
+def make_figure_axes(ny=1, nx=1, square=True):
     """Makes figure and axes
 
     Args:
@@ -60,45 +47,45 @@ def make_figure_axes(ny=1,nx=1,square=True):
         raise TypeError("ny should be integer")
     if not isinstance(nx, int):
         raise TypeError("nx should be integer")
-    axes=[]
-    if ny ==1 and nx==1:
-        fig=plt.figure(figsize=(6,5))
-        ax=fig.add_subplot(ny,nx,1)
+    axes = []
+    if ny == 1 and nx == 1:
+        fig = plt.figure(figsize=(6, 5))
+        ax = fig.add_subplot(ny, nx, 1)
         axes.append(ax)
-    elif ny==2 and nx==1:
+    elif ny == 2 and nx == 1:
         if square:
-            fig=plt.figure(figsize=(6,11))
+            fig = plt.figure(figsize=(6, 11))
         else:
-            fig=plt.figure(figsize=(6,7))
-        ax=fig.add_subplot(ny,nx,1)
+            fig = plt.figure(figsize=(6, 7))
+        ax = fig.add_subplot(ny, nx, 1)
         axes.append(ax)
-        ax=fig.add_subplot(ny,nx,2)
+        ax = fig.add_subplot(ny, nx, 2)
         axes.append(ax)
-    elif ny==1 and nx==2:
-        fig=plt.figure(figsize=(11,6))
-        for i in range(1,3):
-            ax=fig.add_subplot(ny,nx,i)
+    elif ny == 1 and nx == 2:
+        fig = plt.figure(figsize=(11, 6))
+        for i in range(1, 3):
+            ax = fig.add_subplot(ny, nx, i)
             axes.append(ax)
-    elif ny==1 and nx==3:
-        fig=plt.figure(figsize=(18,6))
-        for i in range(1,4):
-            ax=fig.add_subplot(ny,nx,i)
+    elif ny == 1 and nx == 3:
+        fig = plt.figure(figsize=(18, 6))
+        for i in range(1, 4):
+            ax = fig.add_subplot(ny, nx, i)
             axes.append(ax)
-    elif ny==1 and nx==4:
-        fig=plt.figure(figsize=(20,5))
-        for i in range(1,5):
-            ax=fig.add_subplot(ny,nx,i)
+    elif ny == 1 and nx == 4:
+        fig = plt.figure(figsize=(20, 5))
+        for i in range(1, 5):
+            ax = fig.add_subplot(ny, nx, i)
             axes.append(ax)
-    elif ny==2 and nx==3:
-        fig=plt.figure(figsize=(15,8))
-        for i in range(1,7):
-            ax=fig.add_subplot(ny,nx,i)
+    elif ny == 2 and nx == 3:
+        fig = plt.figure(figsize=(15, 8))
+        for i in range(1, 7):
+            ax = fig.add_subplot(ny, nx, i)
             axes.append(ax)
-    elif ny==2 and nx==4:
-        fig=plt.figure(figsize=(20,8))
-        for i in range(1,9):
-            ax=fig.add_subplot(ny,nx,i)
+    elif ny == 2 and nx == 4:
+        fig = plt.figure(figsize=(20, 8))
+        for i in range(1, 9):
+            ax = fig.add_subplot(ny, nx, i)
             axes.append(ax)
     else:
-        raise ValueError('Do not have option: ny=%s, nx=%s' %(ny,nx))
-    return fig,axes
+        raise ValueError("Do not have option: ny=%s, nx=%s" % (ny, nx))
+    return fig, axes

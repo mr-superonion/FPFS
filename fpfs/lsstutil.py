@@ -21,12 +21,14 @@ try:
     import lsst.afw.image as afwImg
     import lsst.afw.geom as afwGeom
     import lsst.meas.algorithms as meaAlg
-    with_lsst=True
+
+    with_lsst = True
 except ImportError as error:
-    with_lsst=False
+    with_lsst = False
 
 if with_lsst:
-    def makeLsstExposure(galData,psfData,pixScale,variance):
+
+    def makeLsstExposure(galData, psfData, pixScale, variance):
         """Makes an LSST exposure object
 
         Args:
@@ -39,30 +41,32 @@ if with_lsst:
             exposure:   LSST exposure object
         """
         if not with_lsst:
-            raise ImportError('Do not have lsstpipe!')
-        ny,nx       =   galData.shape
-        exposure    =   afwImg.ExposureF(nx,ny)
-        exposure.getMaskedImage().getImage().getArray()[:,:]=galData
-        exposure.getMaskedImage().getVariance().getArray()[:,:]=variance
-        #Set the PSF
-        ngridPsf    =   psfData.shape[0]
-        psfLsst     =   afwImg.ImageF(ngridPsf,ngridPsf)
-        psfLsst.getArray()[:,:]= psfData
-        psfLsst     =   psfLsst.convertD()
-        kernel      =   afwMath.FixedKernel(psfLsst)
-        kernelPSF   =   meaAlg.KernelPsf(kernel)
+            raise ImportError("Do not have lsstpipe!")
+        ny, nx = galData.shape
+        exposure = afwImg.ExposureF(nx, ny)
+        exposure.getMaskedImage().getImage().getArray()[:, :] = galData
+        exposure.getMaskedImage().getVariance().getArray()[:, :] = variance
+        # Set the PSF
+        ngridPsf = psfData.shape[0]
+        psfLsst = afwImg.ImageF(ngridPsf, ngridPsf)
+        psfLsst.getArray()[:, :] = psfData
+        psfLsst = psfLsst.convertD()
+        kernel = afwMath.FixedKernel(psfLsst)
+        kernelPSF = meaAlg.KernelPsf(kernel)
         exposure.setPsf(kernelPSF)
-        #prepare the wcs
-        #Rotation
-        cdelt   =   (pixScale*geom.arcseconds)
-        CD      =   afwGeom.makeCdMatrix(cdelt, geom.Angle(0.))#no rotation
-        #wcs
-        crval   =   geom.SpherePoint(geom.Angle(0.,geom.degrees),geom.Angle(0.,geom.degrees))
-        #crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
-        crpix   =   geom.Point2D(0.0, 0.0)
-        dataWcs =   afwGeom.makeSkyWcs(crpix,crval,CD)
+        # prepare the wcs
+        # Rotation
+        cdelt = pixScale * geom.arcseconds
+        CD = afwGeom.makeCdMatrix(cdelt, geom.Angle(0.0))  # no rotation
+        # wcs
+        crval = geom.SpherePoint(
+            geom.Angle(0.0, geom.degrees), geom.Angle(0.0, geom.degrees)
+        )
+        # crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
+        crpix = geom.Point2D(0.0, 0.0)
+        dataWcs = afwGeom.makeSkyWcs(crpix, crval, CD)
         exposure.setWcs(dataWcs)
-        #prepare the frc
+        # prepare the frc
         dataCalib = afwImg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
         exposure.setPhotoCalib(dataCalib)
         return exposure

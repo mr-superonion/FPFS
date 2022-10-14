@@ -16,7 +16,8 @@
 import numpy as np
 import scipy.ndimage as ndi
 
-def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
+
+def _gauss_kernel(ny, nx, sigma, do_shift=False, return_grid=False):
     """Generates a Gaussian kernel on grids for np.fft.fft transform
 
     Args:
@@ -31,21 +32,22 @@ def _gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False):
         out (ndarray):          Gaussian on grids
         Y,X (typle):            grids for [y, x] axes if return_grid
     """
-    out = np.empty((ny,nx))
-    x   = np.fft.fftfreq(nx,1/np.pi/2.)
-    y   = np.fft.fftfreq(ny,1/np.pi/2.)
+    out = np.empty((ny, nx))
+    x = np.fft.fftfreq(nx, 1 / np.pi / 2.0)
+    y = np.fft.fftfreq(ny, 1 / np.pi / 2.0)
     if do_shift:
-        x=np.fft.fftshift(x)
-        y=np.fft.fftshift(y)
-    Y,X = np.meshgrid(y,x,indexing='ij')
-    r2  = X**2.+Y**2.
-    out = np.exp(-r2/2./sigma**2.)
+        x = np.fft.fftshift(x)
+        y = np.fft.fftshift(y)
+    Y, X = np.meshgrid(y, x, indexing="ij")
+    r2 = X**2.0 + Y**2.0
+    out = np.exp(-r2 / 2.0 / sigma**2.0)
     if not return_grid:
         return out
     else:
-        return out,(Y,X)
+        return out, (Y, X)
 
-def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
+
+def _gauss_kernel_rfft(ny, nx, sigma, return_grid=False):
     """Generates a Gaussian kernel on grids for np.fft.rfft transform
 
     Args:
@@ -57,18 +59,19 @@ def _gauss_kernel_rfft(ny,nx,sigma,return_grid=False):
         out (ndarray):          Gaussian on grids
         Y,X (typle):            grids for [y, x] axes, if return_grid
     """
-    out = np.empty((ny,nx//2+1))
-    x   = np.fft.rfftfreq(nx,1/np.pi/2.)
-    y   = np.fft.fftfreq(ny,1/np.pi/2.)
-    Y,X = np.meshgrid(y,x,indexing='ij')
-    r2  = X**2.+Y**2.
-    out = np.exp(-r2/2./sigma**2.)
+    out = np.empty((ny, nx // 2 + 1))
+    x = np.fft.rfftfreq(nx, 1 / np.pi / 2.0)
+    y = np.fft.fftfreq(ny, 1 / np.pi / 2.0)
+    Y, X = np.meshgrid(y, x, indexing="ij")
+    r2 = X**2.0 + Y**2.0
+    out = np.exp(-r2 / 2.0 / sigma**2.0)
     if not return_grid:
         return out
     else:
-        return out,(Y,X)
+        return out, (Y, X)
 
-def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
+
+def gauss_kernel(ny, nx, sigma, do_shift=False, return_grid=False, use_rfft=False):
     """Generates a Gaussian kernel in Fourier space on grids
 
     Args:
@@ -81,21 +84,22 @@ def gauss_kernel(ny,nx,sigma,do_shift=False,return_grid=False,use_rfft=False):
     Returns:
         out (tuple):            Gaussian kernel and grids, if return_grid
     """
-    if not isinstance(ny,int):
-        raise TypeError('ny should be int')
-    if not isinstance(nx,int):
-        raise TypeError('nx should be int')
-    if not isinstance(sigma,(float,int)):
-        raise TypeError('sigma should be float or int')
-    if sigma<=0.:
-        raise ValueError('sigma should be positive')
+    if not isinstance(ny, int):
+        raise TypeError("ny should be int")
+    if not isinstance(nx, int):
+        raise TypeError("nx should be int")
+    if not isinstance(sigma, (float, int)):
+        raise TypeError("sigma should be float or int")
+    if sigma <= 0.0:
+        raise ValueError("sigma should be positive")
 
     if not use_rfft:
-        return _gauss_kernel(ny,nx,sigma,do_shift,return_grid)
+        return _gauss_kernel(ny, nx, sigma, do_shift, return_grid)
     else:
         if do_shift:
-            raise ValueError('do not support shifting centroid if use_rfft=True')
-        return _gauss_kernel_rfft(ny,nx,sigma,return_grid)
+            raise ValueError("do not support shifting centroid if use_rfft=True")
+        return _gauss_kernel_rfft(ny, nx, sigma, return_grid)
+
 
 def getFouPow_rft(arrayIn):
     """Gets Fourier power function
@@ -106,15 +110,16 @@ def getFouPow_rft(arrayIn):
         galpow (ndarray):   Fourier Power
     """
 
-    ngrid   =   arrayIn.shape[0]
-    tmp     =   np.abs(np.fft.rfft2(arrayIn))**2.
-    tmp     =   np.fft.fftshift(tmp,axes=0)
+    ngrid = arrayIn.shape[0]
+    tmp = np.abs(np.fft.rfft2(arrayIn)) ** 2.0
+    tmp = np.fft.fftshift(tmp, axes=0)
     # Get power function and subtract noise power
-    foupow  =   np.empty((ngrid,ngrid),dtype=np.float64)
-    tmp2    =   np.roll(np.flip(tmp),axis=0,shift=1)
-    foupow[:,:ngrid//2+1] =  tmp2
-    foupow[:,ngrid//2:]   =  tmp[:,:-1]
+    foupow = np.empty((ngrid, ngrid), dtype=np.float64)
+    tmp2 = np.roll(np.flip(tmp), axis=0, shift=1)
+    foupow[:, : ngrid // 2 + 1] = tmp2
+    foupow[:, ngrid // 2 :] = tmp[:, :-1]
     return foupow
+
 
 def getFouPow(arrayIn, noiPow=None):
     """Gets Fourier power function
@@ -124,12 +129,13 @@ def getFouPow(arrayIn, noiPow=None):
     Returns:
         out (ndarray):      Fourier Power [centered at [ngrid//2,ngrid//2]]
     """
-    out =   np.fft.fftshift(np.abs(np.fft.fft2(arrayIn))**2.).astype(np.float64)
-    if isinstance(noiPow,float):
-        out =   out-np.ones(arrayIn.shape)*noiPow*arrayIn.size
-    elif isinstance(noiPow,np.ndarray):
-        out =   out-noiPow
+    out = np.fft.fftshift(np.abs(np.fft.fft2(arrayIn)) ** 2.0).astype(np.float64)
+    if isinstance(noiPow, float):
+        out = out - np.ones(arrayIn.shape) * noiPow * arrayIn.size
+    elif isinstance(noiPow, np.ndarray):
+        out = out - noiPow
     return out
+
 
 def getRnaive(arrayIn):
     """A naive way to estimate Radius. Note, this naive estimation is heavily
@@ -141,14 +147,15 @@ def getRnaive(arrayIn):
         sigma (ndarray):    effective radius
     """
 
-    arrayIn2=   np.abs(arrayIn)
+    arrayIn2 = np.abs(arrayIn)
     # Get the half light radius of noiseless PSF
-    thres   =   arrayIn2.max()*0.5
-    sigma   =   np.sum(arrayIn2>thres)
-    sigma   =   np.sqrt(sigma/np.pi)
+    thres = arrayIn2.max() * 0.5
+    sigma = np.sum(arrayIn2 > thres)
+    sigma = np.sqrt(sigma / np.pi)
     return sigma
 
-def detlets2D(ngrid,sigma):
+
+def detlets2D(ngrid, sigma):
     """Generates shapelets function in Fourier space, chi00 are normalized to 1.
     This function only supports square stamps: ny=nx=ngrid.
 
@@ -159,28 +166,30 @@ def detlets2D(ngrid,sigma):
         psi (ndarray):  2D detlets basis in shape of [8,3,ngrid,ngrid]
     """
     # Gaussian Kernel
-    gKer,(k2grid,k1grid)=gauss_kernel(ngrid,ngrid,sigma,\
-                do_shift=True,return_grid=True)
+    gKer, (k2grid, k1grid) = gauss_kernel(
+        ngrid, ngrid, sigma, do_shift=True, return_grid=True
+    )
     # for inverse Fourier transform
-    gKer    =   gKer/ngrid**2.
+    gKer = gKer / ngrid**2.0
     # for shear response
-    q1Ker   =   (k1grid**2.-k2grid**2.)/sigma**2.*gKer
-    q2Ker   =   (2.*k1grid*k2grid)/sigma**2.*gKer
+    q1Ker = (k1grid**2.0 - k2grid**2.0) / sigma**2.0 * gKer
+    q2Ker = (2.0 * k1grid * k2grid) / sigma**2.0 * gKer
     # quantities for neighbouring pixels
-    d1Ker   =   (-1j*k1grid)*gKer
-    d2Ker   =   (-1j*k2grid)*gKer
+    d1Ker = (-1j * k1grid) * gKer
+    d2Ker = (-1j * k2grid) * gKer
     # initial output psi function
-    psi     =   np.zeros((8,3,ngrid,ngrid),dtype=np.complex64)
+    psi = np.zeros((8, 3, ngrid, ngrid), dtype=np.complex64)
     for _ in range(8):
-        x   =   np.cos(np.pi/4.*_)
-        y   =   np.sin(np.pi/4.*_)
-        foub=   np.exp(1j*(k1grid*x+k2grid*y))
-        psi[_,0] =   gKer-gKer*foub
-        psi[_,1] =   q1Ker-(q1Ker+x*d1Ker-y*d2Ker)*foub
-        psi[_,2] =   q2Ker-(q2Ker+y*d1Ker+x*d2Ker)*foub
+        x = np.cos(np.pi / 4.0 * _)
+        y = np.sin(np.pi / 4.0 * _)
+        foub = np.exp(1j * (k1grid * x + k2grid * y))
+        psi[_, 0] = gKer - gKer * foub
+        psi[_, 1] = q1Ker - (q1Ker + x * d1Ker - y * d2Ker) * foub
+        psi[_, 2] = q2Ker - (q2Ker + y * d1Ker + x * d2Ker) * foub
     return psi
 
-def shapelets2D(ngrid,nord,sigma):
+
+def shapelets2D(ngrid, nord, sigma):
     """Generates shapelets function in Fourier space, chi00 are normalized to 1
     [only support square stamps: ny=nx=ngrid]
 
@@ -192,41 +201,51 @@ def shapelets2D(ngrid,nord,sigma):
         chi (ndarray):  2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
     """
 
-    mord    =   nord
+    mord = nord
     # Set grids with dk=2pi/N/sigma
-    xy1d    =   np.fft.fftshift(np.fft.fftfreq(ngrid,d=sigma/2./np.pi))
-    xfunc,yfunc=np.meshgrid(xy1d,xy1d)      # 2D grids
-    rfunc   =   np.sqrt(xfunc**2.+yfunc**2.)# radius
-    gaufunc =   np.exp(-rfunc*rfunc/2.)     # Gaussian
-    rmask   =   (rfunc!=0.)
-    xtfunc  =   np.zeros((ngrid,ngrid),dtype=np.float64)
-    ytfunc  =   np.zeros((ngrid,ngrid),dtype=np.float64)
-    np.divide(xfunc,rfunc,where=rmask,out=xtfunc) # cos(phi)
-    np.divide(yfunc,rfunc,where=rmask,out=ytfunc) # sin(phi)
-    eulfunc =   xtfunc+1j*ytfunc            # e^{jphi}
+    xy1d = np.fft.fftshift(np.fft.fftfreq(ngrid, d=sigma / 2.0 / np.pi))
+    xfunc, yfunc = np.meshgrid(xy1d, xy1d)  # 2D grids
+    rfunc = np.sqrt(xfunc**2.0 + yfunc**2.0)  # radius
+    gaufunc = np.exp(-rfunc * rfunc / 2.0)  # Gaussian
+    rmask = rfunc != 0.0
+    xtfunc = np.zeros((ngrid, ngrid), dtype=np.float64)
+    ytfunc = np.zeros((ngrid, ngrid), dtype=np.float64)
+    np.divide(xfunc, rfunc, where=rmask, out=xtfunc)  # cos(phi)
+    np.divide(yfunc, rfunc, where=rmask, out=ytfunc)  # sin(phi)
+    eulfunc = xtfunc + 1j * ytfunc  # e^{jphi}
     # Set up Laguerre function
-    lfunc   =   np.zeros((nord+1,mord+1,ngrid,ngrid),dtype=np.float64)
-    lfunc[0,:,:,:]=1.
-    lfunc[1,:,:,:]=1.-rfunc*rfunc+np.arange(mord+1)[None,:,None,None]
+    lfunc = np.zeros((nord + 1, mord + 1, ngrid, ngrid), dtype=np.float64)
+    lfunc[0, :, :, :] = 1.0
+    lfunc[1, :, :, :] = 1.0 - rfunc * rfunc + np.arange(mord + 1)[None, :, None, None]
     #
-    chi     =   np.zeros((nord+1,mord+1,ngrid,ngrid),dtype=np.complex64)
-    for n in range(2,nord+1):
-        for m in range(mord+1):
-            lfunc[n,m,:,:]=(2.+(m-1.-rfunc*rfunc)/n)*lfunc[n-1,m,:,:]-(1.+(m-1.)/n)*lfunc[n-2,m,:,:]
-    for nn in range(nord+1):
-        for mm in range(nn,-1,-2):
-            c1=(nn-abs(mm))//2
-            d1=(nn+abs(mm))//2
-            cc=np.math.factorial(c1)+0.
-            dd=np.math.factorial(d1)+0.
-            cc=cc/dd
-            chi[nn,mm,:,:]=pow(-1.,d1)*pow(cc,0.5)*lfunc[c1,abs(mm),:,:]\
-                    *pow(rfunc,abs(mm))*gaufunc*eulfunc**mm*(1j)**nn
+    chi = np.zeros((nord + 1, mord + 1, ngrid, ngrid), dtype=np.complex64)
+    for n in range(2, nord + 1):
+        for m in range(mord + 1):
+            lfunc[n, m, :, :] = (2.0 + (m - 1.0 - rfunc * rfunc) / n) * lfunc[
+                n - 1, m, :, :
+            ] - (1.0 + (m - 1.0) / n) * lfunc[n - 2, m, :, :]
+    for nn in range(nord + 1):
+        for mm in range(nn, -1, -2):
+            c1 = (nn - abs(mm)) // 2
+            d1 = (nn + abs(mm)) // 2
+            cc = np.math.factorial(c1) + 0.0
+            dd = np.math.factorial(d1) + 0.0
+            cc = cc / dd
+            chi[nn, mm, :, :] = (
+                pow(-1.0, d1)
+                * pow(cc, 0.5)
+                * lfunc[c1, abs(mm), :, :]
+                * pow(rfunc, abs(mm))
+                * gaufunc
+                * eulfunc**mm
+                * (1j) ** nn
+            )
     # return chi*dk^2 (assuming pixel scale in configuration space is 1)
-    chi=chi/ngrid**2.
+    chi = chi / ngrid**2.0
     return chi
 
-def fitNoiPow(ngrid,galPow,noiModel,rlim):
+
+def fitNoiPow(ngrid, galPow, noiModel, rlim):
     """
     Fit the noise power from observed galaxy power
 
@@ -237,18 +256,19 @@ def fitNoiPow(ngrid,galPow,noiModel,rlim):
         noiSub (ndarray): noise power to be subtracted
     """
 
-    rlim2=  int(max(ngrid*0.4,rlim))
-    indX=   np.arange(ngrid//2-rlim2,ngrid//2+rlim2+1)
-    indY=   indX[:,None]
-    mask=   np.ones((ngrid,ngrid),dtype=bool)
-    mask[indY,indX]=False
-    vl  =   galPow[mask]
-    nl  =   noiModel[:,mask]
-    par =   np.linalg.lstsq(nl.T,vl,rcond=None)[0]
-    noiSub= np.sum(par[:,None,None]*noiModel,axis=0)
+    rlim2 = int(max(ngrid * 0.4, rlim))
+    indX = np.arange(ngrid // 2 - rlim2, ngrid // 2 + rlim2 + 1)
+    indY = indX[:, None]
+    mask = np.ones((ngrid, ngrid), dtype=bool)
+    mask[indY, indX] = False
+    vl = galPow[mask]
+    nl = noiModel[:, mask]
+    par = np.linalg.lstsq(nl.T, vl, rcond=None)[0]
+    noiSub = np.sum(par[:, None, None] * noiModel, axis=0)
     return noiSub
 
-def pcaimages(X,nmodes):
+
+def pcaimages(X, nmodes):
     """Estimates the principal components of array list X
 
     Args:
@@ -260,35 +280,36 @@ def pcaimages(X,nmodes):
         eVout (ndarray):    eigen values
     """
 
-    assert len(X.shape)==3
+    assert len(X.shape) == 3
     # vectorize
-    nobj,nn2,nn1=   X.shape
-    dim         =   nn1*nn2
+    nobj, nn2, nn1 = X.shape
+    dim = nn1 * nn2
     # X is (x1,x2,x3..,xnobj).T [x_i is column vectors of data]
-    X           =   X.reshape((nobj,dim))
+    X = X.reshape((nobj, dim))
     # Xave  = X.mean(axis=0)
     # X     = X-Xave
     # Xave  = Xave.reshape((1,nn2,nn1))
     # out =   np.vstack([Xave,V])
 
     # Get covariance matrix
-    M   =   np.dot(X,X.T)/(nobj-1)
+    M = np.dot(X, X.T) / (nobj - 1)
     # Solve the Eigen function of the covariance matrix
     # e is eigen value and eV is eigen vector
     # eV: (p1,p2,..,pnobj) [p_i is column vectors of parameters]
-    e,eV=   np.linalg.eigh(M)
+    e, eV = np.linalg.eigh(M)
     # The Eigen vector tells the combination of ndata
-    tmp =   np.dot(eV.T,X)
+    tmp = np.dot(eV.T, X)
     # Rank from maximum eigen value to minimum
     # and only keep the first nmodes
-    V   =   tmp[::-1][:nmodes]
-    e   =   e[::-1][:nmodes+10]
-    stds=   np.sqrt(e)
-    out =   V.reshape((nmodes,nn2,nn1))
-    eVout=  eV.T[:nmodes]
-    return out,stds,eVout
+    V = tmp[::-1][:nmodes]
+    e = e[::-1][: nmodes + 10]
+    stds = np.sqrt(e)
+    out = V.reshape((nmodes, nn2, nn1))
+    eVout = eV.T[:nmodes]
+    return out, stds, eVout
 
-def cut_img(img,rcut):
+
+def cut_img(img, rcut):
     """Cuts img into postage stamp with width=2rcut
 
     Args:
@@ -297,13 +318,14 @@ def cut_img(img,rcut):
     Returns:
         out (ndarray):  image in a stamp
     """
-    ngrid   =   img.shape[0]
-    beg     =   ngrid//2-rcut
-    end     =   beg+2*rcut
-    out     =   img[beg:end,beg:end]
+    ngrid = img.shape[0]
+    beg = ngrid // 2 - rcut
+    end = beg + 2 * rcut
+    out = img[beg:end, beg:end]
     return out
 
-def find_peaks(imgCov,thres,thres2=0.,negBd=20.):
+
+def find_peaks(imgCov, thres, thres2=0.0, negBd=20.0):
     """Detects peaks and returns the coordinates (y,x)
 
     Args:
@@ -319,14 +341,20 @@ def find_peaks(imgCov,thres,thres2=0.,negBd=20.):
     footprint[0, 2] = 0
     footprint[2, 0] = 0
     footprint[2, 2] = 0
-    filtered=   ndi.maximum_filter(imgCov,footprint=footprint,mode='constant')
-    data    =   np.int_(np.asarray(np.where(((imgCov > filtered+thres2)&(imgCov>thres)))))
-    out     =   np.array(np.zeros(data.size//2),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
-    out['fpfs_y']=data[0]
-    out['fpfs_x']=data[1]
-    ny,nx = imgCov.shape
+    filtered = ndi.maximum_filter(imgCov, footprint=footprint, mode="constant")
+    data = np.int_(
+        np.asarray(np.where(((imgCov > filtered + thres2) & (imgCov > thres))))
+    )
+    out = np.array(np.zeros(data.size // 2), dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")])
+    out["fpfs_y"] = data[0]
+    out["fpfs_x"] = data[1]
+    ny, nx = imgCov.shape
     # avoid pixels near boundary
-    msk     =   (out['fpfs_y']>negBd)&(out['fpfs_y']<ny-negBd)\
-                &(out['fpfs_x']>negBd)&(out['fpfs_x']<nx-negBd)
-    coord_array= out[msk]
+    msk = (
+        (out["fpfs_y"] > negBd)
+        & (out["fpfs_y"] < ny - negBd)
+        & (out["fpfs_x"] > negBd)
+        & (out["fpfs_x"] < nx - negBd)
+    )
+    coord_array = out[msk]
     return coord_array
