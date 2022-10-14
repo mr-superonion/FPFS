@@ -5,7 +5,7 @@
 
 `FPFS` is a perturbation-based shear estimator: It uses the leading order
 perturbations of shear (a vector perturbation) and noise (a tensor perturbation)
-to construct shear estimator and revise noise bias revision terms, respectively.
+to construct shear estimator and correct noise bias, respectively.
 It is a passive shear estimator: We do not repeatedly distort each observed
 galaxy to obtain the responses of the galaxy properties to a shear distortion;
 instead, the responses are derived using the analytical shear responses of a set
