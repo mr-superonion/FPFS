@@ -3,13 +3,18 @@
 [![Python application](https://github.com/mr-superonion/FPFS/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/mr-superonion/FPFS/actions/workflows/python-app.yml)
 [![Documentation Status](https://readthedocs.org/projects/fpfs/badge/?version=latest)](https://fpfs.readthedocs.io/en/latest/?badge=latest)
 
-`FPFS` is a perturbation-based shear estimator: It uses the leading order
-perturbations of shear (a vector perturbation) and noise (a tensor perturbation)
-to construct shear estimator and correct noise bias, respectively.
-It is a passive shear estimator: We do not repeatedly distort each observed
-galaxy to obtain the responses of the galaxy properties to a shear distortion;
-instead, the responses are derived using the analytical shear responses of a set
-of basis functions.
+
+Fourier Power Function Shapelets (`FPFS`) is a perturbation-based estimator for
+shear responses of galaxy shape, flux and detection --- It uses the
+leading-order perturbations of shear (a vector perturbation) and image noise (a
+tensor perturbation) to derive the shear responses and noise responses of
+measurements and detections. It is a passive shear estimator --- It does not
+repeatedly distort each observed galaxy to derive the shear responses; instead,
+the shear responses are derived using the analytical shear responses of a set
+of basis functions (Shapelets basis and peak basis).  This method can process
+about 1000 galaxies in 1 cpu second, and it  has been tested with simple
+simulations and demonstrated to control multiplicative shear estimation bias
+below 1% even in the existence of blending.
 
 Documentation for FPFS modules can be found [here](https://fpfs.readthedocs.io/en/latest/)
 
