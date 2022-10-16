@@ -116,8 +116,8 @@ def getFouPow_rft(arrayIn):
     # Get power function and subtract noise power
     foupow = np.empty((ngrid, ngrid), dtype=np.float64)
     tmp2 = np.roll(np.flip(tmp), axis=0, shift=1)
-    foupow[:, : ngrid // 2 + 1] = tmp2
-    foupow[:, ngrid // 2 :] = tmp[:, :-1]
+    foupow[:, :ngrid // 2 + 1] = tmp2
+    foupow[:, ngrid // 2:] = tmp[:, :-1]
     return foupow
 
 

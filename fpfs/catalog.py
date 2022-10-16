@@ -14,6 +14,7 @@
 # python lib
 import numpy as np
 
+
 # functions used for selection
 def tsfunc1(x, deriv=0, mu=0.0, sigma=1.5):
     """Returns the weight funciton [deriv=0], or the *multiplicative factor* to
@@ -72,28 +73,35 @@ def tsfunc2(x, mu=0.0, sigma=1.5, deriv=0):
                         derivative [deriv=1]
     """
     t = (x - mu) / sigma
-    func = lambda t: 1.0 / 2.0 + t / 2.0 + 1.0 / 2.0 / np.pi * np.sin(t * np.pi)
+
+    def func(t):
+        return 1.0 / 2.0 + t / 2.0 + 1.0 / 2.0 / np.pi * np.sin(t * np.pi)
+
+    def func2(t):
+        # /(1./2.+t/2.+1./2./np.pi*np.sin(t*np.pi))
+        return 1.0 / 2.0 / sigma + 1.0 / 2.0 / sigma * np.cos(np.pi * t)
+
+    def func3(t):
+        return (-np.pi / 2.0 / sigma**2.0 * np.sin(np.pi * t))
+
+    def func4(t):
+        return (-((np.pi) ** 2.0) / 2.0 / sigma**3.0 * np.cos(np.pi * t))
 
     if deriv == 0:
         return np.piecewise(t, [t < -1, (t >= -1) & (t <= 1), t > 1], [0.0, func, 1.0])
     elif deriv == 1:
-        func2 = lambda t: (
-            1.0 / 2.0 / sigma + 1.0 / 2.0 / sigma * np.cos(np.pi * t)
-        )  # /(1./2.+t/2.+1./2./np.pi*np.sin(t*np.pi))
         return np.piecewise(
             t,
             [t < -1 + 0.01, (t >= -1 + 0.01) & (t <= 1 - 0.01), t > 1 - 0.01],
             [0.0, lambda t: func2(t) / func(t), 0.0],
         )
     elif deriv == 2:
-        func3 = lambda t: (-np.pi / 2.0 / sigma**2.0 * np.sin(np.pi * t))
         return np.piecewise(
             t,
             [t < -1 + 0.01, (t >= -1 + 0.01) & (t <= 1 - 0.01), t > 1 - 0.01],
             [0.0, lambda t: func3(t) / func(t), 0.0],
         )
     elif deriv == 3:
-        func4 = lambda t: (-((np.pi) ** 2.0) / 2.0 / sigma**3.0 * np.cos(np.pi * t))
         return np.piecewise(
             t,
             [t < -1 + 0.01, (t >= -1 + 0.01) & (t <= 1 - 0.01), t > 1 - 0.01],

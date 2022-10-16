@@ -24,7 +24,8 @@ nrot_default = 4
 # use 4 rotations for ring test (to remove any spin-2 and spin-4 residuals in
 # the simulated images)
 
-## For ring tests
+
+# For ring tests
 def make_ringrot_radians(nord=8):
     """Generates rotation angle array for ring test
 
@@ -383,21 +384,23 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
             disk = disk.shear(q=disk_q, beta=disk_beta)
         gal = bulge + disk
     else:
-        # Do a similar manipulation to the stored quantities for the single Sersic profiles.
+        # Do a similar manipulation to the stored quantities for the single
+        # Sersic profiles.
         gal_n = sparams[2]
-        # Fudge this if it is at the edge of the allowed n values.  Since GalSim (as of #325 and
-        # #449) allow Sersic n in the range 0.3<=n<=6, the only problem is that the fits
-        # occasionally go as low as n=0.2.  The fits in this file only go to n=6, so there is no
-        # issue with too-high values, but we also put a guard on that side in case other samples
-        # are swapped in that go to higher value of sersic n.
+        # Fudge this if it is at the edge of the allowed n values.  Since
+        # GalSim (as of #325 and #449) allow Sersic n in the range 0.3<=n<=6,
+        # the only problem is that the fits occasionally go as low as n=0.2.
+        # The fits in this file only go to n=6, so there is no issue with
+        # too-high values, but we also put a guard on that side in case other
+        # samples are swapped in that go to higher value of sersic n.
         if gal_n < 0.3:
             gal_n = 0.3
         if gal_n > 6.0:
             gal_n = 6.0
 
-        # GalSim is much more efficient if only a finite number of Sersic n values are used.
-        # This (optionally given constructor args) rounds n to the nearest 0.05.
-        # change to 0.1 to speed up
+        # GalSim is much more efficient if only a finite number of Sersic n
+        # values are used. This (optionally given constructor args) rounds n to
+        # the nearest 0.05. change to 0.1 to speed up
         gal_n = galsim_round_sersic(gal_n, 0.1)
         gal_hlr = record["hlr"][0]
         gal_flux = record["flux"][0]
@@ -700,10 +703,11 @@ def make_gal_ssbg(shear, psf, rng, r1, r0=20.0):
     noimg = rng.normal(scale=1.0, size=img.shape)
     # get the current flux using the 5x5 substamps centered at the stamp's center
     flux_tmp = np.sum(
-        img[ngrid // 2 - 2 : ngrid // 2 + 3, ngrid // 2 - 2 : ngrid // 2 + 3]
+        img[ngrid // 2 - 2:ngrid // 2 + 3, ngrid // 2 - 2:ngrid // 2 + 3]
     )
-    # the current (expectation of) total noise std on the 5x5 substamps is 5 since for each
-    # pixel, the expecatation value of variance is 1; therefore, the expectation value of variance is 25...
+    # the current (expectation of) total noise std on the 5x5 substamps is 5
+    # since for each pixel, the expecatation value of variance is 1; therefore,
+    # the expectation value of variance is 25...
     std_tmp = 5
     # normalize both the galaxy image and noise image so that they will have
     # flux=1 and variance=1 (expectation value) in the 5x5 substamps
