@@ -23,7 +23,7 @@ try:
     import lsst.meas.algorithms as meaAlg
 
     with_lsst = True
-except ImportError as error:
+except ImportError:
     with_lsst = False
 
 if with_lsst:
@@ -62,7 +62,8 @@ if with_lsst:
         crval = geom.SpherePoint(
             geom.Angle(0.0, geom.degrees), geom.Angle(0.0, geom.degrees)
         )
-        # crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees) # hscpipe6
+        # hscpipe6
+        # crval   =   afwCoord.IcrsCoord(0.*afwGeom.degrees, 0.*afwGeom.degrees)
         crpix = geom.Point2D(0.0, 0.0)
         dataWcs = afwGeom.makeSkyWcs(crpix, crval, CD)
         exposure.setWcs(dataWcs)

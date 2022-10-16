@@ -53,8 +53,8 @@ def detect_sources(
         # apply a truncation in Fourier space
         nxklim = int(klim * nx / np.pi / 2.0 + 0.5)
         nyklim = int(klim * ny / np.pi / 2.0 + 0.5)
-        imgF[nyklim + 1 : -nyklim, :] = 0.0
-        imgF[:, nxklim + 1 :] = 0.0
+        imgF[nyklim + 1: -nyklim, :] = 0.0
+        imgF[:, nxklim + 1:] = 0.0
     else:
         # no truncation in Fourier space
         pass
@@ -191,7 +191,7 @@ class measure_source:
         self._ind2D = np.ix_(self._indX, self._indX)
 
         # Preparing shapelet basis
-        ## nm = m*(nnord+1)+n
+        # nm = m*(nnord+1)+n
         if nnord == 4:
             # This setup is for shear response only
             # Only uses M00, M20, M22 (real and img) and M40, M42
