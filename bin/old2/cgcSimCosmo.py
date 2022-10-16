@@ -35,30 +35,47 @@ from lsst.utils.timer import timeMethod
 from lsst.ctrl.pool.parallel import BatchPoolTask
 from lsst.ctrl.pool.pool import Pool
 
+
 class cgcSimCosmoBatchConfig(pexConfig.Config):
     def setDefaults(self):
         pexConfig.Config.setDefaults(self)
+
     def validate(self):
         pexConfig.Config.validate(self)
+
+
 class cgcSimCosmoRunner(TaskRunner):
     @staticmethod
     def getTargetList(parsedCmd, **kwargs):
-        minIndex    =  parsedCmd.minIndex
-        maxIndex    =  parsedCmd.maxIndex
-        return [(ref, kwargs) for ref in range(minIndex,maxIndex)]
+        minIndex = parsedCmd.minIndex
+        maxIndex = parsedCmd.maxIndex
+        return [(ref, kwargs) for ref in range(minIndex, maxIndex)]
+
 
 def unpickle(factory, args, kwargs):
     """Unpickle something by calling a factory"""
     return factory(*args, **kwargs)
+
+
 class cgcSimCosmoBatchTask(BatchPoolTask):
     ConfigClass = cgcSimCosmoBatchConfig
     RunnerClass = cgcSimCosmoRunner
     _DefaultName = "cgcSimCosmoBatch"
+
     def __reduce__(self):
         """Pickler"""
-        return unpickle, (self.__class__, [], dict(config=self.config, name=self._name,
-                parentTask=self._parentTask, log=self.log))
-    def __init__(self,**kwargs):
+        return unpickle, (
+            self.__class__,
+            [],
+            dict(
+                config=self.config,
+                name=self._name,
+                parentTask=self._parentTask,
+                log=self.log,
+            ),
+        )
+
+    def __init__(self, **kwargs):
         BatchPoolTask.__init__(self, **kwargs)
         return
 
@@ -66,47 +83,49 @@ class cgcSimCosmoBatchTask(BatchPoolTask):
     def _makeArgumentParser(cls, *args, **kwargs):
         kwargs.pop("doBatch", False)
         parser = pipeBase.ArgumentParser(name=cls._DefaultName)
-        parser.add_argument('--minIndex', type= int,
-                        default=0,
-                        help='minimum group number')
-        parser.add_argument('--maxIndex', type= int,
-                        default=1,
-                        help='maximum group number')
+        parser.add_argument(
+            "--minIndex", type=int, default=0, help="minimum group number"
+        )
+        parser.add_argument(
+            "--maxIndex", type=int, default=1, help="maximum group number"
+        )
         return parser
 
     @timeMethod
-    def runDataRef(self,index):
-        self.log.info('begining for group %d' %(index))
-        #Prepare the storeSet
-        pool    =   Pool("cgcSimBasicBatch")
+    def runDataRef(self, index):
+        self.log.info("begining for group %d" % (index))
+        # Prepare the storeSet
+        pool = Pool("cgcSimBasicBatch")
         pool.cacheClear()
-        expDir  =   "galaxy_unif3_cosmo170_psf60"
+        expDir = "galaxy_unif3_cosmo170_psf60"
         # expDir  =   "galaxy_unif3_cosmo085_psf60"
         if not os.path.isdir(expDir):
             os.mkdir(expDir)
         pool.storeSet(expDir=expDir)
-        perIndex= 100
-        fieldList=np.arange(perIndex*index,perIndex*(index+1))
-        pool.map(self.process,fieldList)
+        perIndex = 100
+        fieldList = np.arange(perIndex * index, perIndex * (index + 1))
+        pool.map(self.process, fieldList)
         return
 
     @timeMethod
-    def process(self,cache,Id):
-        #Prepare the pool
-        p2List=['0000','2222']
+    def process(self, cache, Id):
+        # Prepare the pool
+        p2List = ["0000", "2222"]
         # p2List  =   ['0000','2222','2000','0200','0020','0002']
-        p1List=['g1']
+        p1List = ["g1"]
         # p1List=['g1','g2']
-        pendList=['%s-%s' %(i1,i2) for i1 in p1List for i2 in p2List]
+        pendList = ["%s-%s" % (i1, i2) for i1 in p1List for i2 in p2List]
         for pp in pendList:
-            fpfs.simutil.make_cosmo_sim(cache.expDir,pp,Id)
+            fpfs.simutil.make_cosmo_sim(cache.expDir, pp, Id)
             gc.collect()
-        self.log.info('finish ID: %d' %(Id))
+        self.log.info("finish ID: %d" % (Id))
         return
 
     def _getConfigName(self):
         return None
+
     def _getEupsVersionsName(self):
         return None
+
     def _getMetadataName(self):
         return None
