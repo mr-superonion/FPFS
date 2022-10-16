@@ -96,7 +96,8 @@ class fpfsTask:
             if isinstance(noiFit, np.ndarray):
                 assert (
                     noiFit.shape == psfData.shape
-                ), "the input noise power should have the same shape with input psf image"
+                ), "the input noise power should have the same shape with \
+                    input psf image"
                 self.noiFit = np.array(noiFit, dtype="<f8")
             elif isinstance(noiFit, float):
                 self.noiFit = (

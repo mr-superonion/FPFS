@@ -78,7 +78,8 @@ def get_klim(psf_array, sigma, thres=1e-20):
     Args:
         psf_array (ndarray):    PSF's Fourier power or Fourier transform
         sigma (float):          one sigma of Gaussian Fourier power
-        thres (float):          the threshold for a tuncation on Gaussian [default: 1e-20]
+        thres (float):          the threshold for a tuncation on Gaussian
+                                [default: 1e-20]
     Returns:
         klim (float):           the limit radius
     """
@@ -106,12 +107,13 @@ class measure_source:
     Args:
         psfData (ndarray):  an average PSF image used to initialize the task
         beta (float):       FPFS scale parameter
-        nnord (int):        the highest order of Shapelets radial components [default: 4]
-        noiModel (ndarray): Models to be used to fit noise power function using the pixels at
-                            large k for each galaxy (if you wish FPFS code to estiamte noise
-                            power). [default: None]
-        noiFit (ndarray):   Estimated noise power function, if you have already estimated noise
-                            power [default: None]
+        nnord (int):        the highest order of Shapelets radial components
+                            [default: 4]
+        noiModel (ndarray): Models to be used to fit noise power function using
+                            the pixels at large k for each galaxy (if you wish
+                            FPFS code to estiamte noise power). [default: None]
+        noiFit (ndarray):   Estimated noise power function, if you have already
+                            estimated noise power [default: None]
         debug (bool):       Whether debug or not [default: False]
         pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
     """
@@ -138,7 +140,8 @@ class measure_source:
             if isinstance(noiFit, np.ndarray):
                 assert (
                     noiFit.shape == psfData.shape
-                ), "the input noise power should have the same shape with input psf image"
+                ), "the input noise power should have the same shape\
+                    with input psf image"
                 self.noiFit = np.array(noiFit, dtype="<f8")
             elif isinstance(noiFit, float):
                 self.noiFit = (
@@ -153,14 +156,15 @@ class measure_source:
             self.noiModel = np.array(noiModel, dtype="<f8")
         else:
             self.noiModel = None
-        self.noiFit0 = self.noiFit  # we keep a copy of the initial noise Fourier power
+        # we keep a copy of the initial noise Fourier power
+        self.noiFit0 = self.noiFit
 
         # Preparing PSF
         psfData = np.array(psfData, dtype="<f8")
         self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
-        self.psfFou0 = self.psfFou.copy()  # we keep a copy of the initial PSF
+        self.psfFou0 = self.psfFou.copy()  # keep a copy of the initial PSF
         self.psfPow = imgutil.getFouPow(psfData)
-        self.psfPow0 = self.psfPow.copy()  # we keep a copy of the initial PSF power
+        self.psfPow0 = self.psfPow.copy()  # keep a copy of the initial PSF power
 
         # A few import scales
         self.pix_scale = pix_scale  # this is only used to normalize basis functions

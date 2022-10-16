@@ -332,9 +332,9 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     #     SERSICFIT[6]: y0, the central y position in pixels.
     #     SERSICFIT[7]: phi, the position angle in radians. If phi=0, the major
     #                   axis is lined up with the x axis of the image.
-    # For 'bulgefit', the result is an array of 16 parameters that comes from doing a
-    # 2-component sersic fit.  The first 8 are the parameters for the disk, with n=1, and
-    # the last 8 are for the bulge, with n=4.
+    # For 'bulgefit', the result is an array of 16 parameters that comes from
+    # doing a 2-component sersic fit.  The first 8 are the parameters for the
+    # disk, with n=1, and the last 8 are for the bulge, with n=4.
 
     bparams = record["bulgefit"]
     sparams = record["sersicfit"]
