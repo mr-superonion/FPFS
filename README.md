@@ -31,7 +31,7 @@ Or clone the repository:
 ```shell
 git clone https://github.com/mr-superonion/FPFS.git
 cd FPFS
-pip install -e .
+pip install -e . --user
 ```
 ----
 
