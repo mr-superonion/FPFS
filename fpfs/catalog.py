@@ -324,12 +324,19 @@ def fpfsM2E(mm, const=1.0, noirev=False):
             + 1.0 * (q1 * mm["fpfs_N00N22c"] + q2 * mm["fpfs_N00N22s"]) / _w
         ) / (1 + ratio)
         # noise bias correction for ellipticity
-        e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) / (1 + ratio)
-        e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) / (1 + ratio)
+        # (the following two expressions are accurate to second order of noise)
+        # e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) / (1 + ratio)
+        # e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) / (1 + ratio)
+        e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) - ratio*e1
+        e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) - ratio*e2
         # noise bias correction for flux, size
-        s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) / (1 + ratio)
-        s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) / (1 + ratio)
-        s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) / (1 + ratio)
+        # (the following two expressions are accurate to second order of noise)
+        # s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) / (1 + ratio)
+        # s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) / (1 + ratio)
+        # s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) / (1 + ratio)
+        s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) - ratio*s0
+        s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) - ratio*s2
+        s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) - ratio*s4
 
     # spin-2 properties
     out["fpfs_e1"] = e1  # ellipticity
