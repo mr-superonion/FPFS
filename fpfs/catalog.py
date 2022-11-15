@@ -306,12 +306,12 @@ def fpfsM2E(mm, const=1.0, noirev=False):
             e1e1
             - (mm["fpfs_N22cN22c"]) / _w**2.0
             + 4.0 * (e1 * mm["fpfs_N00N22c"]) / _w**2.0
-        ) / (1.0 + 3 * ratio)
+        ) - 3 * ratio*e1e1
         e2e2 = (
             e2e2
             - (mm["fpfs_N22sN22s"]) / _w**2.0
             + 4.0 * (e2 * mm["fpfs_N00N22s"]) / _w**2.0
-        ) / (1.0 + 3 * ratio)
+        ) - 3 * ratio*e2e2
         eM22 = (
             eM22
             - (mm["fpfs_N22cN22c"] + mm["fpfs_N22sN22s"]) / _w
