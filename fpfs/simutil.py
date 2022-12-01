@@ -467,8 +467,8 @@ def make_basic_sim(
 
     # Basic parameters
     ngrid = 64
-    ngalx = nx // 64
-    ngaly = ny // 64
+    ngalx = int(nx // 64)
+    ngaly = int(ny // 64)
     ngal = ngalx * ngaly
     # Get the shear information
     gList = np.array([-shear_value, 0.0, shear_value])
@@ -485,6 +485,8 @@ def make_basic_sim(
         "Processing for %s, and shears for four redshift bins are %s." % (gname, gList)
     )
 
+    print(nx,ny)
+    print(type(nx),type(ny))
     gal_image = galsim.ImageF(nx, ny, scale=scale)
     gal_image.setOrigin(0, 0)
     bigfft = galsim.GSParams(maximum_fft_size=10240)

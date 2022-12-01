@@ -26,3 +26,5 @@ examples/output
 *.egg-info
 pip-wheel*
 *wrkDir
+x*-err-*
+x*-out-*
