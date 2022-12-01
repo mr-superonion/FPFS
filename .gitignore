@@ -28,3 +28,4 @@ pip-wheel*
 *wrkDir
 x*-err-*
 x*-out-*
+examples/notebooks/output
