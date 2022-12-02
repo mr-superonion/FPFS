@@ -17,6 +17,11 @@ import os
 import gc
 import galsim
 import logging
+logging.basicConfig(
+        format="%(asctime)s %(message)s",
+        datefmt="%Y/%m/%d %H:%M:%S --- ",
+        level=logging.INFO
+        )
 import numpy as np
 import astropy.io.fits as pyfits
 
@@ -459,7 +464,7 @@ def make_basic_sim(
     if os.path.isfile(outFname):
         logging.info("Already have the outcome.")
         if do_write:
-            logging.info("Nothing to write.")
+            logging.info("Do not write down anything")
         if return_array:
             return pyfits.getdata(outFname)
         else:
@@ -485,8 +490,6 @@ def make_basic_sim(
         "Processing for %s, and shears for four redshift bins are %s." % (gname, gList)
     )
 
-    print(nx,ny)
-    print(type(nx),type(ny))
     gal_image = galsim.ImageF(nx, ny, scale=scale)
     gal_image.setOrigin(0, 0)
     bigfft = galsim.GSParams(maximum_fft_size=10240)
