@@ -212,6 +212,8 @@ class measure_source:
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indM = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
             self._nameM = ["M00", "M20", "M22", "M40", "M42", "M60"]
+        # TODO:Andy, please try to check which modes are necessay for shear
+        # estimation with M_{42}
         else:
             raise ValueError(
                 "only support for nnord= 4 or nnord=6, but your input\
