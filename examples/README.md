@@ -70,4 +70,6 @@ following plot
 
 <img src="m_vs_gamma2.png" alt="mbias" width="400">
 
+The following [notebook](./shear_perturbation.ipynb) can be used to make the
+plots!
 Note, the plot is from noiseless image simulation.

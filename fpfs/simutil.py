@@ -17,13 +17,14 @@ import os
 import gc
 import galsim
 import logging
+import numpy as np
+import astropy.io.fits as pyfits
+
 logging.basicConfig(
         format="%(asctime)s %(message)s",
         datefmt="%Y/%m/%d %H:%M:%S --- ",
         level=logging.INFO
         )
-import numpy as np
-import astropy.io.fits as pyfits
 
 nrot_default = 4
 # use 4 rotations for ring test (to remove any spin-2 and spin-4 residuals in
