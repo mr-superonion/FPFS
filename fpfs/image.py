@@ -17,8 +17,14 @@ import numba
 import logging
 import numpy as np
 import numpy.lib.recfunctions as rfn
-
 from . import imgutil
+
+
+logging.basicConfig(
+        format="%(asctime)s %(message)s",
+        datefmt="%Y/%m/%d %H:%M:%S --- ",
+        level=logging.INFO
+        )
 
 
 def detect_sources(

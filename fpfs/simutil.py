@@ -20,6 +20,12 @@ import logging
 import numpy as np
 import astropy.io.fits as pyfits
 
+logging.basicConfig(
+        format="%(asctime)s %(message)s",
+        datefmt="%Y/%m/%d %H:%M:%S --- ",
+        level=logging.INFO
+        )
+
 nrot_default = 4
 # use 4 rotations for ring test (to remove any spin-2 and spin-4 residuals in
 # the simulated images)
@@ -459,7 +465,7 @@ def make_basic_sim(
     if os.path.isfile(outFname):
         logging.info("Already have the outcome.")
         if do_write:
-            logging.info("Nothing to write.")
+            logging.info("Do not write down anything")
         if return_array:
             return pyfits.getdata(outFname)
         else:
@@ -485,8 +491,6 @@ def make_basic_sim(
         "Processing for %s, and shears for four redshift bins are %s." % (gname, gList)
     )
 
-    print(nx,ny)
-    print(type(nx),type(ny))
     gal_image = galsim.ImageF(nx, ny, scale=scale)
     gal_image.setOrigin(0, 0)
     bigfft = galsim.GSParams(maximum_fft_size=10240)
