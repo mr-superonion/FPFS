@@ -41,6 +41,7 @@ jobs:
       run: |
         # stop the build if there are Python syntax errors or undefined names
         flake8 --max-line-length=88 --extend-ignore=E203 fpfs
+
     - name: Test with pytest
       run: |
         pytest -vv
