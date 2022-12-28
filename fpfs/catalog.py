@@ -154,7 +154,7 @@ def get_wsel_eff(x, cut, sigma, use_sig, deriv=0):
     if use_sig:
         out = sigfunc(x, deriv=deriv, mu=cut, sigma=sigma)
     else:
-        out = tsfunc1(x, deriv=deriv, mu=cut, sigma=sigma)
+        out = tsfunc2(x, deriv=deriv, mu=cut, sigma=sigma)
     return out
 
 
