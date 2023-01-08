@@ -22,10 +22,10 @@ import astropy.io.fits as pyfits
 from .default import __data_dir__
 
 logging.basicConfig(
-        format="%(asctime)s %(message)s",
-        datefmt="%Y/%m/%d %H:%M:%S --- ",
-        level=logging.INFO
-        )
+    format="%(asctime)s %(message)s",
+    datefmt="%Y/%m/%d %H:%M:%S --- ",
+    level=logging.INFO,
+)
 
 nrot_default = 4
 # use 4 rotations for ring test (to remove any spin-2 and spin-4 residuals in
@@ -463,7 +463,7 @@ def make_basic_sim(
         rot2 (float):           additional rotation angle
     """
     if catname is None:
-        catname = os.path.join(__data_dir__, 'cat_used.fits')
+        catname = os.path.join(__data_dir__, "cat_used.fits")
     outFname = os.path.join(outDir, "image-%d-%s.fits" % (Id0, gname))
     if os.path.isfile(outFname):
         logging.info("Already have the outcome.")
@@ -713,7 +713,7 @@ def make_gal_ssbg(shear, psf, rng, r1, r0=20.0):
     noimg = rng.normal(scale=1.0, size=img.shape)
     # get the current flux using the 5x5 substamps centered at the stamp's center
     flux_tmp = np.sum(
-        img[ngrid // 2 - 2:ngrid // 2 + 3, ngrid // 2 - 2:ngrid // 2 + 3]
+        img[ngrid // 2 - 2 : ngrid // 2 + 3, ngrid // 2 - 2 : ngrid // 2 + 3]
     )
     # the current (expectation of) total noise std on the 5x5 substamps is 5
     # since for each pixel, the expecatation value of variance is 1; therefore,

@@ -82,10 +82,10 @@ def tsfunc2(x, mu=0.0, sigma=1.5, deriv=0):
         return 1.0 / 2.0 / sigma + 1.0 / 2.0 / sigma * np.cos(np.pi * t)
 
     def func3(t):
-        return (-np.pi / 2.0 / sigma**2.0 * np.sin(np.pi * t))
+        return -np.pi / 2.0 / sigma**2.0 * np.sin(np.pi * t)
 
     def func4(t):
-        return (-((np.pi) ** 2.0) / 2.0 / sigma**3.0 * np.cos(np.pi * t))
+        return -((np.pi) ** 2.0) / 2.0 / sigma**3.0 * np.cos(np.pi * t)
 
     if deriv == 0:
         return np.piecewise(t, [t < -1, (t >= -1) & (t <= 1), t > 1], [0.0, func, 1.0])
@@ -306,12 +306,12 @@ def fpfsM2E(mm, const=1.0, noirev=False):
             e1e1
             - (mm["fpfs_N22cN22c"]) / _w**2.0
             + 4.0 * (e1 * mm["fpfs_N00N22c"]) / _w**2.0
-        ) - 3 * ratio*e1e1
+        ) - 3 * ratio * e1e1
         e2e2 = (
             e2e2
             - (mm["fpfs_N22sN22s"]) / _w**2.0
             + 4.0 * (e2 * mm["fpfs_N00N22s"]) / _w**2.0
-        ) - 3 * ratio*e2e2
+        ) - 3 * ratio * e2e2
         eM22 = (
             eM22
             - (mm["fpfs_N22cN22c"] + mm["fpfs_N22sN22s"]) / _w
@@ -327,16 +327,16 @@ def fpfsM2E(mm, const=1.0, noirev=False):
         # (the following two expressions are accurate to second order of noise)
         # e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) / (1 + ratio)
         # e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) / (1 + ratio)
-        e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) - ratio*e1
-        e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) - ratio*e2
+        e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) - ratio * e1
+        e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) - ratio * e2
         # noise bias correction for flux, size
         # (the following two expressions are accurate to second order of noise)
         # s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) / (1 + ratio)
         # s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) / (1 + ratio)
         # s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) / (1 + ratio)
-        s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) - ratio*s0
-        s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) - ratio*s2
-        s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) - ratio*s4
+        s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) - ratio * s0
+        s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) - ratio * s2
+        s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) - ratio * s4
 
     # spin-2 properties
     out["fpfs_e1"] = e1  # ellipticity

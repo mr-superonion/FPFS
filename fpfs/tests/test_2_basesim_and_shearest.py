@@ -55,6 +55,7 @@ def do_test(scale, Id0, rcut):
     assert np.all(np.abs(shear + 0.02) < thres)
     return
 
+
 def test_hsc():
     print("Testing HSC-like image")
     do_test(0.168, 2, 16)
