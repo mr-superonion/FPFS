@@ -13,6 +13,7 @@
 #
 # python lib
 
+import math
 import numpy as np
 import scipy.ndimage as ndi
 
@@ -190,7 +191,8 @@ def detlets2D(ngrid, sigma):
 
 
 def shapelets2D(ngrid, nord, sigma):
-    """Generates shapelets function in Fourier space, chi00 are normalized to 1
+    """Generates complex shapelets function in Fourier space, chi00 are
+    normalized to 1
     [only support square stamps: ny=nx=ngrid]
 
     Args:
@@ -228,8 +230,8 @@ def shapelets2D(ngrid, nord, sigma):
         for mm in range(nn, -1, -2):
             c1 = (nn - abs(mm)) // 2
             d1 = (nn + abs(mm)) // 2
-            cc = np.math.factorial(c1) + 0.0
-            dd = np.math.factorial(d1) + 0.0
+            cc = math.factorial(c1) + 0.0
+            dd = math.factorial(d1) + 0.0
             cc = cc / dd
             chi[nn, mm, :, :] = (
                 pow(-1.0, d1)
@@ -243,6 +245,70 @@ def shapelets2D(ngrid, nord, sigma):
     # return chi*dk^2 (assuming pixel scale in configuration space is 1)
     chi = chi / ngrid**2.0
     return chi
+
+def shapelets2D_real(ngrid, nord, sigma):
+    """Generates real shapelets function in Fourier space, chi00 are
+    normalized to 1
+    [only support square stamps: ny=nx=ngrid]
+
+    Args:
+        ngrid (int):    number of pixels in x and y direction
+        nord (int):     radial order of the shaplets
+        sigma (float):  scale of shapelets in Fourier space
+    Returns:
+        chi_2 (ndarray): 2D shapelet basis w/ shape [n,ngrid,ngrid]
+        nameS (list):   A list of shaplet names w/ shape [n]
+
+    """
+    # nm = m*(nnord+1)+n
+    if nord == 4:
+        # This setup is for shear response only
+        # Only uses M00, M20, M22 (real and img) and M40, M42
+        indM = np.array([0, 10, 12, 20, 22])[:, None, None]
+        nameS = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s"]
+        indS = [0, 1, 2, 2, 3, 4, 4]
+    elif nord == 6:
+        # This setup is able to derive kappa response and shear response
+        # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
+        indM = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
+        nameS = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s", "m60"]
+        indS = [0, 1, 2, 2, 3, 4, 4, 5]
+    else:
+        raise ValueError(
+            "only support for nnord= 4 or nnord=6, but your input\
+                is nnord=%d"
+            % nord
+        )
+    # generate the complex shaplet functions
+    chi = shapelets2D(ngrid, nord, sigma).reshape(
+        ((nord + 1) ** 2, ngrid, ngrid)
+        )[indM, :, :]
+    # transform to real shapelet functions
+    chi_2 = np.zeros((len(nameS), ngrid, ngrid), dtype=np.float64)
+    for i,ind in enumerate(indS):
+        chi_2[i] = chi[ind]
+    del chi
+    return chi_2, nameS
+
+def FPFS_bases(ngrid, nord, sigma):
+    bfunc,bnames = shapelets2D_real(
+        ngrid,
+        nord,
+        sigma,
+    )
+    psi = detlets2D(
+        ngrid,
+        sigma,
+    )
+    bnames = bnames + [
+    "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
+    "v0_g1", "v1_g1", "v2_g1", "v3_g1",
+    "v4_g1", "v5_g1", "v6_g1", "v7_g1",
+    "v0_g2", "v1_g2", "v2_g2", "v3_g2",
+    "v4_g2", "v5_g2", "v6_g2", "v7_g2",
+    ]
+    bfunc = np.vstack([bfunc, np.swapaxes(psi, 0, 1)])
+    return bfunc, bnames
 
 
 def fitNoiPow(ngrid, galPow, noiModel, rlim):
