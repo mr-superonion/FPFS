@@ -44,7 +44,7 @@ def simulate_gal_psf(scale, Id0, rcut):
     return image_list, psf_data
 
 
-def test_gals(scale, Id0, rcut):
+def do_test(scale, Id0, rcut):
     thres = 1e-5
     image_list, psf_data = simulate_gal_psf(scale, Id0, rcut)
     fpTask = fpfs.image.measure_source(psf_data, noiFit=0.0, sigma_arcsec=0.7)
@@ -55,6 +55,11 @@ def test_gals(scale, Id0, rcut):
     assert np.all(np.abs(shear + 0.02) < thres)
     return
 
+def test_hsc():
+    print("Testing HSC-like image")
+    do_test(0.168, 2, 16)
+    return
+
 
 if __name__ == "__main__":
-    test_gals(0.168, 2, 16)
+    test_hsc()
