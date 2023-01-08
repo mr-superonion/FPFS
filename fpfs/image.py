@@ -195,9 +195,8 @@ class measure_noise:
             self.ngrid,
             self.sigmaF,
         )[:, :, self._indY, self._indX]
-        logging.info("measurement error covariance will be calculated")
-        self.prepare_ChiCov(chi)
-        self.prepare_detCov(chi, psi)
+        # self.prepare_ChiCov(chi)
+        # self.prepare_detCov(chi, psi)
         return
 
     def reset_psf(self):

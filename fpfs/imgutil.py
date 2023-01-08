@@ -117,8 +117,8 @@ def getFouPow_rft(arrayIn):
     # Get power function and subtract noise power
     foupow = np.empty((ngrid, ngrid), dtype=np.float64)
     tmp2 = np.roll(np.flip(tmp), axis=0, shift=1)
-    foupow[:, :ngrid // 2 + 1] = tmp2
-    foupow[:, ngrid // 2:] = tmp[:, :-1]
+    foupow[:, : ngrid // 2 + 1] = tmp2
+    foupow[:, ngrid // 2 :] = tmp[:, :-1]
     return foupow
 
 
@@ -246,6 +246,7 @@ def shapelets2D(ngrid, nord, sigma):
     chi = chi / ngrid**2.0
     return chi
 
+
 def shapelets2D_real(ngrid, nord, sigma):
     """Generates real shapelets function in Fourier space, chi00 are
     normalized to 1
@@ -280,18 +281,19 @@ def shapelets2D_real(ngrid, nord, sigma):
             % nord
         )
     # generate the complex shaplet functions
-    chi = shapelets2D(ngrid, nord, sigma).reshape(
-        ((nord + 1) ** 2, ngrid, ngrid)
-        )[indM, :, :]
+    chi = shapelets2D(ngrid, nord, sigma).reshape(((nord + 1) ** 2, ngrid, ngrid))[
+        indM, :, :
+    ]
     # transform to real shapelet functions
     chi_2 = np.zeros((len(nameS), ngrid, ngrid), dtype=np.float64)
-    for i,ind in enumerate(indS):
+    for i, ind in enumerate(indS):
         chi_2[i] = chi[ind]
     del chi
     return chi_2, nameS
 
+
 def FPFS_bases(ngrid, nord, sigma):
-    bfunc,bnames = shapelets2D_real(
+    bfunc, bnames = shapelets2D_real(
         ngrid,
         nord,
         sigma,
@@ -301,11 +303,30 @@ def FPFS_bases(ngrid, nord, sigma):
         sigma,
     )
     bnames = bnames + [
-    "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7",
-    "v0_g1", "v1_g1", "v2_g1", "v3_g1",
-    "v4_g1", "v5_g1", "v6_g1", "v7_g1",
-    "v0_g2", "v1_g2", "v2_g2", "v3_g2",
-    "v4_g2", "v5_g2", "v6_g2", "v7_g2",
+        "v0",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5",
+        "v6",
+        "v7",
+        "v0_g1",
+        "v1_g1",
+        "v2_g1",
+        "v3_g1",
+        "v4_g1",
+        "v5_g1",
+        "v6_g1",
+        "v7_g1",
+        "v0_g2",
+        "v1_g2",
+        "v2_g2",
+        "v3_g2",
+        "v4_g2",
+        "v5_g2",
+        "v6_g2",
+        "v7_g2",
     ]
     bfunc = np.vstack([bfunc, np.swapaxes(psi, 0, 1)])
     return bfunc, bnames
