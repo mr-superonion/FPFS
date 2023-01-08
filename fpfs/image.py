@@ -197,7 +197,7 @@ class measure_noise:
         )[:, :, self._indY, self._indX]
         # self.prepare_ChiCov(chi)
         # self.prepare_detCov(chi, psi)
-        return
+        return psi
 
     def reset_psf(self):
         """
