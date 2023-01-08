@@ -21,10 +21,10 @@ from . import imgutil
 
 
 logging.basicConfig(
-        format="%(asctime)s %(message)s",
-        datefmt="%Y/%m/%d %H:%M:%S --- ",
-        level=logging.INFO
-        )
+    format="%(asctime)s %(message)s",
+    datefmt="%Y/%m/%d %H:%M:%S --- ",
+    level=logging.INFO,
+)
 
 
 def detect_sources(
@@ -59,8 +59,8 @@ def detect_sources(
         # apply a truncation in Fourier space
         nxklim = int(klim * nx / np.pi / 2.0 + 0.5)
         nyklim = int(klim * ny / np.pi / 2.0 + 0.5)
-        imgF[nyklim + 1: -nyklim, :] = 0.0
-        imgF[:, nxklim + 1:] = 0.0
+        imgF[nyklim + 1 : -nyklim, :] = 0.0
+        imgF[:, nxklim + 1 :] = 0.0
     else:
         # no truncation in Fourier space
         pass
@@ -105,6 +105,7 @@ def get_klim(psf_array, sigma, thres=1e-20):
             klim = dist
             break
     return klim
+
 
 class measure_noise:
     """A class to measure FPFS shapelet mode estimation
@@ -169,7 +170,7 @@ class measure_noise:
         self.sigmaF = self.pix_scale / sigma_arcsec
         sigma_pix = self.sigmaF / self._dk
         logging.info(
-            "Gaussian kernel in configuration space: sigma= %.4f arcsec" \
+            "Gaussian kernel in configuration space: sigma= %.4f arcsec"
             % (sigma_arcsec)
         )
         # effective nyquest wave number
@@ -185,7 +186,7 @@ class measure_noise:
         self._indY = self._indX[:, None]
         self._ind2D = np.ix_(self._indX, self._indX)
 
-        bfunc,bnames = imgutil.shapelets2D_real(
+        bfunc, bnames = imgutil.shapelets2D_real(
             self.ngrid,
             nnord,
             self.sigmaF,
