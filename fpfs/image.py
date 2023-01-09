@@ -184,8 +184,8 @@ class measure_noise_cov:
         self.bfunc = bfunc[:, self._indY, self._indX]
         self.bnames = bnames
 
-        decNp = self.deconvolve(noiFit, prder=1, frder=0)
-        return decNp
+        # decNp = self.deconvolve(noiFit, prder=1, frder=0)
+        return
 
     def setRlim(self, klim):
         """
