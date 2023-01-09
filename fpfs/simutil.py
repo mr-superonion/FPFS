@@ -19,12 +19,13 @@ import galsim
 import logging
 import numpy as np
 import astropy.io.fits as pyfits
+from .default import __data_dir__
 
 logging.basicConfig(
-        format="%(asctime)s %(message)s",
-        datefmt="%Y/%m/%d %H:%M:%S --- ",
-        level=logging.INFO
-        )
+    format="%(asctime)s %(message)s",
+    datefmt="%Y/%m/%d %H:%M:%S --- ",
+    level=logging.INFO,
+)
 
 nrot_default = 4
 # use 4 rotations for ring test (to remove any spin-2 and spin-4 residuals in
@@ -163,7 +164,7 @@ def coord_rotate(x, y, xref, yref, theta):
 
 def make_cosmo_sim(
     outDir,
-    incname,
+    catname,
     psfInt,
     gname,
     Id0,
@@ -182,7 +183,7 @@ def make_cosmo_sim(
 
     Args:
         outDir (str):           output directory
-        incname (str):          input catalog Name
+        catname (str):          input catalog Name
         psfInt (PSF):           input PSF object of galsim
         gname (str):            shear distortion setup
         Id0 (int):              index of the simulation
@@ -224,7 +225,7 @@ def make_cosmo_sim(
     )
 
     # get the cosmos catalog
-    inCat = pyfits.getdata(incname)
+    inCat = pyfits.getdata(catname)
     ntrain = len(inCat)
     inds = np.random.randint(0, ntrain, ngeff)
     inCat = inCat[inds]
@@ -433,10 +434,10 @@ def galsim_round_sersic(n, sersic_prec):
 
 def make_basic_sim(
     outDir,
-    incname,
     psfInt,
     gname,
     Id0,
+    catname=None,
     ny=6400,
     nx=6400,
     scale=0.168,
@@ -450,10 +451,10 @@ def make_basic_sim(
 
     Args:
         outDir (str):           output directory
-        incname (str):          input catalog Name
         psfInt (PSF):           input PSF object of galsim
         gname (str):            shear distortion setup
         Id0 (int):              index of the simulation
+        catname (str):          input catalog Name
         ny (int):               number of pixels in y direction
         nx (int):               number of pixels in y direction
         do_write (bool):        whether write output [default: True]
@@ -461,6 +462,8 @@ def make_basic_sim(
         magzero (float):        magnitude zero point [27 for HSC]
         rot2 (float):           additional rotation angle
     """
+    if catname is None:
+        catname = os.path.join(__data_dir__, "cat_used.fits")
     outFname = os.path.join(outDir, "image-%d-%s.fits" % (Id0, gname))
     if os.path.isfile(outFname):
         logging.info("Already have the outcome.")
@@ -504,10 +507,10 @@ def make_basic_sim(
         # catName     =   'real_galaxy_catalog_25.2.fits'
         # cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
         # catalog
-        inCat = pyfits.getdata(incname)
+        inCat = pyfits.getdata(catname)
         ntrain = len(inCat)
         nrot = nrot_default
-        ngeff = ngal // nrot
+        ngeff = max(ngal // nrot, 1)
         inds = np.random.randint(0, ntrain, ngeff)
         inCat = inCat[inds]
         gal0 = None
@@ -553,6 +556,7 @@ def make_basic_sim(
                 dy = np.random.uniform(-0.5, 0.5) * scale
                 gal = gal.shift(dx, dy)
             # shift to (ngrid//2,ngrid//2)
+            # the random shift is relative to this point
             gal = galsim.Convolve([psfInt, gal], gsparams=bigfft)
             gal = gal.shift(0.5 * scale, 0.5 * scale)
             # draw galaxy
@@ -631,7 +635,7 @@ def make_noise_sim(
 
     Args:
         outDir (str):           output directory
-        incname (str):          input correlation function name
+        catname (str):          input correlation function name
         Id0 (int):              index of the simulation
         ny (int):               number of pixels in y direction
         nx (int):               number of pixels in x direction
@@ -709,7 +713,7 @@ def make_gal_ssbg(shear, psf, rng, r1, r0=20.0):
     noimg = rng.normal(scale=1.0, size=img.shape)
     # get the current flux using the 5x5 substamps centered at the stamp's center
     flux_tmp = np.sum(
-        img[ngrid // 2 - 2:ngrid // 2 + 3, ngrid // 2 - 2:ngrid // 2 + 3]
+        img[ngrid // 2 - 2 : ngrid // 2 + 3, ngrid // 2 - 2 : ngrid // 2 + 3]
     )
     # the current (expectation of) total noise std on the 5x5 substamps is 5
     # since for each pixel, the expecatation value of variance is 1; therefore,

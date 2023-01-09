@@ -18,7 +18,10 @@ import fpfs
 import schwimmbad
 import numpy as np
 import pandas as pd
-from fpfs.default import *
+from fpfs.default import (
+    sigP, sigM, sigR,
+    cutP, cutM, cutR,
+)
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
@@ -101,7 +104,8 @@ class Worker(object):
         fs1 = fpfs.catalog.summary_stats(mm1, ellM1, use_sig=False, ratio=1.0)
         fs2 = fpfs.catalog.summary_stats(mm2, ellM2, use_sig=False, ratio=1.0)
 
-        # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'), ('res1','<f8'), ('res2','<f8')]
+        # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'),
+        # ('res1','<f8'), ('res2','<f8')]
         out = np.zeros((6, self.ncut))
         for i in range(self.ncut):
             fs1.clear_outcomes()

@@ -194,7 +194,8 @@ class Worker(object):
                     del indX, indY, inds
                 else:
                     raise ValueError(
-                        "Do not support the case without detection on galaxies with center offsets. "
+                        "Do not support the case without detection on \
+                        galaxies with center offsets. "
                     )
             else:
                 if self.sigma_as < 0.5:
