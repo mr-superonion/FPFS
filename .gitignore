@@ -13,6 +13,7 @@ doc/_latex/*
 _build
 dist
 examples/output
+examples/command_line/output
 *.html
 *.aux
 *.bbl
