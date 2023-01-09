@@ -59,8 +59,8 @@ def detect_sources(
         # apply a truncation in Fourier space
         nxklim = int(klim * nx / np.pi / 2.0 + 0.5)
         nyklim = int(klim * ny / np.pi / 2.0 + 0.5)
-        imgF[nyklim + 1 : -nyklim, :] = 0.0
-        imgF[:, nxklim + 1 :] = 0.0
+        imgF[nyklim + 1: -nyklim, :] = 0.0
+        imgF[:, nxklim + 1:] = 0.0
     else:
         # no truncation in Fourier space
         pass
@@ -120,7 +120,7 @@ class measure_noise_cov:
         pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
     """
 
-    _DefaultName = "measure_noise"
+    _DefaultName = "measure_noise_cov"
 
     def __init__(
         self,
@@ -147,25 +147,15 @@ class measure_noise_cov:
         else:
             raise TypeError("noiFit should be either np.ndarray or float")
         # we keep a copy of the initial noise Fourier power
-        self.noiFit0 = self.noiFit
 
         # Preparing PSF
         psfData = np.array(psfData, dtype="<f8")
         self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
-        self.psfFou0 = self.psfFou.copy()  # keep a copy of the initial PSF
         self.psfPow = imgutil.getFouPow(psfData)
-        self.psfPow0 = self.psfPow.copy()  # keep a copy of the initial PSF power
 
         # A few import scales
         self.pix_scale = pix_scale  # this is only used to normalize basis functions
         self._dk = 2.0 * np.pi / self.ngrid  # assuming pixel scale is 1
-        # beta
-        # # scale radius of PSF's Fourier transform (in units of dk)
-        # sigmaPsf    =   imgutil.getRnaive(self.psfPow)*np.sqrt(2.)
-        # # shapelet scale
-        # sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
-        # self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
-        # sigma_arcsec  =   1./self.sigmaF*self.pix_scale
 
         self.sigmaF = self.pix_scale / sigma_arcsec
         sigma_pix = self.sigmaF / self._dk
@@ -193,24 +183,9 @@ class measure_noise_cov:
         )
         self.bfunc = bfunc[:, self._indY, self._indX]
         self.bnames = bnames
-        # self.prepare_ChiCov(chi)
-        # self.prepare_detCov(chi, psi)
-        return
 
-    def reset_psf(self):
-        """
-        reset psf power to the average PSF used to initialize the task
-        """
-        self.psfFou = self.psfFou0
-        self.psfPow = np.conjugate(self.psfFou) * self.psfFou
-        return
-
-    def reset_noiFit(self):
-        """
-        reset noiFit to the one used to initialize the task
-        """
-        self.noiFit = self.noiFit0
-        return
+        decNp = self.deconvolve(noiFit, prder=1, frder=0)
+        return decNp
 
     def setRlim(self, klim):
         """
@@ -223,90 +198,6 @@ class measure_noise_cov:
         )
         self._indY = self._indX[:, None]
         self._ind2D = np.ix_(self._indX, self._indX)
-        return
-
-    def prepare_ChiCov(self, chi):
-        """Prepares the basis to estimate covariance of measurement error
-
-        Args:
-            chi (ndarray):    2D shapelet basis
-        """
-        out = []
-        # diagonal terms
-        out.append(chi.real[0] * chi.real[0])  # x00 x00
-        out.append(chi.real[1] * chi.real[1])  # x20 x20
-        out.append(chi.real[2] * chi.real[2])  # x22c x22c
-        out.append(chi.imag[2] * chi.imag[2])  # x22s x22s
-        out.append(chi.real[3] * chi.real[3])  # x40 x40
-        # off-diagonal terms
-        #
-        out.append(chi.real[0] * chi.real[1])  # x00 x20
-        out.append(chi.real[0] * chi.real[2])  # x00 x22c
-        out.append(chi.real[0] * chi.imag[2])  # x00 x22s
-        out.append(chi.real[0] * chi.real[3])  # x00 x40
-        out.append(chi.real[0] * chi.real[4])  # x00 x42c
-        out.append(chi.real[0] * chi.imag[4])  # x00 x42s
-        #
-        out.append(chi.real[1] * chi.real[2])  # x20 x22c
-        out.append(chi.real[1] * chi.imag[2])  # x20 x22s
-        out.append(chi.real[1] * chi.real[3])  # x20 x40
-        out.append(chi.real[2] * chi.real[4])  # x22c x42c
-        out.append(chi.imag[2] * chi.imag[4])  # x22s x42s
-        out = np.stack(out)
-        self.cov_types = [
-            ("fpfs_N00N00", "<f8"),
-            ("fpfs_N20N20", "<f8"),
-            ("fpfs_N22cN22c", "<f8"),
-            ("fpfs_N22sN22s", "<f8"),
-            ("fpfs_N40N40", "<f8"),
-            ("fpfs_N00N20", "<f8"),
-            ("fpfs_N00N22c", "<f8"),
-            ("fpfs_N00N22s", "<f8"),
-            ("fpfs_N00N40", "<f8"),
-            ("fpfs_N00N42c", "<f8"),
-            ("fpfs_N00N42s", "<f8"),
-            ("fpfs_N20N22c", "<f8"),
-            ("fpfs_N20N22s", "<f8"),
-            ("fpfs_N20N40", "<f8"),
-            ("fpfs_N22cN42c", "<f8"),
-            ("fpfs_N22sN42s", "<f8"),
-        ]
-        assert len(out) == len(self.cov_types)
-        self.chiCov = out
-        del out
-        return
-
-    def prepare_detCov(self, chi, psi):
-        """Prepares the basis to estimate covariance for detection
-
-        Args:
-            chi (ndarray):      2D shapelet basis
-            psi (ndarray):      2D pixel basis
-        """
-        # get the Gaussian scale in Fourier space
-        out = []
-        self.det_types = []
-        for _ in range(8):
-            out.append(chi.real[0] * psi[_, 0])  # x00*psi
-            out.append(chi.real[0] * psi[_, 1])  # x00*psi;1
-            out.append(chi.real[0] * psi[_, 2])  # x00*psi;2
-            out.append(chi.real[2] * psi[_, 0])  # x22c*psi
-            out.append(chi.imag[2] * psi[_, 0])  # x22s*psi
-            out.append(chi.real[2] * psi[_, 1])  # x22c*psi;1
-            out.append(chi.imag[2] * psi[_, 2])  # x22s*psi;2
-            out.append(chi.real[3] * psi[_, 0])  # x40*psi
-            self.det_types.append(("fpfs_N00V%d" % _, "<f8"))
-            self.det_types.append(("fpfs_N00V%dr1" % _, "<f8"))
-            self.det_types.append(("fpfs_N00V%dr2" % _, "<f8"))
-            self.det_types.append(("fpfs_N22cV%d" % _, "<f8"))
-            self.det_types.append(("fpfs_N22sV%d" % _, "<f8"))
-            self.det_types.append(("fpfs_N22cV%dr1" % _, "<f8"))
-            self.det_types.append(("fpfs_N22sV%dr2" % _, "<f8"))
-            self.det_types.append(("fpfs_N40V%d" % _, "<f8"))
-        out = np.stack(out)
-        assert len(out) == len(self.det_types)
-        self.detCov = out
-        del out
         return
 
     def deconvolve(self, data, prder=1.0, frder=1.0):
@@ -331,63 +222,6 @@ class measure_noise_cov:
             / self.psfFou[self._ind2D] ** frder
         )
         return out
-
-    def itransform(self, data, out_type="Chi"):
-        """Projects image onto shapelet basis vectors
-
-        Args:
-            data (ndarray): image to transfer
-            out_type (str): transform type ('Chi', 'Psi', 'Cov', or 'detCov')
-        Returns:
-            out (ndarray):  projection in shapelet space
-        """
-
-        # Here we divide by self.pix_scale**2. for modes since pixel value are
-        # flux in pixel (in unit of nano Jy for HSC). After dividing pix_scale**2.,
-        # in units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
-        # Correspondingly, covariances are divided by self.pix_scale**4.
-        if out_type == "Cov":
-            # covariance of moments
-            _ = (
-                np.sum(
-                    data[None, self._indY, self._indX] * self.chiCov, axis=(1, 2)
-                ).real
-                / self.pix_scale**4.0
-            )
-            out = np.array(tuple(_), dtype=self.cov_types)
-        elif out_type == "detCov":
-            # covariance of pixels
-            _ = (
-                np.sum(
-                    data[None, self._indY, self._indX] * self.detCov, axis=(1, 2)
-                ).real
-                / self.pix_scale**4.0
-            )
-            out = np.array(tuple(_), dtype=self.det_types)
-        else:
-            raise ValueError(
-                "out_type can only be 'Chi', 'Cov' or 'Det',\
-                    but the input is '%s'"
-                % out_type
-            )
-        return out
-
-    def measure(self, noiFit=None):
-        """Measures the FPFS moments
-
-        Args:
-            noiFit (ndarray):           noise Fourier power function
-        Returns:
-            out (ndarray):              FPFS moments for noise covariance
-        """
-        if noiFit is None:
-            noiFit = self.noiFit
-        noiFit = self.noiFit
-        decNp = self.deconvolve(noiFit, prder=1, frder=0)
-        nn = self.itransform(decNp, out_type="Cov")
-        dd = self.itransform(decNp, out_type="detCov")
-        mm = rfn.merge_arrays([nn, dd], flatten=True, usemask=False)
-        return mm
 
 
 class measure_source:
