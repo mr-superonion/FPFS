@@ -21,10 +21,10 @@ from . import imgutil
 
 
 logging.basicConfig(
-        format="%(asctime)s %(message)s",
-        datefmt="%Y/%m/%d %H:%M:%S --- ",
-        level=logging.INFO
-        )
+    format="%(asctime)s %(message)s",
+    datefmt="%Y/%m/%d %H:%M:%S --- ",
+    level=logging.INFO,
+)
 
 
 def detect_sources(
@@ -34,13 +34,13 @@ def detect_sources(
 
     Args:
         imgData (ndarray):      observed image
-        psfData (ndarray):      PSF image [well-centered]
+        psfData (ndarray):      PSF image [must be well-centered]
         gsigma (float):         sigma of the Gaussian smoothing kernel in
                                 *Fourier* space
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
-        pixel_scale (float):    pixel scale in arcsec
+        pixel_scale (float):    pixel scale in arcsec [set to 1]
     Returns:
         coords (ndarray):       peak values and the shear responses
     """
@@ -105,6 +105,123 @@ def get_klim(psf_array, sigma, thres=1e-20):
             klim = dist
             break
     return klim
+
+
+class measure_noise_cov:
+    """A class to measure FPFS noise covariance of basis modes
+
+    Args:
+        psfData (ndarray):  an average PSF image used to initialize the task
+        beta (float):       FPFS scale parameter
+        nnord (int):        the highest order of Shapelets radial components
+                            [default: 4]
+        noiFit (ndarray):   Estimated noise power function, if you have already
+                            estimated noise power [default: None]
+        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
+    """
+
+    _DefaultName = "measure_noise_cov"
+
+    def __init__(
+        self,
+        psfData,
+        sigma_arcsec,
+        nnord=4,
+        noiFit=None,
+        pix_scale=0.168,
+    ):
+        if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
+            raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
+        self.ngrid = psfData.shape[0]
+        # Preparing noise
+        if isinstance(noiFit, np.ndarray):
+            assert (
+                noiFit.shape == psfData.shape
+            ), "the input noise power should have the same shape\
+                with input psf image"
+            self.noiFit = np.array(noiFit, dtype="<f8")
+        elif isinstance(noiFit, float):
+            self.noiFit = (
+                np.ones_like(psfData, dtype="<f8") * noiFit * (self.ngrid) ** 2.0
+            )
+        else:
+            raise TypeError("noiFit should be either np.ndarray or float")
+        # we keep a copy of the initial noise Fourier power
+
+        # Preparing PSF
+        psfData = np.array(psfData, dtype="<f8")
+        self.psfFou = np.fft.fftshift(np.fft.fft2(psfData))
+        self.psfPow = imgutil.getFouPow(psfData)
+
+        # A few import scales
+        self.pix_scale = pix_scale  # this is only used to normalize basis functions
+        self._dk = 2.0 * np.pi / self.ngrid  # assuming pixel scale is 1
+
+        self.sigmaF = self.pix_scale / sigma_arcsec
+        sigma_pix = self.sigmaF / self._dk
+        logging.info(
+            "Gaussian kernel in configuration space: sigma= %.4f arcsec"
+            % (sigma_arcsec)
+        )
+        # effective nyquest wave number
+        self.klim_pix = get_klim(
+            self.psfPow, sigma_pix / np.sqrt(2.0)
+        )  # in pixel units
+        self.klim = self.klim_pix * self._dk  # assume pixel scale is 1
+        # index selectors
+        self._indX = np.arange(
+            self.ngrid // 2 - self.klim_pix,
+            self.ngrid // 2 + self.klim_pix + 1,
+        )
+        self._indY = self._indX[:, None]
+        self._ind2D = np.ix_(self._indX, self._indX)
+
+        bfunc, bnames = imgutil.FPFS_bases(
+            self.ngrid,
+            nnord,
+            self.sigmaF,
+        )
+        self.bfunc = bfunc[:, self._indY, self._indX]
+        self.bnames = bnames
+
+        # decNp = self.deconvolve(noiFit, prder=1, frder=0)
+        return
+
+    def setRlim(self, klim):
+        """
+        set klim, the area outside klim is supressed by the shaplet Gaussian
+        kerenl
+        """
+        self.klim_pix = klim
+        self._indX = np.arange(
+            self.ngrid // 2 - self.klim_pix, self.ngrid // 2 + self.klim_pix + 1
+        )
+        self._indY = self._indX[:, None]
+        self._ind2D = np.ix_(self._indX, self._indX)
+        return
+
+    def deconvolve(self, data, prder=1.0, frder=1.0):
+        """Deconvolves input data with the PSF or PSF power
+
+        Args:
+            data (ndarray):
+                galaxy power or galaxy Fourier transfer, origin is set to
+                [ngrid//2,ngrid//2]
+            prder (float):
+                deconvlove order of PSF FT power
+            frder (float):
+                deconvlove order of PSF FT
+        Returns:
+            out (ndarray):
+                Deconvolved galaxy power [truncated at klim]
+        """
+        out = np.zeros(data.shape, dtype=np.complex64)
+        out[self._ind2D] = (
+            data[self._ind2D]
+            / self.psfPow[self._ind2D] ** prder
+            / self.psfFou[self._ind2D] ** frder
+        )
+        return out
 
 
 class measure_source:
@@ -186,7 +303,8 @@ class measure_source:
         self.sigmaF = self.pix_scale / sigma_arcsec
         sigma_pix = self.sigmaF / self._dk
         logging.info(
-            "Gaussian in configuration space: sigma= %.4f arcsec" % (sigma_arcsec)
+            "Gaussian kernel in configuration space: sigma= %.4f arcsec"
+            % (sigma_arcsec)
         )
         # effective nyquest wave number
         self.klim_pix = get_klim(
@@ -337,6 +455,7 @@ class measure_source:
         out = np.stack(out)
         assert len(out) == len(self.psi_types)
         self.Psi = out
+        self.psi = psi
         del out
         return
 

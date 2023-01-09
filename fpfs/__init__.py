@@ -7,5 +7,6 @@ from . import simutil
 from . import pltutil
 from . import default
 from . import pltutil
+from .default import __data_dir__
 
 __all__ = ["image", "imgutil", "catalog", "simutil", "pltutil", "default"]

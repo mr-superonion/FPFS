@@ -12,6 +12,7 @@
 # GNU General Public License for more details.
 #
 # python lib
+import os
 sigM = 0.2
 sigR = 0.2
 sigP = 0.2
@@ -19,3 +20,5 @@ cutM = 25.0
 cutR = 0.03
 cutP = 0.005
 cutRU = 2.0
+
+__data_dir__ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
