@@ -28,12 +28,12 @@ logging.basicConfig(
 
 
 def detect_sources(
-    imgData, psf_data, gsigma, thres=0.04, thres2=-0.01, klim=-1.0, pixel_scale=1.0
+    img_data, psf_data, gsigma, thres=0.04, thres2=-0.01, klim=-1.0, pixel_scale=1.0
 ):
     """Returns the coordinates of detected sources
 
     Args:
-        imgData (ndarray):      observed image
+        img_data (ndarray):      observed image
         psf_data (ndarray):      PSF image [must be well-centered]
         gsigma (float):         sigma of the Gaussian smoothing kernel in
                                 *Fourier* space
@@ -46,32 +46,34 @@ def detect_sources(
     """
 
     assert (
-        imgData.shape == psf_data.shape
+        img_data.shape == psf_data.shape
     ), "image and PSF should have the same\
             shape. Please do padding before using this function."
     ny, nx = psf_data.shape
-    psfF = np.fft.rfft2(np.fft.ifftshift(psf_data))
-    gKer, _ = imgutil.gauss_kernel(ny, nx, gsigma, return_grid=True, use_rfft=True)
+    psf_fourier = np.fft.rfft2(np.fft.ifftshift(psf_data))
+    gauss_kernel, _ = imgutil.gauss_kernel(
+        ny, nx, gsigma, return_grid=True, use_rfft=True
+    )
 
     # convolved images
-    imgF = np.fft.rfft2(imgData) / psfF * gKer
+    img_fourier = np.fft.rfft2(img_data) / psf_fourier * gauss_kernel
     if klim > 0.0:
         # apply a truncation in Fourier space
         nxklim = int(klim * nx / np.pi / 2.0 + 0.5)
         nyklim = int(klim * ny / np.pi / 2.0 + 0.5)
-        imgF[nyklim + 1 : -nyklim, :] = 0.0
-        imgF[:, nxklim + 1 :] = 0.0
+        img_fourier[nyklim + 1 : -nyklim, :] = 0.0
+        img_fourier[:, nxklim + 1 :] = 0.0
     else:
         # no truncation in Fourier space
         pass
-    del psfF, psf_data
-    imgcov = np.fft.irfft2(imgF, (ny, nx))
+    del psf_fourier, psf_data
+    img_conv = np.fft.irfft2(img_fourier, (ny, nx))
     # the coordinates is not given, so we do another detection
     if not isinstance(thres, (int, float)):
         raise ValueError("thres must be float, but now got %s" % type(thres))
     if not isinstance(thres2, (int, float)):
         raise ValueError("thres2 must be float, but now got %s" % type(thres))
-    coords = imgutil.find_peaks(imgcov, thres, thres2)
+    coords = imgutil.find_peaks(img_conv, thres, thres2)
     return coords
 
 
@@ -136,15 +138,15 @@ class measure_base:
 
         # Preparing PSF
         psf_data = np.array(psf_data, dtype="<f8")
-        self.psfFou = np.fft.fftshift(np.fft.fft2(psf_data))
-        self.psfPow = imgutil.get_fourier_pow(psf_data)
+        self.psf_fourier = np.fft.fftshift(np.fft.fft2(psf_data))
+        self.psf_pow = imgutil.get_fourier_pow(psf_data)
 
         # A few import scales
         self.pix_scale = pix_scale  # this is only used to normalize basis functions
         self._dk = 2.0 * np.pi / self.ngrid  # assuming pixel scale is 1
         # # old function uses beta
         # # scale radius of PSF's Fourier transform (in units of dk)
-        # sigmaPsf    =   imgutil.get_r_naive(self.psfPow)*np.sqrt(2.)
+        # sigmaPsf    =   imgutil.get_r_naive(self.psf_pow)*np.sqrt(2.)
         # # shapelet scale
         # sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
         # self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
@@ -158,16 +160,16 @@ class measure_base:
         )
         # effective nyquest wave number
         self.klim_pix = get_klim(
-            self.psfPow, sigma_pix / np.sqrt(2.0)
+            self.psf_pow, sigma_pix / np.sqrt(2.0)
         )  # in pixel units
         self.klim = self.klim_pix * self._dk  # assume pixel scale is 1
         # index bounds
-        self._indX = np.arange(
+        self._indx = np.arange(
             self.ngrid // 2 - self.klim_pix,
             self.ngrid // 2 + self.klim_pix + 1,
         )
-        self._indY = self._indX[:, None]
-        self._ind2d = np.ix_(self._indX, self._indX)
+        self._indy = self._indx[:, None]
+        self._ind2d = np.ix_(self._indx, self._indx)
         return
 
     def set_klim(self, klim):
@@ -176,11 +178,11 @@ class measure_base:
         kerenl
         """
         self.klim_pix = klim
-        self._indX = np.arange(
+        self._indx = np.arange(
             self.ngrid // 2 - self.klim_pix, self.ngrid // 2 + self.klim_pix + 1
         )
-        self._indY = self._indX[:, None]
-        self._ind2d = np.ix_(self._indX, self._indX)
+        self._indy = self._indx[:, None]
+        self._ind2d = np.ix_(self._indx, self._indx)
         return
 
     def deconvolve(self, data, prder=1.0, frder=1.0):
@@ -201,8 +203,8 @@ class measure_base:
         out = np.zeros(data.shape, dtype=np.complex64)
         out[self._ind2d] = (
             data[self._ind2d]
-            / self.psfPow[self._ind2d] ** prder
-            / self.psfFou[self._ind2d] ** frder
+            / self.psf_pow[self._ind2d] ** prder
+            / self.psf_fourier[self._ind2d] ** frder
         )
         return out
 
@@ -240,7 +242,7 @@ class measure_noise_cov(measure_base):
             nnord,
             self.sigmaF,
         )
-        self.bfunc = bfunc[:, self._indY, self._indX]
+        self.bfunc = bfunc[:, self._indy, self._indx]
         self.bnames = bnames
         return
 
@@ -253,11 +255,16 @@ class measure_noise_cov(measure_base):
             cov_matrix (ndarray):   covariance matrix of FPFS basis modes
         """
         noise_ps_deconv = self.deconvolve(noise_ps, prder=1, frder=0)
-        cov_matrix = np.tensordot(
-            self.bfunc * noise_ps,
-            self.bfunc,
-            axes=((1, 2), (1, 2))
-        ) / self.pix_scale**4.0
+        cov_matrix = (
+            np.real(
+                np.tensordot(
+                    self.bfunc * noise_ps_deconv[None, self._indy, self._indx],
+                    self.bfunc,
+                    axes=((1, 2), (1, 2)),
+                )
+            )
+            / self.pix_scale**4.0
+        )
         return cov_matrix
 
 
@@ -343,8 +350,8 @@ class measure_source(measure_base):
             )
         chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaF).reshape(
             ((nnord + 1) ** 2, self.ngrid, self.ngrid)
-        )[self._indM, self._indY, self._indX]
-        psi = imgutil.detlets2d(self.ngrid, self.sigmaF)[:, :, self._indY, self._indX]
+        )[self._indM, self._indy, self._indx]
+        psi = imgutil.detlets2d(self.ngrid, self.sigmaF)[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
         if self.noise_correct:
@@ -536,14 +543,14 @@ class measure_source(measure_base):
         if out_type == "chi":
             # chivatives/Moments
             _ = (
-                np.sum(data[None, self._indY, self._indX] * self.chi, axis=(1, 2)).real
+                np.sum(data[None, self._indy, self._indx] * self.chi, axis=(1, 2)).real
                 / self.pix_scale**2.0
             )
             out = np.array(tuple(_), dtype=self.chi_types)
         elif out_type == "psi":
             # chivatives/Moments
             _ = (
-                np.sum(data[None, self._indY, self._indX] * self.psi, axis=(1, 2)).real
+                np.sum(data[None, self._indy, self._indx] * self.psi, axis=(1, 2)).real
                 / self.pix_scale**2.0
             )
             out = np.array(tuple(_), dtype=self.psi_types)
@@ -551,7 +558,7 @@ class measure_source(measure_base):
             # covariance of moments
             _ = (
                 np.sum(
-                    data[None, self._indY, self._indX] * self.chicov, axis=(1, 2)
+                    data[None, self._indy, self._indx] * self.chicov, axis=(1, 2)
                 ).real
                 / self.pix_scale**4.0
             )
@@ -560,7 +567,7 @@ class measure_source(measure_base):
             # covariance of pixels
             _ = (
                 np.sum(
-                    data[None, self._indY, self._indX] * self.detcov, axis=(1, 2)
+                    data[None, self._indy, self._indx] * self.detcov, axis=(1, 2)
                 ).real
                 / self.pix_scale**4.0
             )
@@ -573,41 +580,41 @@ class measure_source(measure_base):
             )
         return out
 
-    def measure(self, galData, psfFou=None, noise_ps=None):
+    def measure(self, gal_data, psf_fourier=None, noise_ps=None):
         """Measures the FPFS moments
 
         Args:
-            galData (ndarray|list):     galaxy image
-            psfFou (ndarray):           PSF's Fourier transform
+            gal_data (ndarray|list):     galaxy image
+            psf_fourier (ndarray):           PSF's Fourier transform
             noise_ps (ndarray):           noise Fourier power function
         Returns:
             out (ndarray):              FPFS moments
         """
-        if psfFou is not None:
-            self.psfFou = psfFou
-            self.psfPow = (np.conjugate(psfFou) * psfFou).real
+        if psf_fourier is not None:
+            self.psf_fourier = psf_fourier
+            self.psf_pow = (np.conjugate(psf_fourier) * psf_fourier).real
         if noise_ps is not None:
             self.noise_ps = noise_ps
-        if isinstance(galData, np.ndarray):
-            assert galData.shape[-1] == galData.shape[-2]
-            if len(galData.shape) == 2:
+        if isinstance(gal_data, np.ndarray):
+            assert gal_data.shape[-1] == gal_data.shape[-2]
+            if len(gal_data.shape) == 2:
                 # single galaxy
-                out = self.__measure(galData)
+                out = self.__measure(gal_data)
                 return out
-            elif len(galData.shape) == 3:
+            elif len(gal_data.shape) == 3:
                 results = []
-                for gal in galData:
+                for gal in gal_data:
                     _g = self.__measure(gal)
                     results.append(_g)
                 out = rfn.stack_arrays(results, usemask=False)
                 return out
             else:
                 raise ValueError("Input galaxy data has wrong ndarray shape.")
-        elif isinstance(galData, list):
-            assert isinstance(galData[0], np.ndarray)
+        elif isinstance(gal_data, list):
+            assert isinstance(gal_data[0], np.ndarray)
             # list of galaxies
             results = []
-            for gal in galData:
+            for gal in gal_data:
                 _g = self.__measure(gal)
                 results.append(_g)
             out = rfn.stack_arrays(results, usemask=False)
@@ -626,25 +633,25 @@ class measure_source(measure_base):
             mm (ndarray):       FPFS moments
         """
         if self.stackPow is not None:
-            galPow = imgutil.get_fourier_pow(data)
-            self.stackPow += galPow
+            gal_pow = imgutil.get_fourier_pow(data)
+            self.stackPow += gal_pow
             return np.empty(1)
-        galFou = np.fft.fftshift(np.fft.fft2(data))
-        decG = self.deconvolve(galFou, prder=0.0, frder=1)
-        mm = self.itransform(decG, out_type="chi")
-        mp = self.itransform(decG, out_type="psi")
+        gal_fourier = np.fft.fftshift(np.fft.fft2(data))
+        gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
+        mm = self.itransform(gal_deconv, out_type="chi")
+        mp = self.itransform(gal_deconv, out_type="psi")
         mm = rfn.merge_arrays([mm, mp], flatten=True, usemask=False)
-        del decG, mp
+        del gal_deconv, mp
 
         if self.noise_correct:
             # do noise covariance estimation
             if self.noise_mod is not None:
                 # fit the noise power from the galaxy power
-                galPow = imgutil.get_fourier_pow(data)
+                gal_pow = imgutil.get_fourier_pow(data)
                 noise_ps = imgutil.fit_noise_ps(
-                    self.ngrid, galPow, self.noise_mod, self.klim_pix
+                    self.ngrid, gal_pow, self.noise_mod, self.klim_pix
                 )
-                del galPow
+                del gal_pow
             else:
                 # use the input noise power
                 noise_ps = self.noise_ps
@@ -667,23 +674,23 @@ class test_noise:
         self.rlim = int(ngrid // 4)
         return
 
-    def test(self, galData):
+    def test(self, gal_data):
         """Tests the noise subtraction
 
         Args:
-            galData:    galaxy image [float array (list)]
+            gal_data:    galaxy image [float array (list)]
         Returns:
             out :   FPFS moments
         """
-        if isinstance(galData, np.ndarray):
+        if isinstance(gal_data, np.ndarray):
             # single galaxy
-            out = self.__test(galData)
+            out = self.__test(gal_data)
             return out
-        elif isinstance(galData, list):
-            assert isinstance(galData[0], np.ndarray)
+        elif isinstance(gal_data, list):
+            assert isinstance(gal_data[0], np.ndarray)
             # list of galaxies
             results = []
-            for gal in galData:
+            for gal in gal_data:
                 _g = self.__test(gal)
                 results.append(_g)
             out = np.stack(results)
@@ -696,11 +703,11 @@ class test_noise:
             data:    image array [centroid does not matter]
         """
         assert len(data.shape) == 2
-        galPow = imgutil.get_fourier_pow(data)
+        gal_pow = imgutil.get_fourier_pow(data)
         if (self.noise_ps is not None) or (self.noise_mod is not None):
             if self.noise_mod is not None:
                 self.noise_ps = imgutil.fit_noise_ps(
-                    self.ngrid, galPow, self.noise_mod, self.rlim
+                    self.ngrid, gal_pow, self.noise_mod, self.rlim
                 )
-            galPow = galPow - self.noise_ps
-        return galPow
+            gal_pow = gal_pow - self.noise_ps
+        return gal_pow

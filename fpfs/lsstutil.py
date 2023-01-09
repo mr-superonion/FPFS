@@ -47,17 +47,17 @@ if with_lsst:
         exposure.getMaskedImage().getImage().getArray()[:, :] = galData
         exposure.getMaskedImage().getVariance().getArray()[:, :] = variance
         # Set the PSF
-        ngridPsf = psfData.shape[0]
-        psf_lsst = afwimg.ImageF(ngridPsf, ngridPsf)
+        ngrid_psf = psfData.shape[0]
+        psf_lsst = afwimg.ImageF(ngrid_psf, ngrid_psf)
         psf_lsst.getArray()[:, :] = psfData
         psf_lsst = psf_lsst.convertD()
         kernel = afwmath.FixedKernel(psf_lsst)
-        kernelPSF = meas_alg.KernelPsf(kernel)
-        exposure.setPsf(kernelPSF)
+        kernel_psf = meas_alg.KernelPsf(kernel)
+        exposure.setPsf(kernel_psf)
         # prepare the wcs
         # Rotation
         cdelt = pixScale * geom.arcseconds
-        CD = afwgeom.makeCdMatrix(cdelt, geom.Angle(0.0))  # no rotation
+        cd_matrix = afwgeom.makeCdMatrix(cdelt, geom.Angle(0.0))  # no rotation
         # wcs
         crval = geom.SpherePoint(
             geom.Angle(0.0, geom.degrees), geom.Angle(0.0, geom.degrees)
@@ -65,9 +65,9 @@ if with_lsst:
         # hscpipe6
         # crval   =   afwCoord.IcrsCoord(0.*afwgeom.degrees, 0.*afwgeom.degrees)
         crpix = geom.Point2D(0.0, 0.0)
-        dataWcs = afwgeom.makeSkyWcs(crpix, crval, CD)
-        exposure.setWcs(dataWcs)
+        data_wcs = afwgeom.makeSkyWcs(crpix, crval, cd_matrix)
+        exposure.setWcs(data_wcs)
         # prepare the frc
-        dataCalib = afwimg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
-        exposure.setPhotoCalib(dataCalib)
+        data_calib = afwimg.makePhotoCalibFromCalibZeroPoint(63095734448.0194)
+        exposure.setPhotoCalib(data_calib)
         return exposure

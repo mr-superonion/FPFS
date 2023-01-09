@@ -51,9 +51,9 @@ class Worker(object):
 
         # setup survey parameters
         self.scale = cparser.getfloat("survey", "pixel_scale")
-        self.psffname = os.path.join(self.indir, cparser.get("survey", "psf_filename"))
-        if not os.path.isfile(self.psffname):
-            raise FileNotFoundError("Cannot find the PSF file: %s" % self.psffname)
+        self.psf_fname = os.path.join(self.indir, cparser.get("survey", "psf_filename"))
+        if not os.path.isfile(self.psf_fname):
+            raise FileNotFoundError("Cannot find the PSF file: %s" % self.psf_fname)
         self.noi_var = cparser.getfloat("survey", "noi_var")
         if self.noi_var > 1e-20:
             self.noidir = os.path.join(self.imgdir, "noise")
@@ -90,17 +90,21 @@ class Worker(object):
             self.pendList = ["g1-1111"]
         return
 
-    def prepare_psf(self, psffname, rcut, ngrid2):
+    def prepare_psf(self, psf_fname, rcut, ngrid2):
         ngrid = 64
         beg = ngrid // 2 - rcut
         end = beg + 2 * rcut
-        psfData = pyfits.getdata(psffname)
-        npad = (ngrid - psfData.shape[0]) // 2
-        psfData2 = np.pad(psfData, (npad + 1, npad), mode="constant")[beg:end, beg:end]
+        psf_data = pyfits.getdata(psf_fname)
+        npad = (ngrid - psf_data.shape[0]) // 2
+        psf_data2 = np.pad(
+            psf_data,
+            (npad + 1, npad),
+            mode="constant",
+        )[beg:end, beg:end]
         del npad
-        npad = (ngrid2 - psfData.shape[0]) // 2
-        psfData3 = np.pad(psfData, (npad + 1, npad), mode="constant")
-        return psfData2, psfData3
+        npad = (ngrid2 - psf_data.shape[0]) // 2
+        psf_data3 = np.pad(psf_data, (npad + 1, npad), mode="constant")
+        return psf_data2, psf_data3
 
     def run(self, Id):
         print("running for galaxy field: %d" % (Id))
@@ -117,31 +121,31 @@ class Worker(object):
         nend = nbegin + self.image_nx
         gal_dir = os.path.join(self.imgdir, self.simname)
         # PSF
-        if "%" in self.psffname:
-            psffname = self.psffname % Id
+        if "%" in self.psf_fname:
+            psf_fname = self.psf_fname % Id
         else:
-            psffname = self.psffname
+            psf_fname = self.psf_fname
 
         psfInt = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0)
         psfInt = psfInt.shear(e1=0.02, e2=-0.02).shift(
             0.5 * self.scale, 0.5 * self.scale
         )
-        psfData2 = psfInt.drawImage(nx=64, ny=64, scale=self.scale).array
-        self.ppt = psfData2
-        psfData2, psfData3 = self.prepare_psf(psffname, self.rcut, self.image_nx)
+        psf_data2 = psfInt.drawImage(nx=64, ny=64, scale=self.scale).array
+        self.ppt = psf_data2
+        psf_data2, psf_data3 = self.prepare_psf(psf_fname, self.rcut, self.image_nx)
 
         # FPFS Task
         if self.noi_var > 1e-20:
             # noise
             print("Using noisy setup with variance: %.3f" % self.noi_var)
             assert self.noidir is not None
-            noiFname = os.path.join(self.noidir, "noi%04d.fits" % Id)
-            if not os.path.isfile(noiFname):
-                print("Cannot find input noise file: %s" % noiFname)
+            noise_fname = os.path.join(self.noidir, "noi%04d.fits" % Id)
+            if not os.path.isfile(noise_fname):
+                print("Cannot find input noise file: %s" % noise_fname)
                 return
             # multiply by 10 since the noise has variance 0.01
-            noiData = (
-                pyfits.getdata(noiFname)[nbegin:nend, nbegin:nend]
+            noise_data = (
+                pyfits.getdata(noise_fname)[nbegin:nend, nbegin:nend]
                 * 10.0
                 * np.sqrt(self.noi_var)
             )
@@ -154,13 +158,13 @@ class Worker(object):
             powModel = np.zeros((1, powIn.shape[0], powIn.shape[1]))
             powModel[0] = powIn
             measTask = fpfs.image.measure_source(
-                psfData2, sigma_arcsec=self.sigma_as, noise_ps=powModel[0]
+                psf_data2, sigma_arcsec=self.sigma_as, noise_ps=powModel[0]
             )
         else:
             print("Using noiseless setup")
             # by default noise_ps=None
-            measTask = fpfs.image.measure_source(psfData2, sigma_arcsec=self.sigma_as)
-            noiData = 0.0
+            measTask = fpfs.image.measure_source(psf_data2, sigma_arcsec=self.sigma_as)
+            noise_data = 0.0
         print("The upper limit of wave number is %s pixels" % (measTask.klim_pix))
 
         for ishear in self.pendList:
@@ -169,29 +173,29 @@ class Worker(object):
             if not os.path.isfile(galFname):
                 print("Cannot find input galaxy file: %s" % galFname)
                 return
-            galData = pyfits.getdata(galFname) + noiData
-            assert galData.shape == (self.image_ny, self.image_nx)
-            outFname = os.path.join(self.outdir, "src-%04d-%s.fits" % (Id, ishear))
+            gal_data = pyfits.getdata(galFname) + noise_data
+            assert gal_data.shape == (self.image_ny, self.image_nx)
+            out_fname = os.path.join(self.outdir, "src-%04d-%s.fits" % (Id, ishear))
             pp = "cut%d" % self.rcut
-            outFname = os.path.join(
+            out_fname = os.path.join(
                 self.outdir, "fpfs-%s-%04d-%s.fits" % (pp, Id, ishear)
             )
-            if os.path.exists(outFname):
+            if os.path.exists(out_fname):
                 print("Already has measurement for this simulation. ")
                 continue
             if not self.do_det:
                 if "Center" in gal_dir:
                     # fake detection
-                    indX = np.arange(32, self.image_nx, 64)
-                    indY = np.arange(32, self.image_ny, 64)
-                    inds = np.meshgrid(indY, indX, indexing="ij")
+                    indx = np.arange(32, self.image_nx, 64)
+                    indy = np.arange(32, self.image_ny, 64)
+                    inds = np.meshgrid(indy, indx, indexing="ij")
                     coords = np.array(
                         np.zeros(inds[0].size),
                         dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
                     )
                     coords["fpfs_y"] = np.ravel(inds[0])
                     coords["fpfs_x"] = np.ravel(inds[1])
-                    del indX, indY, inds
+                    del indx, indy, inds
                 else:
                     raise ValueError(
                         "Do not support the case without detection on \
@@ -205,8 +209,8 @@ class Worker(object):
                 thres = 10 ** ((self.magz - cutmag) / 2.5) * self.scale**2.0
                 thres2 = -thres / 20.0
                 coords = fpfs.image.detect_sources(
-                    galData,
-                    psfData3,
+                    gal_data,
+                    psf_data3,
                     gsigma=measTask.sigmaF,
                     thres=thres,
                     thres2=thres2,
@@ -217,17 +221,17 @@ class Worker(object):
             # coords['fpfs_y'][0]=   self.image_ny//2
             # coords['fpfs_x'][0]=   self.image_nx//2
             print("pre-selected number of sources: %d" % len(coords))
-            imgList = [
-                galData[
+            img_list = [
+                gal_data[
                     cc["fpfs_y"] - self.rcut : cc["fpfs_y"] + self.rcut,
                     cc["fpfs_x"] - self.rcut : cc["fpfs_x"] + self.rcut,
                 ]
                 for cc in coords
             ]
-            out = measTask.measure(imgList)
+            out = measTask.measure(img_list)
             out = rfn.merge_arrays([coords, out], flatten=True, usemask=False)
-            pyfits.writeto(outFname, out)
-            del imgList, out, coords, galData, outFname
+            pyfits.writeto(out_fname, out)
+            del img_list, out, coords, gal_data, out_fname
             gc.collect()
         print("finish %s" % (Id))
         return

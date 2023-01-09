@@ -196,21 +196,21 @@ def make_cosmo_sim(
         rot2 (float):           additional rotational angle [in units of radians]
     """
     np.random.seed(Id0)
-    outFname = os.path.join(outDir, "image-%d-%s.fits" % (Id0, gname))
-    if os.path.isfile(outFname):
+    out_fname = os.path.join(outDir, "image-%d-%s.fits" % (Id0, gname))
+    if os.path.isfile(out_fname):
         logging.info("Already have the outcome.")
         if do_write:
             logging.info("Nothing to write.")
         if return_array:
-            return pyfits.getdata(outFname)
+            return pyfits.getdata(out_fname)
         else:
             return None
 
     bigfft = galsim.GSParams(maximum_fft_size=10240)  # galsim setup
     # Get the shear information
     # Three choice on g(-shear_value,0,shear_value)
-    gList = np.array([-shear_value, 0.0, shear_value])
-    gList = gList[[eval(i) for i in gname.split("-")[-1]]]
+    shear_list = np.array([-shear_value, 0.0, shear_value])
+    shear_list = shear_list[[eval(i) for i in gname.split("-")[-1]]]
 
     # number of galaxy
     # we only have `ngeff' galsim galaxies but with `nrot' rotation
@@ -225,10 +225,10 @@ def make_cosmo_sim(
     )
 
     # get the cosmos catalog
-    inCat = pyfits.getdata(catname)
-    ntrain = len(inCat)
+    cat_input = pyfits.getdata(catname)
+    ntrain = len(cat_input)
     inds = np.random.randint(0, ntrain, ngeff)
-    inCat = inCat[inds]
+    cat_input = cat_input[inds]
 
     # evenly distributed within a radius, min(nx,ny)*rfrac
     rarray = np.sqrt(r2 * np.random.rand(ngeff))  # radius
@@ -246,24 +246,26 @@ def make_cosmo_sim(
     for ii in range(ngal):
         ig = ii // (nrot * 2)
         irot = ii % (nrot * 2)
-        ss = inCat[ig]
+        ss = cat_input[ig]
         # x,y
         xi = xarray[ig]
         yi = yarray[ig]
         # randomly rotate by an angle; we have 180/nrot deg pairs to remove
         # shape noise in additive bias estimation
-        rotAng = np.pi / nrot * irot
-        ang = rotAng * galsim.radians
-        xi, yi = coord_rotate(xi, yi, nx // 2, ny // 2, rotAng)
+        rot_ang = np.pi / nrot * irot
+        ang = rot_ang * galsim.radians
+        xi, yi = coord_rotate(xi, yi, nx // 2, ny // 2, rot_ang)
         # determine redshift
-        gInd = np.where((ss["zphot"] > zbound[:-1]) & (ss["zphot"] <= zbound[1:]))[0]
-        if len(gInd) == 1:
+        shear_inds = np.where(
+            (ss["zphot"] > zbound[:-1]) & (ss["zphot"] <= zbound[1:])
+        )[0]
+        if len(shear_inds) == 1:
             if gname.split("-")[0] == "g1":
-                g1 = gList[gInd][0]
+                g1 = shear_list[shear_inds][0]
                 g2 = 0.0
             elif gname.split("-")[0] == "g2":
                 g1 = 0.0
-                g2 = gList[gInd][0]
+                g2 = shear_list[shear_inds][0]
             else:
                 raise ValueError("g1 or g2 must be in gname")
         else:
@@ -307,9 +309,9 @@ def make_cosmo_sim(
         # print(galsim.hsm.FindAdaptiveMom(gal_image))
         del gal, b, sub_img, xu, yu, xi, yi, gPix
     gc.collect()
-    del inCat, psfInt
+    del cat_input, psfInt
     if do_write:
-        gal_image.write(outFname, clobber=True)
+        gal_image.write(out_fname, clobber=True)
     if return_array:
         return gal_image.array
 
@@ -464,13 +466,13 @@ def make_basic_sim(
     """
     if catname is None:
         catname = os.path.join(__data_dir__, "cat_used.fits")
-    outFname = os.path.join(outDir, "image-%d-%s.fits" % (Id0, gname))
-    if os.path.isfile(outFname):
+    out_fname = os.path.join(outDir, "image-%d-%s.fits" % (Id0, gname))
+    if os.path.isfile(out_fname):
         logging.info("Already have the outcome.")
         if do_write:
             logging.info("Do not write down anything")
         if return_array:
-            return pyfits.getdata(outFname)
+            return pyfits.getdata(out_fname)
         else:
             return None
 
@@ -480,18 +482,19 @@ def make_basic_sim(
     ngaly = int(ny // 64)
     ngal = ngalx * ngaly
     # Get the shear information
-    gList = np.array([-shear_value, 0.0, shear_value])
-    gList = gList[[eval(i) for i in gname.split("-")[-1]]]
+    shear_list = np.array([-shear_value, 0.0, shear_value])
+    shear_list = shear_list[[eval(i) for i in gname.split("-")[-1]]]
     if gname.split("-")[0] == "g1":
-        g1 = gList[0]
+        g1 = shear_list[0]
         g2 = 0.0
     elif gname.split("-")[0] == "g2":
         g1 = 0.0
-        g2 = gList[0]
+        g2 = shear_list[0]
     else:
         raise ValueError("cannot decide g1 or g2")
     logging.info(
-        "Processing for %s, and shears for four redshift bins are %s." % (gname, gList)
+        "Processing for %s, and shears for four redshift bins are %s."
+        % (gname, shear_list)
     )
 
     gal_image = galsim.ImageF(nx, ny, scale=scale)
@@ -507,12 +510,12 @@ def make_basic_sim(
         # catName     =   'real_galaxy_catalog_25.2.fits'
         # cosmos_cat  =   galsim.COSMOSCatalog(catName,dir=directory)
         # catalog
-        inCat = pyfits.getdata(catname)
-        ntrain = len(inCat)
+        cat_input = pyfits.getdata(catname)
+        ntrain = len(cat_input)
         nrot = nrot_default
         ngeff = max(ngal // nrot, 1)
         inds = np.random.randint(0, ntrain, ngeff)
-        inCat = inCat[inds]
+        cat_input = cat_input[inds]
         gal0 = None
         for i in range(ngal):
             # boundary
@@ -524,7 +527,7 @@ def make_basic_sim(
             # each galaxy
             ig = i // nrot
             irot = i % nrot
-            ss = inCat[ig]
+            ss = cat_input[ig]
             if irot == 0:
                 del gal0
                 # gal0  =  cosmos_cat.makeGalaxy(gal_type='parametric',\
@@ -563,7 +566,7 @@ def make_basic_sim(
             sub_img = gal_image[b]
             gal.drawImage(sub_img, add_to_image=True)
             del gal, b, sub_img, ss
-        del inCat
+        del cat_input
         gc.collect()
     elif "small" in outDir.lower():
         ud = galsim.UniformDeviate(Id0)
@@ -616,7 +619,7 @@ def make_basic_sim(
     else:
         raise ValueError("outDir should cotain 'basic' or 'small'!!")
     if do_write:
-        gal_image.write(outFname, clobber=True)
+        gal_image.write(out_fname, clobber=True)
     if return_array:
         return gal_image.array
 
@@ -643,12 +646,12 @@ def make_noise_sim(
         return_array (bool):    whether return galaxy array [default: False]
     """
     logging.info("begining for field %04d" % (Id0))
-    outFname = os.path.join(outDir, "noi%04d.fits" % (Id0))
-    if os.path.exists(outFname):
+    out_fname = os.path.join(outDir, "noi%04d.fits" % (Id0))
+    if os.path.exists(out_fname):
         if do_write:
             logging.info("Nothing to write.")
         if return_array:
-            return pyfits.getdata(outFname)
+            return pyfits.getdata(out_fname)
         else:
             return None
     logging.info("simulating noise for field %s" % (Id0))
@@ -663,7 +666,7 @@ def make_noise_sim(
     )
     corNoise.applyTo(noi_image)
     if do_write:
-        pyfits.writeto(outFname, noi_image.array)
+        pyfits.writeto(out_fname, noi_image.array)
     if return_array:
         return noi_image.array
     return
