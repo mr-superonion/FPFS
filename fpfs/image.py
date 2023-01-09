@@ -107,8 +107,8 @@ def get_klim(psf_array, sigma, thres=1e-20):
     return klim
 
 
-class measure_noise:
-    """A class to measure FPFS shapelet mode estimation
+class measure_noise_cov:
+    """A class to measure FPFS noise covariance of basis modes
 
     Args:
         psfData (ndarray):  an average PSF image used to initialize the task
@@ -120,7 +120,7 @@ class measure_noise:
         pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
     """
 
-    _DefaultName = "measure_source"
+    _DefaultName = "measure_noise"
 
     def __init__(
         self,
@@ -186,18 +186,16 @@ class measure_noise:
         self._indY = self._indX[:, None]
         self._ind2D = np.ix_(self._indX, self._indX)
 
-        bfunc, bnames = imgutil.shapelets2D_real(
+        bfunc, bnames = imgutil.FPFS_bases(
             self.ngrid,
             nnord,
             self.sigmaF,
-        )[:, self._indY, self._indX]
-        psi = imgutil.detlets2D(
-            self.ngrid,
-            self.sigmaF,
-        )[:, :, self._indY, self._indX]
+        )
+        self.bfunc = bfunc[:, self._indY, self._indX]
+        self.bnames = bnames
         # self.prepare_ChiCov(chi)
         # self.prepare_detCov(chi, psi)
-        return psi
+        return
 
     def reset_psf(self):
         """
@@ -623,6 +621,7 @@ class measure_source:
         out = np.stack(out)
         assert len(out) == len(self.psi_types)
         self.Psi = out
+        self.psi = psi
         del out
         return
 

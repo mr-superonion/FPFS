@@ -267,13 +267,30 @@ def shapelets2D_real(ngrid, nord, sigma):
         # Only uses M00, M20, M22 (real and img) and M40, M42
         indM = np.array([0, 10, 12, 20, 22])[:, None, None]
         nameS = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s"]
-        indS = [0, 1, 2, 2, 3, 4, 4]
+        indS = [
+            [0, False],
+            [1, False],
+            [2, False],
+            [2, True],
+            [3, False],
+            [4, False],
+            [4, True],
+        ]
     elif nord == 6:
         # This setup is able to derive kappa response and shear response
         # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
         indM = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
         nameS = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s", "m60"]
-        indS = [0, 1, 2, 2, 3, 4, 4, 5]
+        indS = [
+            [0, False],
+            [1, False],
+            [2, False],
+            [2, True],
+            [3, False],
+            [4, False],
+            [4, True],
+            [5, False],
+        ]
     else:
         raise ValueError(
             "only support for nnord= 4 or nnord=6, but your input\
@@ -287,7 +304,10 @@ def shapelets2D_real(ngrid, nord, sigma):
     # transform to real shapelet functions
     chi_2 = np.zeros((len(nameS), ngrid, ngrid), dtype=np.float64)
     for i, ind in enumerate(indS):
-        chi_2[i] = chi[ind]
+        if ind[1]:
+            chi_2[i] = np.float64(chi[ind[0]].imag)
+        else:
+            chi_2[i] = np.float64(chi[ind[0]].real)
     del chi
     return chi_2, nameS
 
@@ -328,7 +348,7 @@ def FPFS_bases(ngrid, nord, sigma):
         "v6_g2",
         "v7_g2",
     ]
-    bfunc = np.vstack([bfunc, np.swapaxes(psi, 0, 1)])
+    bfunc = np.vstack([bfunc, np.vstack(np.swapaxes(psi, 0, 1))])
     return bfunc, bnames
 
 
