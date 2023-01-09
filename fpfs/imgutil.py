@@ -102,7 +102,7 @@ def gauss_kernel(ny, nx, sigma, do_shift=False, return_grid=False, use_rfft=Fals
         return _gauss_kernel_rfft(ny, nx, sigma, return_grid)
 
 
-def getFouPow_rft(arrayIn):
+def get_fourier_pow_rft(arrayIn):
     """Gets Fourier power function
 
     Args:
@@ -122,7 +122,7 @@ def getFouPow_rft(arrayIn):
     return foupow
 
 
-def getFouPow(arrayIn, noiPow=None):
+def get_fourier_pow(arrayIn, noiPow=None):
     """Gets Fourier power function
 
     Args:
@@ -138,7 +138,7 @@ def getFouPow(arrayIn, noiPow=None):
     return out
 
 
-def getRnaive(arrayIn):
+def get_r_naive(arrayIn):
     """A naive way to estimate Radius. Note, this naive estimation is heavily
     influenced by noise.
 
@@ -156,7 +156,7 @@ def getRnaive(arrayIn):
     return sigma
 
 
-def detlets2D(ngrid, sigma):
+def detlets2d(ngrid, sigma):
     """Generates shapelets function in Fourier space, chi00 are normalized to 1.
     This function only supports square stamps: ny=nx=ngrid.
 
@@ -164,7 +164,7 @@ def detlets2D(ngrid, sigma):
         ngrid (int):    number of pixels in x and y direction
         sigma (float):  scale of shapelets in Fourier space
     Returns:
-        psi (ndarray):  2D detlets basis in shape of [8,3,ngrid,ngrid]
+        psi (ndarray):  2d detlets basis in shape of [8,3,ngrid,ngrid]
     """
     # Gaussian Kernel
     gKer, (k2grid, k1grid) = gauss_kernel(
@@ -190,7 +190,7 @@ def detlets2D(ngrid, sigma):
     return psi
 
 
-def shapelets2D(ngrid, nord, sigma):
+def shapelets2d(ngrid, nord, sigma):
     """Generates complex shapelets function in Fourier space, chi00 are
     normalized to 1
     [only support square stamps: ny=nx=ngrid]
@@ -200,13 +200,13 @@ def shapelets2D(ngrid, nord, sigma):
         nord (int):     radial order of the shaplets
         sigma (float):  scale of shapelets in Fourier space
     Returns:
-        chi (ndarray):  2D shapelet basis in shape of [nord,nord,ngrid,ngrid]
+        chi (ndarray):  2d shapelet basis in shape of [nord,nord,ngrid,ngrid]
     """
 
     mord = nord
     # Set grids with dk=2pi/N/sigma
     xy1d = np.fft.fftshift(np.fft.fftfreq(ngrid, d=sigma / 2.0 / np.pi))
-    xfunc, yfunc = np.meshgrid(xy1d, xy1d)  # 2D grids
+    xfunc, yfunc = np.meshgrid(xy1d, xy1d)  # 2d grids
     rfunc = np.sqrt(xfunc**2.0 + yfunc**2.0)  # radius
     gaufunc = np.exp(-rfunc * rfunc / 2.0)  # Gaussian
     rmask = rfunc != 0.0
@@ -247,7 +247,7 @@ def shapelets2D(ngrid, nord, sigma):
     return chi
 
 
-def shapelets2D_real(ngrid, nord, sigma):
+def shapelets2d_real(ngrid, nord, sigma):
     """Generates real shapelets function in Fourier space, chi00 are
     normalized to 1
     [only support square stamps: ny=nx=ngrid]
@@ -257,7 +257,7 @@ def shapelets2D_real(ngrid, nord, sigma):
         nord (int):     radial order of the shaplets
         sigma (float):  scale of shapelets in Fourier space
     Returns:
-        chi_2 (ndarray): 2D shapelet basis w/ shape [n,ngrid,ngrid]
+        chi_2 (ndarray): 2d shapelet basis w/ shape [n,ngrid,ngrid]
         nameS (list):   A list of shaplet names w/ shape [n]
 
     """
@@ -298,7 +298,7 @@ def shapelets2D_real(ngrid, nord, sigma):
             % nord
         )
     # generate the complex shaplet functions
-    chi = shapelets2D(ngrid, nord, sigma).reshape(((nord + 1) ** 2, ngrid, ngrid))[
+    chi = shapelets2d(ngrid, nord, sigma).reshape(((nord + 1) ** 2, ngrid, ngrid))[
         indM, :, :
     ]
     # transform to real shapelet functions
@@ -312,13 +312,13 @@ def shapelets2D_real(ngrid, nord, sigma):
     return chi_2, nameS
 
 
-def FPFS_bases(ngrid, nord, sigma):
-    bfunc, bnames = shapelets2D_real(
+def fpfs_bases(ngrid, nord, sigma):
+    bfunc, bnames = shapelets2d_real(
         ngrid,
         nord,
         sigma,
     )
-    psi = detlets2D(
+    psi = detlets2d(
         ngrid,
         sigma,
     )
@@ -352,7 +352,7 @@ def FPFS_bases(ngrid, nord, sigma):
     return bfunc, bnames
 
 
-def fitNoiPow(ngrid, galPow, noiModel, rlim):
+def fit_noise_ps(ngrid, galPow, noiModel, rlim):
     """
     Fit the noise power from observed galaxy power
 

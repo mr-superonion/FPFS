@@ -16,23 +16,22 @@ def test_basefunc_nord4():
     source_task = fpfs.image.measure_source(
         psf_data,
         nnord=4,
-        noiFit=noise_cov,
+        noise_ps=noise_cov,
         sigma_arcsec=0.7,
     )
     noise_task = fpfs.image.measure_noise_cov(
         psf_data,
         nnord=4,
-        noiFit=noise_cov,
         sigma_arcsec=0.7,
     )
     np.testing.assert_array_almost_equal(
-        np.max(np.abs(source_task.Chi - noise_task.bfunc[0:7])),
+        np.max(np.abs(source_task.chi - noise_task.bfunc[0:7])),
         0.0,
     )
     psi_2 = noise_task.bfunc[7:]
     for i in range(3):
         np.testing.assert_array_almost_equal(
-            np.max(np.abs(source_task.psi[:, i, :, :] - psi_2[i * 8 : (i + 1) * 8])),
+            np.max(np.abs(source_task.psi0[:, i, :, :] - psi_2[i * 8 : (i + 1) * 8])),
             0.0,
         )
     return

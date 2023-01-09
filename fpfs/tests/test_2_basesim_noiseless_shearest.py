@@ -47,9 +47,9 @@ def simulate_gal_psf(scale, Id0, rcut):
 def do_test(scale, Id0, rcut):
     thres = 1e-5
     image_list, psf_data = simulate_gal_psf(scale, Id0, rcut)
-    fpTask = fpfs.image.measure_source(psf_data, noiFit=0.0, sigma_arcsec=0.7)
+    fpTask = fpfs.image.measure_source(psf_data, noise_ps=0.0, sigma_arcsec=0.7)
     mms = fpTask.measure(image_list)
-    ells = fpfs.catalog.fpfsM2E(mms, const=2000, noirev=False)
+    ells = fpfs.catalog.fpfs_m2e(mms, const=2000, noirev=False)
     resp = np.average(ells["fpfs_R1E"])
     shear = np.average(ells["fpfs_e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)

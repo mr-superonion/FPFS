@@ -90,7 +90,7 @@ class Worker(object):
             self.pendList = ["g1-1111"]
         return
 
-    def prepare_PSF(self, psffname, rcut, ngrid2):
+    def prepare_psf(self, psffname, rcut, ngrid2):
         ngrid = 64
         beg = ngrid // 2 - rcut
         end = beg + 2 * rcut
@@ -128,7 +128,7 @@ class Worker(object):
         )
         psfData2 = psfInt.drawImage(nx=64, ny=64, scale=self.scale).array
         self.ppt = psfData2
-        psfData2, psfData3 = self.prepare_PSF(psffname, self.rcut, self.image_nx)
+        psfData2, psfData3 = self.prepare_psf(psffname, self.rcut, self.image_nx)
 
         # FPFS Task
         if self.noi_var > 1e-20:
@@ -154,11 +154,11 @@ class Worker(object):
             powModel = np.zeros((1, powIn.shape[0], powIn.shape[1]))
             powModel[0] = powIn
             measTask = fpfs.image.measure_source(
-                psfData2, sigma_arcsec=self.sigma_as, noiFit=powModel[0]
+                psfData2, sigma_arcsec=self.sigma_as, noise_ps=powModel[0]
             )
         else:
             print("Using noiseless setup")
-            # by default noiFit=None
+            # by default noise_ps=None
             measTask = fpfs.image.measure_source(psfData2, sigma_arcsec=self.sigma_as)
             noiData = 0.0
         print("The upper limit of wave number is %s pixels" % (measTask.klim_pix))

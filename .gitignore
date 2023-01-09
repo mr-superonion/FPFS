@@ -30,3 +30,4 @@ pip-wheel*
 x*-err-*
 x*-out-*
 examples/notebooks/output
+.hypothesis

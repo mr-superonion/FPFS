@@ -180,7 +180,7 @@ def get_wbias(x, cut, sigma, use_sig, w_sel, rev=None):
 
 
 # functions to get derived observables from fpfs modes
-def fpfsM2E(mm, const=1.0, noirev=False):
+def fpfs_m2e(mm, const=1.0, noirev=False):
     """Estimates FPFS ellipticities from fpfs moments
 
     Args:
