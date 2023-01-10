@@ -5,11 +5,9 @@ import numpy as np
 
 def simulate_gal_psf(scale, ind0, rcut):
     out_dir = "galaxy_basicCenter_psf60"
-    psf_obj = galsim.Moffat(
-        beta=3.5,
-        fwhm=0.6,
-        trunc=0.6 * 4.0
-    ).shear(e1=0.02, e2=-0.02)
+    psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(
+        e1=0.02, e2=-0.02
+    )
 
     psf_data = (
         psf_obj.shift(0.5 * scale, 0.5 * scale)

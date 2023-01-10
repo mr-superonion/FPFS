@@ -47,6 +47,11 @@ intersphinx_mapping = {
     'numpy': ('http://docs.scipy.org/doc/numpy', None),
     'scipy': ('http://docs.scipy.org/doc/scipy/reference', None),
     'matplotlib': ('http://matplotlib.org/stable', None),
+    "myst": ("https://myst-parser.readthedocs.io/en/latest/", None),
+    "markdown_it": ("https://markdown-it-py.readthedocs.io/en/latest", None),
+    "nbclient": ("https://nbclient.readthedocs.io/en/latest", None),
+    "nbformat": ("https://nbformat.readthedocs.io/en/latest", None),
+    "sphinx": ("https://www.sphinx-doc.org/en/master", None),
 }
 
 autosectionlabel_prefix_document = True
@@ -89,6 +94,21 @@ master_doc = 'index'
 #
 html_theme = 'sphinx_rtd_theme'
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme_options = {
+    "github_url": "https://github.com/executablebooks/myst-nb",
+    "repository_url": "https://github.com/executablebooks/myst-nb",
+    "repository_branch": "master",
+    "home_page_in_toc": True,
+    "path_to_docs": "docs",
+    "show_navbar_depth": 1,
+    "use_edit_page_button": True,
+    "use_repository_button": True,
+    "use_download_button": True,
+    "launch_buttons": {
+        "binderhub_url": "https://mybinder.org",
+        "notebook_interface": "classic",
+    },
+}
 
 def setup(app):
     app.add_css_file('xtheme.css')
@@ -107,18 +127,15 @@ default_role = 'any'
 
 # myst
 myst_enable_extensions = [
-    "dollarmath",
+    "colon_fence",
     "amsmath",
+    "dollarmath",
     "deflist",
     "fieldlist",
+    "tasklist",
+    "smartquotes",
     "html_admonition",
     "html_image",
-    "colon_fence",
-    "smartquotes",
-    "replacements",
-    "strikethrough",
-    "substitution",
-    "tasklist",
 ]
 myst_number_code_blocks = ["typescript"]
 myst_heading_anchors = 2

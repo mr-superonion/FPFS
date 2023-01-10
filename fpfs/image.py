@@ -45,6 +45,7 @@ def detect_sources(
         coords (ndarray):       peak values and the shear responses
     """
 
+    psf_data = np.array(psf_data, dtype="<f8")
     assert (
         img_data.shape == psf_data.shape
     ), "image and PSF should have the same\
@@ -254,6 +255,7 @@ class measure_noise_cov(measure_base):
         Return:
             cov_matrix (ndarray):   covariance matrix of FPFS basis modes
         """
+        noise_ps = np.array(noise_ps, dtype="<f8")
         noise_ps_deconv = self.deconvolve(noise_ps, prder=1, frder=0)
         cov_matrix = (
             np.real(
