@@ -14,7 +14,7 @@ _build
 dist
 examples/output
 examples/command_line/output
-*.html
+README.html
 *.aux
 *.bbl
 *.blg
