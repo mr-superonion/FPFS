@@ -3,7 +3,7 @@ import galsim
 import numpy as np
 
 
-def simulate_gal_psf(scale, Id0, rcut):
+def simulate_gal_psf(scale, ind0, rcut):
     out_dir = "galaxy_basicCenter_psf60"
     psf_obj = galsim.Moffat(
         beta=3.5,
@@ -21,7 +21,7 @@ def simulate_gal_psf(scale, Id0, rcut):
         out_dir,
         psf_obj=psf_obj,
         gname="g1-0000",
-        Id0=Id0,
+        ind0=ind0,
         ny=64,
         nx=256,
         scale=scale,
@@ -49,9 +49,9 @@ def simulate_gal_psf(scale, Id0, rcut):
     return image_list, psf_data
 
 
-def do_test(scale, Id0, rcut):
+def do_test(scale, ind0, rcut):
     thres = 1e-5
-    image_list, psf_data = simulate_gal_psf(scale, Id0, rcut)
+    image_list, psf_data = simulate_gal_psf(scale, ind0, rcut)
     fpfs_task = fpfs.image.measure_source(psf_data, noise_ps=0.0, sigma_arcsec=0.7)
     mms = fpfs_task.measure(image_list)
     ells = fpfs.catalog.fpfs_m2e(mms, const=2000, noirev=False)
