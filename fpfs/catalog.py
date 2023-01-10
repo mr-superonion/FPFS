@@ -601,3 +601,66 @@ class summary_stats:
         self.sumR1 = np.sum(self.ell["fpfs_R1E"] * self.ws)
         self.sumR2 = np.sum(self.ell["fpfs_R2E"] * self.ws)
         return
+
+
+ncol = 31
+col_names = [
+    "fpfs_M00",
+    "fpfs_M20",
+    "fpfs_M22c",
+    "fpfs_M22s",
+    "fpfs_M40",
+    "fpfs_M42c",
+    "fpfs_M42s",
+    "fpfs_v0",
+    "fpfs_v1",
+    "fpfs_v2",
+    "fpfs_v3",
+    "fpfs_v4",
+    "fpfs_v5",
+    "fpfs_v6",
+    "fpfs_v7",
+    "fpfs_v0r1",
+    "fpfs_v1r1",
+    "fpfs_v2r1",
+    "fpfs_v3r1",
+    "fpfs_v4r1",
+    "fpfs_v5r1",
+    "fpfs_v6r1",
+    "fpfs_v7r1",
+    "fpfs_v0r2",
+    "fpfs_v1r2",
+    "fpfs_v2r2",
+    "fpfs_v3r2",
+    "fpfs_v4r2",
+    "fpfs_v5r2",
+    "fpfs_v6r2",
+    "fpfs_v7r2",
+]
+
+
+def fpfscov_to_imptcov(data):
+    """Converts FPFS noise Covariance elements into a covariance matrix of
+    lensPT.
+
+    Args:
+        data (ndarray):     input FPFS ellipticity catalog
+    Returns:
+        out (ndarray):      Covariance matrix
+    """
+    # the colum names
+    # M00 -> N00; v1 -> V1
+    ll = [cn[5:].replace("M", "N").replace("v", "V") for cn in col_names]
+    out = np.zeros((ncol, ncol))
+    for i in range(ncol):
+        for j in range(ncol):
+            try:
+                try:
+                    cname = "fpfs_%s%s" % (ll[i], ll[j])
+                    out[i, j] = data[cname][0]
+                except ValueError:
+                    cname = "fpfs_%s%s" % (ll[j], ll[i])
+                    out[i, j] = data[cname][0]
+            except ValueError:
+                out[i, j] = 0.0
+    return out
