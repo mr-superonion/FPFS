@@ -98,11 +98,11 @@ class Worker(object):
         )
         mm1 = pyfits.getdata(in_nm1)
         mm2 = pyfits.getdata(in_nm2)
-        ellM1 = fpfs.catalog.fpfsM2E(mm1, const=self.Const, noirev=self.do_noirev)
-        ellM2 = fpfs.catalog.fpfsM2E(mm2, const=self.Const, noirev=self.do_noirev)
+        ell1 = fpfs.catalog.fpfsM2E(mm1, const=self.Const, noirev=self.do_noirev)
+        ell2 = fpfs.catalog.fpfsM2E(mm2, const=self.Const, noirev=self.do_noirev)
 
-        fs1 = fpfs.catalog.summary_stats(mm1, ellM1, use_sig=False, ratio=1.0)
-        fs2 = fpfs.catalog.summary_stats(mm2, ellM2, use_sig=False, ratio=1.0)
+        fs1 = fpfs.catalog.summary_stats(mm1, ell1, use_sig=False, ratio=1.0)
+        fs2 = fpfs.catalog.summary_stats(mm2, ell2, use_sig=False, ratio=1.0)
 
         # names= [('cut','<f8'), ('de','<f8'), ('eA1','<f8'), ('eA2','<f8'),
         # ('res1','<f8'), ('res2','<f8')]

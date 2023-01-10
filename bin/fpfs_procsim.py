@@ -126,11 +126,11 @@ class Worker(object):
         else:
             psf_fname = self.psf_fname
 
-        psfInt = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0)
-        psfInt = psfInt.shear(e1=0.02, e2=-0.02).shift(
+        psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0)
+        psf_obj = psf_obj.shear(e1=0.02, e2=-0.02).shift(
             0.5 * self.scale, 0.5 * self.scale
         )
-        psf_data2 = psfInt.drawImage(nx=64, ny=64, scale=self.scale).array
+        psf_data2 = psf_obj.drawImage(nx=64, ny=64, scale=self.scale).array
         self.ppt = psf_data2
         psf_data2, psf_data3 = self.prepare_psf(psf_fname, self.rcut, self.image_nx)
 
@@ -150,30 +150,28 @@ class Worker(object):
                 * np.sqrt(self.noi_var)
             )
             # Also times 100 for the noivar model
-            powIn = (
+            noise_pow = (
                 np.load(self.noiPfname, allow_pickle=True).item()["%s" % self.rcut]
                 * self.noi_var
                 * 100
             )
-            powModel = np.zeros((1, powIn.shape[0], powIn.shape[1]))
-            powModel[0] = powIn
-            measTask = fpfs.image.measure_source(
-                psf_data2, sigma_arcsec=self.sigma_as, noise_ps=powModel[0]
+            meas_task = fpfs.image.measure_source(
+                psf_data2, sigma_arcsec=self.sigma_as, noise_ps=noise_pow
             )
         else:
             print("Using noiseless setup")
             # by default noise_ps=None
-            measTask = fpfs.image.measure_source(psf_data2, sigma_arcsec=self.sigma_as)
+            meas_task = fpfs.image.measure_source(psf_data2, sigma_arcsec=self.sigma_as)
             noise_data = 0.0
-        print("The upper limit of wave number is %s pixels" % (measTask.klim_pix))
+        print("The upper limit of wave number is %s pixels" % (meas_task.klim_pix))
 
         for ishear in self.pendList:
             print("FPFS measurement on simulation: %04d, %s" % (Id, ishear))
-            galFname = os.path.join(gal_dir, "image-%s-%s.fits" % (Id, ishear))
-            if not os.path.isfile(galFname):
-                print("Cannot find input galaxy file: %s" % galFname)
+            gal_fname = os.path.join(gal_dir, "image-%s-%s.fits" % (Id, ishear))
+            if not os.path.isfile(gal_fname):
+                print("Cannot find input galaxy file: %s" % gal_fname)
                 return
-            gal_data = pyfits.getdata(galFname) + noise_data
+            gal_data = pyfits.getdata(gal_fname) + noise_data
             assert gal_data.shape == (self.image_ny, self.image_nx)
             out_fname = os.path.join(self.outdir, "src-%04d-%s.fits" % (Id, ishear))
             pp = "cut%d" % self.rcut
@@ -211,10 +209,10 @@ class Worker(object):
                 coords = fpfs.image.detect_sources(
                     gal_data,
                     psf_data3,
-                    gsigma=measTask.sigmaF,
+                    gsigma=meas_task.sigmaF,
                     thres=thres,
                     thres2=thres2,
-                    klim=measTask.klim,
+                    klim=meas_task.klim,
                 )
             # # for test
             # coords  =   np.array(np.zeros(1),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
@@ -228,7 +226,7 @@ class Worker(object):
                 ]
                 for cc in coords
             ]
-            out = measTask.measure(img_list)
+            out = meas_task.measure(img_list)
             out = rfn.merge_arrays([coords, out], flatten=True, usemask=False)
             pyfits.writeto(out_fname, out)
             del img_list, out, coords, gal_data, out_fname
