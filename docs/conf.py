@@ -40,6 +40,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'myst_parser',
+    "myst_nb",
 ]
 
 intersphinx_mapping = {
@@ -77,6 +78,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
+    '.ipynb': 'myst-nb',
 }
 
 master_doc = 'index'

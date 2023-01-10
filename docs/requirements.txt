@@ -1,3 +1,4 @@
 sphinx >=4
 myst-parser
+myst-nb
 sphinx_rtd_theme
