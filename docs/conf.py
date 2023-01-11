@@ -13,7 +13,6 @@
 
 import os
 import sys
-import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../fpfs'))
 
 import fpfs
@@ -39,6 +38,9 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+    "sphinx_copybutton",
+    "sphinx_book_theme",
+    "sphinx_design",
     "myst_nb",
 ]
 
@@ -84,16 +86,18 @@ source_suffix = {
     '.myst': 'myst-nb',
     '.ipynb': 'myst-nb',
 }
-
 master_doc = 'index'
+nb_merge_streams = True
+
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+# html_theme = 'sphinx_rtd_theme'
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "sphinx_book_theme"
 html_theme_options = {
     "github_url": "https://github.com/executablebooks/myst-nb",
     "repository_url": "https://github.com/executablebooks/myst-nb",
