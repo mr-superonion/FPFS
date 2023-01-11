@@ -1,4 +1,6 @@
 sphinx >=4
-myst-parser
 myst-nb
+sphinx-copybutton
+sphinx-book-theme
 sphinx_rtd_theme
+sphinx_design
