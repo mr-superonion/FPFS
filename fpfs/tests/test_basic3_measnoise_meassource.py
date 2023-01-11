@@ -2,6 +2,10 @@ import fpfs
 import galsim
 import numpy as np
 
+""" This test checks the consistency between measure_source and
+measure_noise_cov
+"""
+
 rcut = 32
 scale = 0.168
 psfInt = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(e1=0.02, e2=-0.02)
