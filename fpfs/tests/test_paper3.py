@@ -1,8 +1,8 @@
 import os
 import fpfs
 import galsim
-import fitsio
 import numpy as np
+import astropy.io.fits as pyfits
 
 """ This test checks the consistency with the result of paper: Li & Mandelbaum
 to make sure we can always reproduce the published result for every version of
@@ -24,7 +24,7 @@ noise_fname = os.path.join(fpfs.__data_dir__, "noiPows3.npy")
 noi_var = 7e-3  # about 2 times of HSC average
 noise_pow = np.load(noise_fname, allow_pickle=True).item()["%s" % rcut] * noi_var * 100
 cat_fname = os.path.join(fpfs.__data_dir__, "fpfs-cut32-0000-g1-0000.fits")
-outLM = fitsio.read(cat_fname)
+outLM = pyfits.getdata(cat_fname)
 colnames = list(outLM.dtype.names)
 
 
