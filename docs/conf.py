@@ -40,7 +40,6 @@ extensions = [
     'sphinx.ext.intersphinx',
     "sphinx_copybutton",
     "sphinx_book_theme",
-    "sphinx_design",
     "myst_nb",
 ]
 

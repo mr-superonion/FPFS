@@ -2,5 +2,3 @@ sphinx >=4
 myst-nb
 sphinx-copybutton
 sphinx-book-theme
-sphinx_rtd_theme
-sphinx_design
