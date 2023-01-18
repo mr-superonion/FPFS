@@ -121,26 +121,26 @@ class Worker(object):
                     # do basic stamp-like image simulation
                     fpfs.simutil.make_basic_sim(
                         self.outdir,
-                        self.infname,
                         self.psfInt,
                         pp,
                         Id,
-                        scale=self.scale,
+                        catname=self.infname,
                         ny=self.image_ny,
                         nx=self.image_nx,
+                        scale=self.scale,
                         shear_value=self.shear_value,
                     )
                 elif "cosmo" in self.simname:
                     # do blended cosmo-like image simulation
                     fpfs.simutil.make_cosmo_sim(
                         self.outdir,
-                        self.infname,
                         self.psfInt,
                         pp,
                         Id,
-                        scale=self.scale,
+                        catname=self.infname,
                         ny=self.image_ny,
                         nx=self.image_nx,
+                        scale=self.scale,
                         shear_value=self.shear_value,
                     )
         gc.collect()

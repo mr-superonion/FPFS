@@ -172,7 +172,8 @@ class Worker(object):
                 print("Cannot find input galaxy file: %s" % gal_fname)
                 return
             gal_data = pyfits.getdata(gal_fname) + noise_data
-            assert gal_data.shape == (self.image_ny, self.image_nx)
+            assert gal_data.shape == (self.image_ny, self.image_nx), \
+                "The input image has different shape as indicated in the ini file"
             out_fname = os.path.join(self.outdir, "src-%04d-%s.fits" % (Id, ishear))
             pp = "cut%d" % self.rcut
             out_fname = os.path.join(
