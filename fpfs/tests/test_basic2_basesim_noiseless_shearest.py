@@ -51,7 +51,9 @@ def do_test(scale, ind0, rcut):
     thres = 1e-5
     image_list, psf_data = simulate_gal_psf(scale, ind0, rcut)
     fpfs_task = fpfs.image.measure_source(psf_data, noise_ps=0.0, sigma_arcsec=0.7)
+    # linear observables
     mms = fpfs_task.measure(image_list)
+    # non-linear observables
     ells = fpfs.catalog.fpfs_m2e(mms, const=2000, noirev=False)
     resp = np.average(ells["fpfs_R1E"])
     shear = np.average(ells["fpfs_e1"]) / resp

@@ -333,7 +333,8 @@ class measure_source(measure_base):
                 raise TypeError("noise_ps should be either np.ndarray or float")
 
         # Preparing shapelet basis
-        # nm = m*(nnord+1)+n
+        # nm = n*(nnord+1)+m
+        # nnord is the maximum 'n' the code calculates
         if nnord == 4:
             # This setup is for shear response only
             # Only uses M00, M20, M22 (real and img) and M40, M42
@@ -381,11 +382,11 @@ class measure_source(measure_base):
         if self.nnord == 4:
             out.append(chi.real[0])  # x00
             out.append(chi.real[1])  # x20
-            out.append(chi.real[2])
-            out.append(chi.imag[2])  # x22c,s
+            out.append(chi.real[2])  # x22c
+            out.append(chi.imag[2])  # x22s
             out.append(chi.real[3])  # x40
-            out.append(chi.real[4])
-            out.append(chi.imag[4])  # x42c,s
+            out.append(chi.real[4])  # x42c
+            out.append(chi.imag[4])  # x42s
             out = np.stack(out)
             self.chi_types = [
                 ("fpfs_M00", "<f8"),
@@ -399,11 +400,11 @@ class measure_source(measure_base):
         elif self.nnord == 6:
             out.append(chi.real[0])  # x00
             out.append(chi.real[1])  # x20
-            out.append(chi.real[2])
-            out.append(chi.imag[2])  # x22c,s
+            out.append(chi.real[2])  # x22c
+            out.append(chi.imag[2])  # x22s
             out.append(chi.real[3])  # x40
-            out.append(chi.real[4])
-            out.append(chi.imag[4])  # x42c,s
+            out.append(chi.real[4])  # x42c
+            out.append(chi.imag[4])  # x42s
             out.append(chi.real[5])  # x60
             self.chi_types = [
                 ("fpfs_M00", "<f8"),
