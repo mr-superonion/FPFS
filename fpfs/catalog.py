@@ -180,7 +180,7 @@ def get_wbias(x, cut, sigma, use_sig, w_sel, rev=None):
 
 
 # functions to get derived observables from fpfs modes
-def fpfsM2E(mm, const=1.0, noirev=False):
+def fpfs_m2e(mm, const=1.0, noirev=False):
     """Estimates FPFS ellipticities from fpfs moments
 
     Args:
@@ -241,8 +241,8 @@ def fpfsM2E(mm, const=1.0, noirev=False):
     # intrinsic ellipticity
     e1e1 = e1 * e1
     e2e2 = e2 * e2
-    eM22 = e1 * mm["fpfs_M22c"] + e2 * mm["fpfs_M22s"]
-    eM42 = e1 * mm["fpfs_M42c"] + e2 * mm["fpfs_M42s"]
+    e_m22 = e1 * mm["fpfs_M22c"] + e2 * mm["fpfs_M22s"]
+    e_m42 = e1 * mm["fpfs_M42c"] + e2 * mm["fpfs_M42s"]
 
     # shear response for detection process (not for deatection function)
     for i in range(8):
@@ -312,13 +312,13 @@ def fpfsM2E(mm, const=1.0, noirev=False):
             - (mm["fpfs_N22sN22s"]) / _w**2.0
             + 4.0 * (e2 * mm["fpfs_N00N22s"]) / _w**2.0
         ) - 3 * ratio * e2e2
-        eM22 = (
-            eM22
+        e_m22 = (
+            e_m22
             - (mm["fpfs_N22cN22c"] + mm["fpfs_N22sN22s"]) / _w
             + 2.0 * (mm["fpfs_N00N22c"] * e1 + mm["fpfs_N00N22s"] * e2) / _w
         ) / (1 + ratio)
-        eM42 = (
-            eM42
+        e_m42 = (
+            e_m42
             - (mm["fpfs_N22cN42c"] + mm["fpfs_N22sN42s"]) / _w
             + 1.0 * (e1 * mm["fpfs_N00N42c"] + e2 * mm["fpfs_N00N42s"]) / _w
             + 1.0 * (q1 * mm["fpfs_N00N22c"] + q2 * mm["fpfs_N00N22s"]) / _w
@@ -352,9 +352,9 @@ def fpfsM2E(mm, const=1.0, noirev=False):
     out["fpfs_R2E"] = (s0 - s4 + 2.0 * e2e2) / np.sqrt(2.0)
     del s0, s2, s4, e1e1, e2e2
     # response for selection process (not response for selection function)
-    out["fpfs_RS0"] = -1.0 * eM22 / np.sqrt(2.0)  # this has spin-4 leakage
-    out["fpfs_RS2"] = -1.0 * eM42 * np.sqrt(6.0) / 2.0  # this has spin-4 leakage
-    del eM22, eM42
+    out["fpfs_RS0"] = -1.0 * e_m22 / np.sqrt(2.0)  # this has spin-4 leakage
+    out["fpfs_RS2"] = -1.0 * e_m42 * np.sqrt(6.0) / 2.0  # this has spin-4 leakage
+    del e_m22, e_m42
     return out
 
 
@@ -580,15 +580,15 @@ class summary_stats:
                 ncol2 = None
         else:
             raise ValueError("Do not support selection vector name: %s" % selnm)
-        corSR1 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ccol1)
-        corSR2 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ccol2)
-        corNR = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, dcol)
-        corNE1 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ncol1)
-        corNE2 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ncol2)
-        self.corR1 = self.corR1 + corSR1 + corNR
-        self.corR2 = self.corR2 + corSR2 + corNR
-        self.corE1 = self.corE1 + corNE1
-        self.corE2 = self.corE2 + corNE2
+        cor_sel_r1 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ccol1)
+        cor_sel_r2 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ccol2)
+        cor_noise_r = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, dcol)
+        cor_noise_e1 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ncol1)
+        cor_noise_e2 = get_wbias(scol, cut_final, cutsig, self.use_sig, self.ws, ncol2)
+        self.corR1 = self.corR1 + cor_sel_r1 + cor_noise_r
+        self.corR2 = self.corR2 + cor_sel_r2 + cor_noise_r
+        self.corE1 = self.corE1 + cor_noise_e1
+        self.corE2 = self.corE2 + cor_noise_e2
         self.ncor = self.ncor + 1
         return
 
@@ -601,3 +601,66 @@ class summary_stats:
         self.sumR1 = np.sum(self.ell["fpfs_R1E"] * self.ws)
         self.sumR2 = np.sum(self.ell["fpfs_R2E"] * self.ws)
         return
+
+
+ncol = 31
+col_names = [
+    "fpfs_M00",
+    "fpfs_M20",
+    "fpfs_M22c",
+    "fpfs_M22s",
+    "fpfs_M40",
+    "fpfs_M42c",
+    "fpfs_M42s",
+    "fpfs_v0",
+    "fpfs_v1",
+    "fpfs_v2",
+    "fpfs_v3",
+    "fpfs_v4",
+    "fpfs_v5",
+    "fpfs_v6",
+    "fpfs_v7",
+    "fpfs_v0r1",
+    "fpfs_v1r1",
+    "fpfs_v2r1",
+    "fpfs_v3r1",
+    "fpfs_v4r1",
+    "fpfs_v5r1",
+    "fpfs_v6r1",
+    "fpfs_v7r1",
+    "fpfs_v0r2",
+    "fpfs_v1r2",
+    "fpfs_v2r2",
+    "fpfs_v3r2",
+    "fpfs_v4r2",
+    "fpfs_v5r2",
+    "fpfs_v6r2",
+    "fpfs_v7r2",
+]
+
+
+def fpfscov_to_imptcov(data):
+    """Converts FPFS noise Covariance elements into a covariance matrix of
+    lensPT.
+
+    Args:
+        data (ndarray):     input FPFS ellipticity catalog
+    Returns:
+        out (ndarray):      Covariance matrix
+    """
+    # the colum names
+    # M00 -> N00; v1 -> V1
+    ll = [cn[5:].replace("M", "N").replace("v", "V") for cn in col_names]
+    out = np.zeros((ncol, ncol))
+    for i in range(ncol):
+        for j in range(ncol):
+            try:
+                try:
+                    cname = "fpfs_%s%s" % (ll[i], ll[j])
+                    out[i, j] = data[cname][0]
+                except ValueError:
+                    cname = "fpfs_%s%s" % (ll[j], ll[i])
+                    out[i, j] = data[cname][0]
+            except ValueError:
+                out[i, j] = 0.0
+    return out

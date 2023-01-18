@@ -8,13 +8,13 @@ build
 *.dSYM
 *.pyc
 *.swp
-doc/_html/*
-doc/_latex/*
+docs/_html/*
+docs/_latex/*
 _build
 dist
-examples/output
-examples/command_line/output
-*.html
+docs/examples/command_line/output
+docs/examples/notebooks/output
+README.html
 *.aux
 *.bbl
 *.blg
@@ -29,4 +29,5 @@ pip-wheel*
 *wrkDir
 x*-err-*
 x*-out-*
-examples/notebooks/output
+.hypothesis
+output/

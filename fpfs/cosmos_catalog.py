@@ -52,8 +52,8 @@ class cosmoHSTGal:
                 ]
                 ra = oricat["RA"]
                 dec = oricat["DEC"]
-                indexNew = np.arange(len(ra), dtype=int)
-                __tmp = np.stack([ra, dec, indexNew]).T
+                index_new = np.arange(len(ra), dtype=int)
+                __tmp = np.stack([ra, dec, index_new]).T
                 radec = np.array(
                     [tuple(__t) for __t in __tmp],
                     dtype=[("ra", ">f8"), ("dec", ">f8"), ("index", "i8")],

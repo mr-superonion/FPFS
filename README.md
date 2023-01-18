@@ -55,3 +55,16 @@ interesting or use the pipeline. Comments are welcome.
   [Fourier_Quad](https://arxiv.org/abs/1312.5514) and [polar
   shapelets](https://arxiv.org/abs/astro-ph/0408445).
 ----
+
+## Development
+
+Before sending pull request, please make sure that the modified code passed the
+pytest and flake8 tests. Run the following commands under the root directory
+for the tests:
+
+```shell
+flake8
+pytest -vv
+```
+
+----

@@ -96,8 +96,8 @@ class Worker(object):
             ).shear(e1=0.02, e2=-0.02)
         else:
             raise ValueError("Only support moffat PSF.")
-        psfImg = self.psfInt.drawImage(nx=45, ny=45, scale=self.scale)
-        psfImg.write(psffname)
+        psf_image = self.psfInt.drawImage(nx=45, ny=45, scale=self.scale)
+        psf_image.write(psffname)
         return
 
     def run(self, Id):
@@ -111,36 +111,36 @@ class Worker(object):
                 else:
                     psffname = self.psffname
                 assert os.path.isfile(psffname), "Cannot find input PSF file"
-                psfImg = galsim.fits.read(psffname)
+                psf_image = galsim.fits.read(psffname)
                 self.psfInt = galsim.InterpolatedImage(
-                    psfImg, scale=self.scale, flux=1.0
+                    psf_image, scale=self.scale, flux=1.0
                 )
-                del psfImg
+                del psf_image
             for pp in self.pendList:
                 if "basic" in self.simname or "small" in self.simname:
                     # do basic stamp-like image simulation
                     fpfs.simutil.make_basic_sim(
                         self.outdir,
-                        self.infname,
                         self.psfInt,
                         pp,
                         Id,
-                        scale=self.scale,
+                        catname=self.infname,
                         ny=self.image_ny,
                         nx=self.image_nx,
+                        scale=self.scale,
                         shear_value=self.shear_value,
                     )
                 elif "cosmo" in self.simname:
                     # do blended cosmo-like image simulation
                     fpfs.simutil.make_cosmo_sim(
                         self.outdir,
-                        self.infname,
                         self.psfInt,
                         pp,
                         Id,
-                        scale=self.scale,
+                        catname=self.infname,
                         ny=self.image_ny,
                         nx=self.image_nx,
+                        scale=self.scale,
                         shear_value=self.shear_value,
                     )
         gc.collect()

@@ -3,20 +3,23 @@ import galsim
 import numpy as np
 
 
-def simulate_gal_psf(scale, Id0, rcut):
-    outDir = "galaxy_basicCenter_psf60"
-    psfInt = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(e1=0.02, e2=-0.02)
+def simulate_gal_psf(scale, ind0, rcut):
+    out_dir = "galaxy_basicCenter_psf60"
+    psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(
+        e1=0.02, e2=-0.02
+    )
+
     psf_data = (
-        psfInt.shift(0.5 * scale, 0.5 * scale)
+        psf_obj.shift(0.5 * scale, 0.5 * scale)
         .drawImage(nx=64, ny=64, scale=scale)
         .array
     )
     psf_data = psf_data[32 - rcut : 32 + rcut, 32 - rcut : 32 + rcut]
     gal_data = fpfs.simutil.make_basic_sim(
-        outDir,
-        psfInt=psfInt,
+        out_dir,
+        psf_obj=psf_obj,
         gname="g1-0000",
-        Id0=Id0,
+        ind0=ind0,
         ny=64,
         nx=256,
         scale=scale,
@@ -25,9 +28,9 @@ def simulate_gal_psf(scale, Id0, rcut):
     )
 
     # force detection at center
-    indX = np.arange(32, 256, 64)
-    indY = np.arange(32, 64, 64)
-    inds = np.meshgrid(indY, indX, indexing="ij")
+    indx = np.arange(32, 256, 64)
+    indy = np.arange(32, 64, 64)
+    inds = np.meshgrid(indy, indx, indexing="ij")
     coords = np.array(
         np.zeros(inds[0].size),
         dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
@@ -44,12 +47,12 @@ def simulate_gal_psf(scale, Id0, rcut):
     return image_list, psf_data
 
 
-def do_test(scale, Id0, rcut):
+def do_test(scale, ind0, rcut):
     thres = 1e-5
-    image_list, psf_data = simulate_gal_psf(scale, Id0, rcut)
-    fpTask = fpfs.image.measure_source(psf_data, noiFit=0.0, sigma_arcsec=0.7)
-    mms = fpTask.measure(image_list)
-    ells = fpfs.catalog.fpfsM2E(mms, const=2000, noirev=False)
+    image_list, psf_data = simulate_gal_psf(scale, ind0, rcut)
+    fpfs_task = fpfs.image.measure_source(psf_data, noise_ps=0.0, sigma_arcsec=0.7)
+    mms = fpfs_task.measure(image_list)
+    ells = fpfs.catalog.fpfs_m2e(mms, const=2000, noirev=False)
     resp = np.average(ells["fpfs_R1E"])
     shear = np.average(ells["fpfs_e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)

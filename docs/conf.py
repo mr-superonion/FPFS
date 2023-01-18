@@ -10,10 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+# flake8: noqa
 
 import os
 import sys
-import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../fpfs'))
 
 import fpfs
@@ -39,7 +39,9 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    'myst_parser',
+    "sphinx_copybutton",
+    "sphinx_book_theme",
+    "myst_nb",
 ]
 
 intersphinx_mapping = {
@@ -47,6 +49,11 @@ intersphinx_mapping = {
     'numpy': ('http://docs.scipy.org/doc/numpy', None),
     'scipy': ('http://docs.scipy.org/doc/scipy/reference', None),
     'matplotlib': ('http://matplotlib.org/stable', None),
+    "myst": ("https://myst-parser.readthedocs.io/en/latest/", None),
+    "markdown_it": ("https://markdown-it-py.readthedocs.io/en/latest", None),
+    "nbclient": ("https://nbclient.readthedocs.io/en/latest", None),
+    "nbformat": ("https://nbformat.readthedocs.io/en/latest", None),
+    "sphinx": ("https://www.sphinx-doc.org/en/master", None),
 }
 
 autosectionlabel_prefix_document = True
@@ -76,21 +83,39 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 source_suffix = {
     '.rst': 'restructuredtext',
-    '.md': 'markdown',
+    '.myst': 'myst-nb',
+    '.ipynb': 'myst-nb',
 }
-
 master_doc = 'index'
+nb_merge_streams = True
+
 
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+# html_theme = 'sphinx_rtd_theme'
+# html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_theme = "sphinx_book_theme"
+html_theme_options = {
+    "github_url": "https://github.com/executablebooks/myst-nb",
+    "repository_url": "https://github.com/executablebooks/myst-nb",
+    "repository_branch": "master",
+    "home_page_in_toc": True,
+    "path_to_docs": "docs",
+    "show_navbar_depth": 1,
+    "use_edit_page_button": True,
+    "use_repository_button": True,
+    "use_download_button": True,
+    "launch_buttons": {
+        "binderhub_url": "https://mybinder.org",
+        "notebook_interface": "classic",
+    },
+}
 
-def setup(app):
-    app.add_css_file('xtheme.css')
+# def setup(app):
+#     app.add_css_file('xtheme.css')
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -106,18 +131,15 @@ default_role = 'any'
 
 # myst
 myst_enable_extensions = [
-    "dollarmath",
+    "colon_fence",
     "amsmath",
+    "dollarmath",
     "deflist",
     "fieldlist",
+    "tasklist",
+    "smartquotes",
     "html_admonition",
     "html_image",
-    "colon_fence",
-    "smartquotes",
-    "replacements",
-    "strikethrough",
-    "substitution",
-    "tasklist",
 ]
 myst_number_code_blocks = ["typescript"]
 myst_heading_anchors = 2
