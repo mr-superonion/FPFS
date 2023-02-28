@@ -275,16 +275,12 @@ class measure_source(measure_base):
 
     Args:
         psf_data (ndarray):  an average PSF image used to initialize the task
-        beta (float):       FPFS scale parameter
-        nnord (int):        the highest order of Shapelets radial components
-                            [default: 4]
-        noise_mod (ndarray): Models to be used to fit noise power function using
-                            the pixels at large k for each galaxy (if you wish
-                            FPFS code to estiamte noise power). [default: None]
-        noise_ps (ndarray):   Estimated noise power function, if you have already
-                            estimated noise power [default: None]
-        debug (bool):       Whether debug or not [default: False]
-        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
+        beta (float):        FPFS scale parameter
+        nnord (int):         the highest order of Shapelets radial components
+                             [default: 4]
+        debug (bool):        Whether debug or not [default: False]
+        pix_scale (float):   pixel scale in arcsec [default: 0.168 arcsec
+                             [HSC]]
     """
 
     _DefaultName = "measure_source"
@@ -294,8 +290,6 @@ class measure_source(measure_base):
         psf_data,
         sigma_arcsec,
         nnord=4,
-        noise_mod=None,
-        noise_ps=None,
         debug=False,
         pix_scale=0.168,
     ):
@@ -305,33 +299,6 @@ class measure_source(measure_base):
             nnord=nnord,
             pix_scale=pix_scale,
         )
-        if noise_ps is None:
-            # estimated noise PS
-            self.noise_ps = 0.0
-            if noise_mod is not None:
-                # PC models for noise PS
-                self.noise_mod = np.array(noise_mod, dtype="<f8")
-                self.noise_correct = True
-            else:
-                self.noise_mod = None
-                self.noise_correct = False
-        else:
-            self.noise_correct = True
-            self.noise_mod = None
-            # Preparing noise
-            if isinstance(noise_ps, np.ndarray):
-                assert (
-                    noise_ps.shape == psf_data.shape
-                ), "the input noise power should have the same shape\
-                    with input psf image"
-                self.noise_ps = np.array(noise_ps, dtype="<f8")
-            elif isinstance(noise_ps, float):
-                self.noise_ps = (
-                    np.ones_like(psf_data, dtype="<f8") * noise_ps * (self.ngrid) ** 2.0
-                )
-            else:
-                raise TypeError("noise_ps should be either np.ndarray or float")
-
         # Preparing shapelet basis
         # nm = n*(nnord+1)+m
         # nnord is the maximum 'n' the code calculates
@@ -345,7 +312,6 @@ class measure_source(measure_base):
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indM = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
             self._nameM = ["M00", "M20", "M22", "M40", "M42", "M60"]
-        # TODO:Andy, please try to check which modes are necessay for shear
         # estimation with M_{42}
         else:
             raise ValueError(
@@ -359,15 +325,7 @@ class measure_source(measure_base):
         psi = imgutil.detlets2d(self.ngrid, self.sigmaF)[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
-        if self.noise_correct:
-            logging.info("measurement error covariance will be calculated")
-            self.prepare_chicov(chi)
-            self.prepare_detcov(chi, psi)
-        else:
-            logging.info("measurement covariance will not be calculated")
         del chi
-
-        # others
         if debug:
             self.stackPow = np.zeros(psf_data.shape, dtype="<f8")
         else:
@@ -447,90 +405,6 @@ class measure_source(measure_base):
         del out
         return
 
-    def prepare_chicov(self, chi):
-        """Prepares the basis to estimate covariance of measurement error
-
-        Args:
-            chi (ndarray):    2d shapelet basis
-        """
-        out = []
-        # diagonal terms
-        out.append(chi.real[0] * chi.real[0])  # x00 x00
-        out.append(chi.real[1] * chi.real[1])  # x20 x20
-        out.append(chi.real[2] * chi.real[2])  # x22c x22c
-        out.append(chi.imag[2] * chi.imag[2])  # x22s x22s
-        out.append(chi.real[3] * chi.real[3])  # x40 x40
-        # off-diagonal terms
-        #
-        out.append(chi.real[0] * chi.real[1])  # x00 x20
-        out.append(chi.real[0] * chi.real[2])  # x00 x22c
-        out.append(chi.real[0] * chi.imag[2])  # x00 x22s
-        out.append(chi.real[0] * chi.real[3])  # x00 x40
-        out.append(chi.real[0] * chi.real[4])  # x00 x42c
-        out.append(chi.real[0] * chi.imag[4])  # x00 x42s
-        #
-        out.append(chi.real[1] * chi.real[2])  # x20 x22c
-        out.append(chi.real[1] * chi.imag[2])  # x20 x22s
-        out.append(chi.real[1] * chi.real[3])  # x20 x40
-        out.append(chi.real[2] * chi.real[4])  # x22c x42c
-        out.append(chi.imag[2] * chi.imag[4])  # x22s x42s
-        out = np.stack(out)
-        self.cov_types = [
-            ("fpfs_N00N00", "<f8"),
-            ("fpfs_N20N20", "<f8"),
-            ("fpfs_N22cN22c", "<f8"),
-            ("fpfs_N22sN22s", "<f8"),
-            ("fpfs_N40N40", "<f8"),
-            ("fpfs_N00N20", "<f8"),
-            ("fpfs_N00N22c", "<f8"),
-            ("fpfs_N00N22s", "<f8"),
-            ("fpfs_N00N40", "<f8"),
-            ("fpfs_N00N42c", "<f8"),
-            ("fpfs_N00N42s", "<f8"),
-            ("fpfs_N20N22c", "<f8"),
-            ("fpfs_N20N22s", "<f8"),
-            ("fpfs_N20N40", "<f8"),
-            ("fpfs_N22cN42c", "<f8"),
-            ("fpfs_N22sN42s", "<f8"),
-        ]
-        assert len(out) == len(self.cov_types)
-        self.chicov = out
-        del out
-        return
-
-    def prepare_detcov(self, chi, psi):
-        """Prepares the basis to estimate covariance for detection
-
-        Args:
-            chi (ndarray):      2d shapelet basis
-            psi (ndarray):      2d pixel basis
-        """
-        # get the Gaussian scale in Fourier space
-        out = []
-        self.det_types = []
-        for _ in range(8):
-            out.append(chi.real[0] * psi[_, 0])  # x00*psi
-            out.append(chi.real[0] * psi[_, 1])  # x00*psi;1
-            out.append(chi.real[0] * psi[_, 2])  # x00*psi;2
-            out.append(chi.real[2] * psi[_, 0])  # x22c*psi
-            out.append(chi.imag[2] * psi[_, 0])  # x22s*psi
-            out.append(chi.real[2] * psi[_, 1])  # x22c*psi;1
-            out.append(chi.imag[2] * psi[_, 2])  # x22s*psi;2
-            out.append(chi.real[3] * psi[_, 0])  # x40*psi
-            self.det_types.append(("fpfs_N00V%d" % _, "<f8"))
-            self.det_types.append(("fpfs_N00V%dr1" % _, "<f8"))
-            self.det_types.append(("fpfs_N00V%dr2" % _, "<f8"))
-            self.det_types.append(("fpfs_N22cV%d" % _, "<f8"))
-            self.det_types.append(("fpfs_N22sV%d" % _, "<f8"))
-            self.det_types.append(("fpfs_N22cV%dr1" % _, "<f8"))
-            self.det_types.append(("fpfs_N22sV%dr2" % _, "<f8"))
-            self.det_types.append(("fpfs_N40V%d" % _, "<f8"))
-        out = np.stack(out)
-        assert len(out) == len(self.det_types)
-        self.detcov = out
-        del out
-        return
-
     def itransform(self, data, out_type="chi"):
         """Projects image onto shapelet basis vectors
 
@@ -541,9 +415,9 @@ class measure_source(measure_base):
             out (ndarray):  projection in shapelet space
         """
 
-        # Here we divide by self.pix_scale**2. for modes since pixel value are
-        # flux in pixel (in unit of nano Jy for HSC). After dividing pix_scale**2.,
-        # in units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
+        # Here we divide by self.pix_scale**2. since pixel values are flux in
+        # pixel (in unit of nano Jy for HSC). After dividing pix_scale**2., in
+        # units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
         # Correspondingly, covariances are divided by self.pix_scale**4.
         if out_type == "chi":
             # chivatives/Moments
@@ -559,47 +433,26 @@ class measure_source(measure_base):
                 / self.pix_scale**2.0
             )
             out = np.array(tuple(_), dtype=self.psi_types)
-        elif out_type == "cov":
-            # covariance of moments
-            _ = (
-                np.sum(
-                    data[None, self._indy, self._indx] * self.chicov, axis=(1, 2)
-                ).real
-                / self.pix_scale**4.0
-            )
-            out = np.array(tuple(_), dtype=self.cov_types)
-        elif out_type == "detcov":
-            # covariance of pixels
-            _ = (
-                np.sum(
-                    data[None, self._indy, self._indx] * self.detcov, axis=(1, 2)
-                ).real
-                / self.pix_scale**4.0
-            )
-            out = np.array(tuple(_), dtype=self.det_types)
         else:
             raise ValueError(
-                "out_type can only be 'chi', 'cov' or 'Det',\
+                "out_type can only be 'chi' or 'psi',\
                     but the input is '%s'"
                 % out_type
             )
         return out
 
-    def measure(self, gal_data, psf_fourier=None, noise_ps=None):
+    def measure(self, gal_data, psf_fourier=None):
         """Measures the FPFS moments
 
         Args:
-            gal_data (ndarray|list):     galaxy image
-            psf_fourier (ndarray):           PSF's Fourier transform
-            noise_ps (ndarray):           noise Fourier power function
+            gal_data (ndarray|list):    galaxy image
+            psf_fourier (ndarray):      PSF's Fourier transform
         Returns:
             out (ndarray):              FPFS moments
         """
         if psf_fourier is not None:
             self.psf_fourier = psf_fourier
             self.psf_pow = (np.conjugate(psf_fourier) * psf_fourier).real
-        if noise_ps is not None:
-            self.noise_ps = noise_ps
         if isinstance(gal_data, np.ndarray):
             assert gal_data.shape[-1] == gal_data.shape[-2]
             if len(gal_data.shape) == 2:
@@ -638,33 +491,16 @@ class measure_source(measure_base):
             mm (ndarray):       FPFS moments
         """
         if self.stackPow is not None:
+            # stacking the PF of galaxies as a test
             gal_pow = imgutil.get_fourier_pow(data)
             self.stackPow += gal_pow
-            return np.empty(1)
+            return 0
         gal_fourier = np.fft.fftshift(np.fft.fft2(data))
         gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
-        mm = self.itransform(gal_deconv, out_type="chi")
-        mp = self.itransform(gal_deconv, out_type="psi")
+        mm = self.itransform(gal_deconv, out_type="chi")  # FPFS shapelets
+        mp = self.itransform(gal_deconv, out_type="psi")  # FPFS detection
         mm = rfn.merge_arrays([mm, mp], flatten=True, usemask=False)
         del gal_deconv, mp
-
-        if self.noise_correct:
-            # do noise covariance estimation
-            if self.noise_mod is not None:
-                # fit the noise power from the galaxy power
-                gal_pow = imgutil.get_fourier_pow(data)
-                noise_ps = imgutil.fit_noise_ps(
-                    self.ngrid, gal_pow, self.noise_mod, self.klim_pix
-                )
-                del gal_pow
-            else:
-                # use the input noise power
-                noise_ps = self.noise_ps
-            noise_ps_deconv = self.deconvolve(noise_ps, prder=1, frder=0)
-            nn = self.itransform(noise_ps_deconv, out_type="cov")
-            dd = self.itransform(noise_ps_deconv, out_type="detcov")
-            del noise_ps_deconv
-            mm = rfn.merge_arrays([mm, nn, dd], flatten=True, usemask=False)
         return mm
 
 

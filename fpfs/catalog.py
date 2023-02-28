@@ -658,9 +658,9 @@ def fpfscov_to_imptcov(data):
                 try:
                     cname = "fpfs_%s%s" % (ll[i], ll[j])
                     out[i, j] = data[cname][0]
-                except ValueError:
+                except (ValueError, KeyError):
                     cname = "fpfs_%s%s" % (ll[j], ll[i])
                     out[i, j] = data[cname][0]
-            except ValueError:
+            except (ValueError, KeyError):
                 out[i, j] = 0.0
     return out

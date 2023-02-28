@@ -57,9 +57,7 @@ def get_multiplicative_bias(scale, ind0, rcut):
         images, psf = simulate_gal_psf(scale=scale, ind0=ind0, rcut=rcut, gname=gname)
         image_list[gname] = images
         psf_data = psf  # They have the same psf
-    fpfs_task = fpfs.image.measure_source(
-        psf_data, noise_ps=0.0, sigma_arcsec=0.5, nnord=6
-    )
+    fpfs_task = fpfs.image.measure_source(psf_data, sigma_arcsec=0.5, nnord=6)
     mms = dict()
     mms["p"] = fpfs_task.measure(image_list["g1-2222"])
     mms["n"] = fpfs_task.measure(image_list["g1-0000"])

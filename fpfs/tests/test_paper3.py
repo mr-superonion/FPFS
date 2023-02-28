@@ -24,27 +24,14 @@ noise_fname = os.path.join(fpfs.__data_dir__, "noiPows3.npy")
 noi_var = 7e-3  # about 2 times of HSC average
 noise_pow = np.load(noise_fname, allow_pickle=True).item()["%s" % rcut] * noi_var * 100
 cat_fname = os.path.join(fpfs.__data_dir__, "fpfs-cut32-0000-g1-0000.fits")
-outLM = pyfits.getdata(cat_fname)
-colnames = list(outLM.dtype.names)
+mms = pyfits.getdata(cat_fname)
+colnames = list(mms.dtype.names)
 
 
 def test_noise_cov():
-    """Test the consistency between base functions of measure_source and
-    measure_noise_cov
+    """Test the consistency between base functions of
+    measure_noise_cov and the paper3's measurement
     """
-    # Test whether the fpfs version is consistent with paper3
-    source_task = fpfs.image.measure_source(
-        psf_data,
-        nnord=4,
-        noise_ps=noise_pow,
-        sigma_arcsec=0.45,
-    )
-    mms = source_task.measure(np.ones((64, 64)))
-    for cn in colnames[33:]:
-        np.testing.assert_array_almost_equal(
-            outLM[0][cn],
-            mms[0][cn],
-        )
     noise_task = fpfs.image.measure_noise_cov(
         psf_data,
         nnord=4,
