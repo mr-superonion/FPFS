@@ -17,7 +17,6 @@ import os
 import gc
 import fpfs
 import json
-import galsim
 import schwimmbad
 import numpy as np
 import astropy.io.fits as pyfits
@@ -125,55 +124,40 @@ class Worker(object):
             psf_fname = self.psf_fname % Id
         else:
             psf_fname = self.psf_fname
-
-        psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0)
-        psf_obj = psf_obj.shear(e1=0.02, e2=-0.02).shift(
-            0.5 * self.scale, 0.5 * self.scale
-        )
-        psf_data2 = psf_obj.drawImage(nx=64, ny=64, scale=self.scale).array
-        self.ppt = psf_data2
         psf_data2, psf_data3 = self.prepare_psf(psf_fname, self.rcut, self.image_nx)
 
         # FPFS Task
-        if self.noi_var > 1e-20:
-            # noise
-            print("Using noisy setup with variance: %.3f" % self.noi_var)
-            assert self.noidir is not None
-            noise_fname = os.path.join(self.noidir, "noi%04d.fits" % Id)
-            if not os.path.isfile(noise_fname):
-                print("Cannot find input noise file: %s" % noise_fname)
-                return
-            # multiply by 10 since the noise has variance 0.01
-            noise_data = (
-                pyfits.getdata(noise_fname)[nbegin:nend, nbegin:nend]
-                * 10.0
-                * np.sqrt(self.noi_var)
-            )
-            # Also times 100 for the noivar model
-            noise_pow = (
-                np.load(self.noiPfname, allow_pickle=True).item()["%s" % self.rcut]
-                * self.noi_var
-                * 100
-            )
-            meas_task = fpfs.image.measure_source(
-                psf_data2, sigma_arcsec=self.sigma_as, noise_ps=noise_pow
-            )
-        else:
-            print("Using noiseless setup")
-            # by default noise_ps=None
-            meas_task = fpfs.image.measure_source(psf_data2, sigma_arcsec=self.sigma_as)
-            noise_data = 0.0
+        # noise
+        print("Using noisy setup with variance: %.3f" % self.noi_var)
+        assert self.noidir is not None
+        noise_fname = os.path.join(self.noidir, "noi%04d.fits" % Id)
+        if not os.path.isfile(noise_fname):
+            print("Cannot find input noise file: %s" % noise_fname)
+            return
+        # multiply by 10 since the noise has variance 0.01
+        noise_data = (
+            pyfits.getdata(noise_fname)[nbegin:nend, nbegin:nend]
+            * 10.0
+            * np.sqrt(self.noi_var)
+        )
+        # FPFS measurement task
+        meas_task = fpfs.image.measure_source(
+            psf_data2,
+            sigma_arcsec=self.sigma_as,
+        )
         print("The upper limit of wave number is %s pixels" % (meas_task.klim_pix))
 
         for ishear in self.pendList:
             print("FPFS measurement on simulation: %04d, %s" % (Id, ishear))
-            gal_fname = os.path.join(gal_dir, "image-%s-%s.fits" % (Id, ishear))
+            gal_fname = os.path.join(gal_dir, "image-%04d-%s.fits" % (Id, ishear))
             if not os.path.isfile(gal_fname):
                 print("Cannot find input galaxy file: %s" % gal_fname)
                 return
             gal_data = pyfits.getdata(gal_fname) + noise_data
-            assert gal_data.shape == (self.image_ny, self.image_nx), \
-                "The input image has different shape as indicated in the ini file"
+            assert gal_data.shape == (
+                self.image_ny,
+                self.image_nx,
+            ), "The input image has different shape as indicated in the ini file"
             out_fname = os.path.join(self.outdir, "src-%04d-%s.fits" % (Id, ishear))
             pp = "cut%d" % self.rcut
             out_fname = os.path.join(
@@ -215,10 +199,6 @@ class Worker(object):
                     thres2=thres2,
                     klim=meas_task.klim,
                 )
-            # # for test
-            # coords  =   np.array(np.zeros(1),dtype=[('fpfs_y','i4'),('fpfs_x','i4')])
-            # coords['fpfs_y'][0]=   self.image_ny//2
-            # coords['fpfs_x'][0]=   self.image_nx//2
             print("pre-selected number of sources: %d" % len(coords))
             img_list = [
                 gal_data[
