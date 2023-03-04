@@ -14,7 +14,6 @@ scripts = [
     "bin/fpfs_sim.py",
     "bin/fpfs_procsim.py",
     "bin/fpfs_summary.py",
-    "bin/setup_fpfs",
 ]
 
 setup(
