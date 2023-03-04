@@ -7,10 +7,10 @@
 + [example 2](./2_simulate_galaxy_basic.ipynb) shows how to simulate galaxies
   with Galsim.
 
-+ [example 3](./3_measure_shear.ipynb) shows how to measure shear
-  from noiseless galaxy images (fix center of isotropy).
++ [example 3](./3_measure_shear.ipynb) shows how to measure shear from
+  noiseless galaxy images (fix center of isotropy).
 
-+ [example 4](./4_noise_bias_correction.ipynb) shows the Hessian matrix for
++ [example 4](./4_noise_bias_Hessian.ipynb) shows the Hessian matrix for
   noise bias correction.
 
 ## Blended Galaxies
