@@ -1,0 +1,2 @@
+include fpfs/data/*.fits
+include fpfs/data/*.npy
