@@ -359,7 +359,7 @@ def fpfs_m2e(mm, const=1.0, noirev=False):
 
 
 class summary_stats:
-    def __init__(self, mm, ell, use_sig=False, ratio=1.9):
+    def __init__(self, mm, ell, use_sig=False):
         """A class to get the summary statistics [e.g., mean shear] of from the
         moments and ellipticity.
 
@@ -368,7 +368,6 @@ class summary_stats:
             ell (ndarray):  FPFS ellipticity
             use_sig (bool): whether use sigmoid [True] of truncated sine [False]
         """
-        self.ratio = ratio
         self.use_sig = use_sig
         self.mm = mm
         self.ell = ell
@@ -431,7 +430,7 @@ class summary_stats:
 
         cut_final = cut
         if selnm == "M00":
-            scol = self.mm["fpfs_M00"] * self.ratio
+            scol = self.mm["fpfs_M00"]
         elif selnm == "M20":
             scol = -self.mm["fpfs_M20"]
         elif selnm == "R2":
@@ -505,13 +504,13 @@ class summary_stats:
             raise TypeError("cutsig should be float")
         cut_final = cut
         if selnm == "M00":
-            scol = self.mm["fpfs_M00"] * self.ratio
-            ccol1 = self.ell["fpfs_RS0"] * self.ratio
-            ccol2 = self.ell["fpfs_RS0"] * self.ratio
+            scol = self.mm["fpfs_M00"]
+            ccol1 = self.ell["fpfs_RS0"]
+            ccol2 = self.ell["fpfs_RS0"]
             if self.noirev:
-                dcol = self.ell["fpfs_HR00"] * self.ratio
-                ncol1 = self.ell["fpfs_HE100"] * self.ratio
-                ncol2 = self.ell["fpfs_HE200"] * self.ratio
+                dcol = self.ell["fpfs_HR00"]
+                ncol1 = self.ell["fpfs_HE100"]
+                ncol2 = self.ell["fpfs_HE200"]
             else:
                 dcol = None
                 ncol1 = None
