@@ -54,7 +54,7 @@ def do_test(scale, ind0, rcut):
     # linear observables
     mms = fpfs_task.measure(image_list)
     # non-linear observables
-    ells = fpfs.catalog.fpfs_m2e(mms, const=2000, noirev=False)
+    ells = fpfs.catalog.fpfs_m2e(mms, const=2000)
     resp = np.average(ells["fpfs_R1E"])
     shear = np.average(ells["fpfs_e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)

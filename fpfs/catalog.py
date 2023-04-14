@@ -180,21 +180,22 @@ def get_wbias(x, cut, sigma, use_sig, w_sel, rev=None):
 
 
 # functions to get derived observables from fpfs modes
-def fpfs_m2e(mm, const=1.0, noirev=False):
+def fpfs_m2e(mm, const=1.0, nn=None):
     """Estimates FPFS ellipticities from fpfs moments
 
     Args:
         mm (ndarray):
-            input FPFS moments
+            FPFS moments
         const (float):
             the weight constant [default:1]
-        noirev (bool):
-            revise the second-order noise bias? [default: False]
+        nn (ndarray):
+            noise covaraince elements [default: None]
     Returns:
         out (ndarray):
             an array of [FPFS ellipticities, FPFS ellipticity response, FPFS
             flux, size and FPFS selection response]
     """
+
     # ellipticity, q-ellipticity, sizes, e^2, eq
     types = [
         ("fpfs_e1", "<f8"),
@@ -211,7 +212,9 @@ def fpfs_m2e(mm, const=1.0, noirev=False):
     for i in range(8):
         types.append(("fpfs_R1Sv%d" % i, "<f8"))
         types.append(("fpfs_R2Sv%d" % i, "<f8"))
-    if noirev:
+
+    # noirev
+    if nn is not None:
         types = types + [
             ("fpfs_HE100", "<f8"),
             ("fpfs_HE200", "<f8"),
@@ -249,94 +252,101 @@ def fpfs_m2e(mm, const=1.0, noirev=False):
         out["fpfs_R1Sv%d" % (i)] = e1 * mm["fpfs_v%dr1" % (i)]
         out["fpfs_R2Sv%d" % (i)] = e2 * mm["fpfs_v%dr2" % (i)]
 
-    if noirev:
+    # NOTE: START NOIST BIAS REVISION
+    # noirev
+    if nn is not None:
+        # Selection
         out["fpfs_HR00"] = (
             -(
-                mm["fpfs_N00N00"] * (const / _w + s4 - 4.0 * e1**2.0)
-                - mm["fpfs_N00N40"]
+                nn["fpfs_N00N00"] * (const / _w + s4 - 4.0 * e1**2.0)
+                - nn["fpfs_N00N40"]
             )
             / _w
             / np.sqrt(2.0)
         )
         out["fpfs_HR20"] = (
             -(
-                mm["fpfs_N00N20"] * (const / _w + s4 - 4.0 * e2**2.0)
-                - mm["fpfs_N20N40"]
+                nn["fpfs_N00N20"] * (const / _w + s4 - 4.0 * e2**2.0)
+                - nn["fpfs_N20N40"]
             )
             / _w
             / np.sqrt(2.0)
         )
-        out["fpfs_HE100"] = -(mm["fpfs_N00N22c"] - e1 * mm["fpfs_N00N00"]) / _w
-        out["fpfs_HE200"] = -(mm["fpfs_N00N22s"] - e2 * mm["fpfs_N00N00"]) / _w
-        out["fpfs_HE120"] = -(mm["fpfs_N20N22c"] - e1 * mm["fpfs_N00N20"]) / _w
-        out["fpfs_HE220"] = -(mm["fpfs_N20N22s"] - e2 * mm["fpfs_N00N20"]) / _w
-        ratio = mm["fpfs_N00N00"] / _w**2.0
-        # correction for detection process shear response for noise bias
+        out["fpfs_HE100"] = -(nn["fpfs_N00N22c"] - e1 * nn["fpfs_N00N00"]) / _w
+        out["fpfs_HE200"] = -(nn["fpfs_N00N22s"] - e2 * nn["fpfs_N00N00"]) / _w
+        out["fpfs_HE120"] = -(nn["fpfs_N20N22c"] - e1 * nn["fpfs_N00N20"]) / _w
+        out["fpfs_HE220"] = -(nn["fpfs_N20N22s"] - e2 * nn["fpfs_N00N20"]) / _w
+        ratio = nn["fpfs_N00N00"] / _w**2.0
+
+        # Detection process and Shear Response
         for i in range(8):
             corr1 = (
-                -1.0 * mm["fpfs_N22cV%dr1" % i] / _w
-                + 1.0 * e1 * mm["fpfs_N00V%dr1" % i] / _w
-                + 1.0 * mm["fpfs_N00N22c"] / _w**2.0 * mm["fpfs_v%dr1" % i]
+                -1.0 * nn["fpfs_N22cV%dr1" % i] / _w
+                + 1.0 * e1 * nn["fpfs_N00V%dr1" % i] / _w
+                + 1.0 * nn["fpfs_N00N22c"] / _w**2.0 * mm["fpfs_v%dr1" % i]
             )
             corr2 = (
-                -1.0 * mm["fpfs_N22sV%dr2" % i] / _w
-                + 1.0 * e2 * mm["fpfs_N00V%dr2" % i] / _w
-                + 1.0 * mm["fpfs_N00N22s"] / _w**2.0 * mm["fpfs_v%dr2" % i]
+                -1.0 * nn["fpfs_N22sV%dr2" % i] / _w
+                + 1.0 * e2 * nn["fpfs_N00V%dr2" % i] / _w
+                + 1.0 * nn["fpfs_N00N22s"] / _w**2.0 * mm["fpfs_v%dr2" % i]
             )
             out["fpfs_R1Sv%d" % i] = (out["fpfs_R1Sv%d" % i] + corr1) / (1 + ratio)
             out["fpfs_R2Sv%d" % i] = (out["fpfs_R2Sv%d" % i] + corr2) / (1 + ratio)
             # Heissen
             out["fpfs_HRv%d" % i] = (
                 -(
-                    mm["fpfs_N00V%d" % i]
+                    nn["fpfs_N00V%d" % i]
                     * (const / _w + s4 - 2.0 * e1**2.0 - 2.0 * e2**2.0)
-                    - mm["fpfs_N40V%d" % i]
+                    - nn["fpfs_N40V%d" % i]
                 )
                 / _w
                 / np.sqrt(2.0)
             )
             out["fpfs_HE1v%d" % i] = (
-                -(mm["fpfs_N22cV%d" % i] - e1 * mm["fpfs_N00V%d" % i]) / _w
+                -(nn["fpfs_N22cV%d" % i] - e1 * nn["fpfs_N00V%d" % i]) / _w
             )
             out["fpfs_HE2v%d" % i] = (
-                -(mm["fpfs_N22sV%d" % i] - e2 * mm["fpfs_N00V%d" % i]) / _w
+                -(nn["fpfs_N22sV%d" % i] - e2 * nn["fpfs_N00V%d" % i]) / _w
             )
         # intrinsic shape dispersion (not per component)
         e1e1 = (
             e1e1
-            - (mm["fpfs_N22cN22c"]) / _w**2.0
-            + 4.0 * (e1 * mm["fpfs_N00N22c"]) / _w**2.0
+            - (nn["fpfs_N22cN22c"]) / _w**2.0
+            + 4.0 * (e1 * nn["fpfs_N00N22c"]) / _w**2.0
         ) - 3 * ratio * e1e1
         e2e2 = (
             e2e2
-            - (mm["fpfs_N22sN22s"]) / _w**2.0
-            + 4.0 * (e2 * mm["fpfs_N00N22s"]) / _w**2.0
+            - (nn["fpfs_N22sN22s"]) / _w**2.0
+            + 4.0 * (e2 * nn["fpfs_N00N22s"]) / _w**2.0
         ) - 3 * ratio * e2e2
         e_m22 = (
             e_m22
-            - (mm["fpfs_N22cN22c"] + mm["fpfs_N22sN22s"]) / _w
-            + 2.0 * (mm["fpfs_N00N22c"] * e1 + mm["fpfs_N00N22s"] * e2) / _w
+            - (nn["fpfs_N22cN22c"] + nn["fpfs_N22sN22s"]) / _w
+            + 2.0 * (nn["fpfs_N00N22c"] * e1 + nn["fpfs_N00N22s"] * e2) / _w
         ) / (1 + ratio)
         e_m42 = (
             e_m42
-            - (mm["fpfs_N22cN42c"] + mm["fpfs_N22sN42s"]) / _w
-            + 1.0 * (e1 * mm["fpfs_N00N42c"] + e2 * mm["fpfs_N00N42s"]) / _w
-            + 1.0 * (q1 * mm["fpfs_N00N22c"] + q2 * mm["fpfs_N00N22s"]) / _w
+            - (nn["fpfs_N22cN42c"] + nn["fpfs_N22sN42s"]) / _w
+            + 1.0 * (e1 * nn["fpfs_N00N42c"] + e2 * nn["fpfs_N00N42s"]) / _w
+            + 1.0 * (q1 * nn["fpfs_N00N22c"] + q2 * nn["fpfs_N00N22s"]) / _w
         ) / (1 + ratio)
         # noise bias correction for ellipticity
-        # (the following two expressions are accurate to second order of noise)
-        # e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) / (1 + ratio)
-        # e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) / (1 + ratio)
-        e1 = (e1 + mm["fpfs_N00N22c"] / _w**2.0) - ratio * e1
-        e2 = (e2 + mm["fpfs_N00N22s"] / _w**2.0) - ratio * e2
+        # (the following two expressions are the same to the second order of
+        # noise)
+        # e1 = (e1 + nn["fpfs_N00N22c"] / _w**2.0) / (1 + ratio)
+        # e2 = (e2 + nn["fpfs_N00N22s"] / _w**2.0) / (1 + ratio)
+        e1 = (e1 + nn["fpfs_N00N22c"] / _w**2.0) - ratio * e1
+        e2 = (e2 + nn["fpfs_N00N22s"] / _w**2.0) - ratio * e2
         # noise bias correction for flux, size
-        # (the following two expressions are accurate to second order of noise)
-        # s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) / (1 + ratio)
-        # s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) / (1 + ratio)
-        # s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) / (1 + ratio)
-        s0 = (s0 + mm["fpfs_N00N00"] / _w**2.0) - ratio * s0
-        s2 = (s2 + mm["fpfs_N00N20"] / _w**2.0) - ratio * s2
-        s4 = (s4 + mm["fpfs_N00N40"] / _w**2.0) - ratio * s4
+        # (the following two expressions are the same to the second order of
+        # noise)
+        # s0 = (s0 + nn["fpfs_N00N00"] / _w**2.0) / (1 + ratio)
+        # s2 = (s2 + nn["fpfs_N00N20"] / _w**2.0) / (1 + ratio)
+        # s4 = (s4 + nn["fpfs_N00N40"] / _w**2.0) / (1 + ratio)
+        s0 = (s0 + nn["fpfs_N00N00"] / _w**2.0) - ratio * s0
+        s2 = (s2 + nn["fpfs_N00N20"] / _w**2.0) - ratio * s2
+        s4 = (s4 + nn["fpfs_N00N40"] / _w**2.0) - ratio * s4
+    # NOTE: END NOIST BIAS REVISION
 
     # spin-2 properties
     out["fpfs_e1"] = e1  # ellipticity
@@ -602,7 +612,41 @@ class summary_stats:
         return
 
 
-ncol = 31
+# This file tells the default structure of the data
+indexes = {
+    "m00": 0,
+    "m20": 1,
+    "m22c": 2,
+    "m22s": 3,
+    "m40": 4,
+    "m42c": 5,
+    "m42s": 6,
+    "v0": 7,
+    "v1": 8,
+    "v2": 9,
+    "v3": 10,
+    "v4": 11,
+    "v5": 12,
+    "v6": 13,
+    "v7": 14,
+    "v0_g1": 15,
+    "v1_g1": 16,
+    "v2_g1": 17,
+    "v3_g1": 18,
+    "v4_g1": 19,
+    "v5_g1": 20,
+    "v6_g1": 21,
+    "v7_g1": 22,
+    "v0_g2": 23,
+    "v1_g2": 24,
+    "v2_g2": 25,
+    "v3_g2": 26,
+    "v4_g2": 27,
+    "v5_g2": 28,
+    "v6_g2": 29,
+    "v7_g2": 30,
+}
+
 col_names = [
     "fpfs_M00",
     "fpfs_M20",
@@ -637,13 +681,98 @@ col_names = [
     "fpfs_v7r2",
 ]
 
+cov_names = [
+    "fpfs_N00N00",
+    "fpfs_N20N20",
+    "fpfs_N22cN22c",
+    "fpfs_N22sN22s",
+    "fpfs_N40N40",
+    "fpfs_N00N20",
+    "fpfs_N00N22c",
+    "fpfs_N00N22s",
+    "fpfs_N00N40",
+    "fpfs_N00N42c",
+    "fpfs_N00N42s",
+    "fpfs_N20N22c",
+    "fpfs_N20N22s",
+    "fpfs_N20N40",
+    "fpfs_N22cN42c",
+    "fpfs_N22sN42s",
+    "fpfs_N00V0",
+    "fpfs_N00V0r1",
+    "fpfs_N00V0r2",
+    "fpfs_N22cV0",
+    "fpfs_N22sV0",
+    "fpfs_N22cV0r1",
+    "fpfs_N22sV0r2",
+    "fpfs_N40V0",
+    "fpfs_N00V1",
+    "fpfs_N00V1r1",
+    "fpfs_N00V1r2",
+    "fpfs_N22cV1",
+    "fpfs_N22sV1",
+    "fpfs_N22cV1r1",
+    "fpfs_N22sV1r2",
+    "fpfs_N40V1",
+    "fpfs_N00V2",
+    "fpfs_N00V2r1",
+    "fpfs_N00V2r2",
+    "fpfs_N22cV2",
+    "fpfs_N22sV2",
+    "fpfs_N22cV2r1",
+    "fpfs_N22sV2r2",
+    "fpfs_N40V2",
+    "fpfs_N00V3",
+    "fpfs_N00V3r1",
+    "fpfs_N00V3r2",
+    "fpfs_N22cV3",
+    "fpfs_N22sV3",
+    "fpfs_N22cV3r1",
+    "fpfs_N22sV3r2",
+    "fpfs_N40V3",
+    "fpfs_N00V4",
+    "fpfs_N00V4r1",
+    "fpfs_N00V4r2",
+    "fpfs_N22cV4",
+    "fpfs_N22sV4",
+    "fpfs_N22cV4r1",
+    "fpfs_N22sV4r2",
+    "fpfs_N40V4",
+    "fpfs_N00V5",
+    "fpfs_N00V5r1",
+    "fpfs_N00V5r2",
+    "fpfs_N22cV5",
+    "fpfs_N22sV5",
+    "fpfs_N22cV5r1",
+    "fpfs_N22sV5r2",
+    "fpfs_N40V5",
+    "fpfs_N00V6",
+    "fpfs_N00V6r1",
+    "fpfs_N00V6r2",
+    "fpfs_N22cV6",
+    "fpfs_N22sV6",
+    "fpfs_N22cV6r1",
+    "fpfs_N22sV6r2",
+    "fpfs_N40V6",
+    "fpfs_N00V7",
+    "fpfs_N00V7r1",
+    "fpfs_N00V7r2",
+    "fpfs_N22cV7",
+    "fpfs_N22sV7",
+    "fpfs_N22cV7r1",
+    "fpfs_N22sV7r2",
+    "fpfs_N40V7",
+]
+
+ncol = 31
+
 
 def fpfscov_to_imptcov(data):
     """Converts FPFS noise Covariance elements into a covariance matrix of
     lensPT.
 
     Args:
-        data (ndarray):     input FPFS ellipticity catalog
+        data (ndarray):     FPFS shapelet mode catalog
     Returns:
         out (ndarray):      Covariance matrix
     """
@@ -662,4 +791,26 @@ def fpfscov_to_imptcov(data):
                     out[i, j] = data[cname][0]
             except (ValueError, KeyError):
                 out[i, j] = 0.0
+    return out
+
+
+def imptcov_to_fpfscov(data):
+    """Converts FPFS noise Covariance elements into a covariance matrix of
+    lensPT.
+
+    Args:
+        data (ndarray):     impt covariance matrix
+    Returns:
+        out (ndarray):      FPFS covariance elements
+    """
+    # the colum names
+    # M00 -> N00; v1 -> V1
+    ll = [cn[5:].replace("M", "N").replace("v", "V") for cn in col_names]
+    types = [(cn, "<f8") for cn in cov_names]
+    out = np.zeros(1, dtype=types)
+    for i in range(ncol):
+        for j in range(i, ncol):
+            cname = "fpfs_%s%s" % (ll[i], ll[j])
+            if cname in cov_names:
+                out[cname][0] = data[i, j]
     return out

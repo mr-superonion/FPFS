@@ -248,7 +248,7 @@ class measure_noise_cov(measure_base):
         return
 
     def measure(self, noise_ps):
-        """Prepares the basis to estimate covariance of measurement error
+        """Estimate covariance of measurement error in impt form
 
         Args:
             noise_ps (ndarray):     power spectrum (assuming homogeneous) of noise

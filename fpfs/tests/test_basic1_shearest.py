@@ -29,12 +29,11 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
             sigma_arcsec=0.59,
         )
         if noii <= 1e-10:
-            print("noise level is too small; therefore, we only simulate one galaxy")
+            print("noise level is too small; we only simulate one galaxy")
             num_tmp = 1
-            noirev = False
         else:
             num_tmp = num_gals
-            noirev = True
+            print("test for noisy galaxies")
         start = time.time()
         results = []
         for _ in range(num_tmp):
@@ -49,7 +48,7 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
         end = time.time()
         print("%.5f seconds to process %d galaxies" % (end - start, num_tmp))
         mms = rfn.stack_arrays(results, usemask=False)
-        ells = fpfs.catalog.fpfs_m2e(mms, const=2000, noirev=noirev)
+        ells = fpfs.catalog.fpfs_m2e(mms, const=2000)
         del mms, results
         resp = np.average(ells["fpfs_R1E"])
         shear = np.average(ells["fpfs_e1"]) / resp
@@ -60,6 +59,9 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
 
 
 def test_noisy_gals(noi_std: float = 0.0):
+    assert fpfs.catalog.ncol == len(
+        fpfs.catalog.col_names
+    ), "The number of output column does not match 'catalog.ncol'"
     rng = np.random.RandomState(212)
     num_gals = 10000
     shear, shear_err = analyze_fpfs(rng, np.array([0.03, 0.00]), num_gals, noi_std)

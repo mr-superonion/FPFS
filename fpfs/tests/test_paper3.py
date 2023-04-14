@@ -47,6 +47,9 @@ def test_noise_cov():
                 elem1,
                 elem2,
             )
+    mms2 = fpfs.catalog.imptcov_to_fpfscov(cov_mat2)
+    for cn in fpfs.catalog.cov_names:
+        np.testing.assert_almost_equal(mms2[cn], mms[cn][0])
     return
 
 
