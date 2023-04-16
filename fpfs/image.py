@@ -28,7 +28,13 @@ logging.basicConfig(
 
 
 def detect_sources(
-    img_data, psf_data, gsigma, thres=0.04, thres2=-0.01, klim=-1.0, pixel_scale=1.0
+    img_data,
+    psf_data,
+    gsigma,
+    thres=0.04,
+    thres2=-0.01,
+    klim=-1.0,
+    pixel_scale=1.0,
 ):
     """Returns the coordinates of detected sources
 
@@ -114,13 +120,12 @@ class measure_base:
     """A base class for measurement, which is extended to measure_source
     and measure_noise_cov
     Args:
-        psf_data (ndarray):  an average PSF image used to initialize the task
-        beta (float):       FPFS scale parameter
-        nnord (int):        the highest order of Shapelets radial components
-                            [default: 4]
-        noise_ps (ndarray):   Estimated noise power function, if you have already
-                            estimated noise power [default: None]
-        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
+        psf_data (ndarray):     an average PSF image used to initialize the task
+        nnord (int):            the highest order of Shapelets radial
+                                components [default: 4]
+        sigma_arcsec (float):   Shapelet kernel size
+        pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
+        sigma_detect (float):   detection kernel size
     """
 
     _DefaultName = "measure_base"
@@ -131,9 +136,12 @@ class measure_base:
         sigma_arcsec,
         nnord=4,
         pix_scale=0.168,
+        sigma_detect=None,
     ):
         if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
             raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
+        if sigma_detect is None:
+            sigma_detect = sigma_arcsec
         self.ngrid = psf_data.shape[0]
         self.nnord = nnord
 
@@ -154,14 +162,20 @@ class measure_base:
         # sigma_arcsec  =   1./self.sigmaF*self.pix_scale
 
         self.sigmaF = self.pix_scale / sigma_arcsec
-        sigma_pix = self.sigmaF / self._dk
+        self.sigmaF_det = self.pix_scale / sigma_detect
+        sigma_pixf = self.sigmaF / self._dk
+        sigma_pixf_det = self.sigmaF_det / self._dk
         logging.info(
-            "Gaussian kernel in configuration space: sigma= %.4f arcsec"
+            "Shapelet kernel in configuration space: sigma= %.4f arcsec"
             % (sigma_arcsec)
+        )
+        logging.info(
+            "Detection kernel in configuration space: sigma= %.4f arcsec"
+            % (sigma_detect)
         )
         # effective nyquest wave number
         self.klim_pix = get_klim(
-            self.psf_pow, sigma_pix / np.sqrt(2.0)
+            self.psf_pow, max(sigma_pixf, sigma_pixf_det) / np.sqrt(2.0)
         )  # in pixel units
         self.klim = self.klim_pix * self._dk  # assume pixel scale is 1
         # index bounds
@@ -214,13 +228,12 @@ class measure_noise_cov(measure_base):
     """A class to measure FPFS noise covariance of basis modes
 
     Args:
-        psf_data (ndarray):  an average PSF image used to initialize the task
-        beta (float):       FPFS scale parameter
-        nnord (int):        the highest order of Shapelets radial components
-                            [default: 4]
-        noise_ps (ndarray):   Estimated noise power function, if you have already
-                            estimated noise power [default: None]
-        pix_scale (float):  pixel scale in arcsec [default: 0.168 arcsec [HSC]]
+        psf_data (ndarray):     an average PSF image used to initialize the task
+        sigma_arcsec (float):   Shapelet kernel size
+        nnord (int):            the highest order of Shapelets radial
+                                components [default: 4]
+        pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
+        sigma_detect (float):   detection kernel size
     """
 
     _DefaultName = "measure_noise_cov"
@@ -231,17 +244,20 @@ class measure_noise_cov(measure_base):
         sigma_arcsec,
         nnord=4,
         pix_scale=0.168,
+        sigma_detect=None,
     ):
         super().__init__(
             psf_data=psf_data,
             sigma_arcsec=sigma_arcsec,
             nnord=nnord,
             pix_scale=pix_scale,
+            sigma_detect=sigma_detect,
         )
         bfunc, bnames = imgutil.fpfs_bases(
             self.ngrid,
             nnord,
             self.sigmaF,
+            self.sigmaF_det,
         )
         self.bfunc = bfunc[:, self._indy, self._indx]
         self.bnames = bnames
@@ -274,13 +290,13 @@ class measure_source(measure_base):
     """A class to measure FPFS shapelet mode estimation
 
     Args:
-        psf_data (ndarray):  an average PSF image used to initialize the task
-        beta (float):        FPFS scale parameter
-        nnord (int):         the highest order of Shapelets radial components
-                             [default: 4]
-        debug (bool):        Whether debug or not [default: False]
-        pix_scale (float):   pixel scale in arcsec [default: 0.168 arcsec
-                             [HSC]]
+        psf_data (ndarray):     an average PSF image used to initialize the task
+        sigma_arcsec (float):   Shapelet kernel size
+        nnord (int):            the highest order of Shapelets radial components
+                                [default: 4]
+        debug (bool):           Whether debug or not [default: False]
+        pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
+        sigma_detect (float):   detection kernel size
     """
 
     _DefaultName = "measure_source"
@@ -292,12 +308,14 @@ class measure_source(measure_base):
         nnord=4,
         debug=False,
         pix_scale=0.168,
+        sigma_detect=None,
     ):
         super().__init__(
             psf_data=psf_data,
             sigma_arcsec=sigma_arcsec,
             nnord=nnord,
             pix_scale=pix_scale,
+            sigma_detect=sigma_detect,
         )
         # Preparing shapelet basis
         # nm = n*(nnord+1)+m
@@ -322,7 +340,10 @@ class measure_source(measure_base):
         chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaF).reshape(
             ((nnord + 1) ** 2, self.ngrid, self.ngrid)
         )[self._indM, self._indy, self._indx]
-        psi = imgutil.detlets2d(self.ngrid, self.sigmaF)[:, :, self._indy, self._indx]
+        psi = imgutil.detlets2d(
+            self.ngrid,
+            self.sigmaF_det,
+        )[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
         del chi

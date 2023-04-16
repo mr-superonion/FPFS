@@ -312,7 +312,18 @@ def shapelets2d_real(ngrid, nord, sigma):
     return chi_2, name_s
 
 
-def fpfs_bases(ngrid, nord, sigma):
+def fpfs_bases(ngrid, nord, sigma, sigma_det=None):
+    """Returns the FPFS bases (shapelets and detectlets)
+
+    Args:
+        ngrid (int):            stamp size
+        nnord (int):            the highest order of Shapelets radial
+                                components [default: 4]
+        sigma (float):          shapelet kernel scale in Fourier space
+        sigma_det (float):      detectlet kernel scale in Fourier space
+    """
+    if sigma_det is None:
+        sigma_det = sigma
     bfunc, bnames = shapelets2d_real(
         ngrid,
         nord,
@@ -320,7 +331,7 @@ def fpfs_bases(ngrid, nord, sigma):
     )
     psi = detlets2d(
         ngrid,
-        sigma,
+        sigma_det,
     )
     bnames = bnames + [
         "v0",
@@ -431,7 +442,7 @@ def cut_img(img, rcut):
     return out
 
 
-def find_peaks(imgCov, thres, thres2=0.0, negBd=20.0):
+def find_peaks(imgCov, thres, thres2=0.0, bound=20.0):
     """Detects peaks and returns the coordinates (y,x)
 
     Args:
@@ -451,16 +462,19 @@ def find_peaks(imgCov, thres, thres2=0.0, negBd=20.0):
     data = np.int_(
         np.asarray(np.where(((imgCov > filtered + thres2) & (imgCov > thres))))
     )
-    out = np.array(np.zeros(data.size // 2), dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")])
+    out = np.array(
+        np.zeros(data.size // 2),
+        dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
+    )
     out["fpfs_y"] = data[0]
     out["fpfs_x"] = data[1]
     ny, nx = imgCov.shape
     # avoid pixels near boundary
     msk = (
-        (out["fpfs_y"] > negBd)
-        & (out["fpfs_y"] < ny - negBd)
-        & (out["fpfs_x"] > negBd)
-        & (out["fpfs_x"] < nx - negBd)
+        (out["fpfs_y"] > bound)
+        & (out["fpfs_y"] < ny - bound)
+        & (out["fpfs_x"] > bound)
+        & (out["fpfs_x"] < nx - bound)
     )
     coord_array = out[msk]
     return coord_array
