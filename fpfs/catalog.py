@@ -419,6 +419,7 @@ class summary_stats:
             else:
                 raise TypeError("snms, cuts and cutsigs should be str, float, float")
         for selnm, cut, cutsig in zip(snms, cuts, cutsigs):
+            # print(selnm)
             if selnm == "detect":
                 for iid in range(8):
                     self._update_selection_weight("det_v%d" % iid, cut, cutsig)
@@ -485,10 +486,11 @@ class summary_stats:
                     "snms, cuts and cutsigs should be (lists of) str, float, float"
                 )
         for selnm, cut, cutsig in zip(snms, cuts, cutsigs):
+            # print(selnm)
             if selnm == "detect":
                 for iid in range(8):
                     self._update_selection_bias("det_v%d" % iid, cut, cutsig)
-            if selnm == "detect2":
+            elif selnm == "detect2":
                 for iid in range(8):
                     self._update_selection_bias("det2_v%d" % iid, cut, cutsig)
             else:
@@ -515,6 +517,7 @@ class summary_stats:
         cut_final = cut
         if selnm == "M00":
             scol = self.mm["fpfs_M00"]
+            # shear response
             ccol1 = self.ell["fpfs_RS0"]
             ccol2 = self.ell["fpfs_RS0"]
             if self.noirev:

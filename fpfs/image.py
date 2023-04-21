@@ -175,7 +175,7 @@ class measure_base:
         )
         # effective nyquest wave number
         self.klim_pix = get_klim(
-            self.psf_pow, max(sigma_pixf, sigma_pixf_det) / np.sqrt(2.0)
+            self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / np.sqrt(2.0)
         )  # in pixel units
         self.klim = self.klim_pix * self._dk  # assume pixel scale is 1
         # index bounds
@@ -277,7 +277,7 @@ class measure_noise_cov(measure_base):
             np.real(
                 np.tensordot(
                     self.bfunc * noise_ps_deconv[None, self._indy, self._indx],
-                    self.bfunc,
+                    np.conjugate(self.bfunc),
                     axes=((1, 2), (1, 2)),
                 )
             )
