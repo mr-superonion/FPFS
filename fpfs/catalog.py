@@ -447,7 +447,7 @@ class summary_stats:
         elif selnm == "R2":
             # M00+M20>cut*M00 (M00>0., we have mag cut to ensure it)
             scol = self.mm["fpfs_M00"] * (1.0 - cut) + self.mm["fpfs_M20"]
-            cut_final = 0.0
+            cut_final = cutsig
         elif selnm == "R2_upp":
             # M00+M20<cut*M00 (M00>0.)
             scol = self.mm["fpfs_M00"] * (cut - 1.0) - self.mm["fpfs_M20"]
@@ -545,7 +545,8 @@ class summary_stats:
                 fp = -1.0
             else:
                 fp = 1.0
-            cut_final = 0.0
+            # cut_final = 0.0
+            cut_final = cutsig
             scol = (self.mm["fpfs_M00"] * (1.0 - cut) + self.mm["fpfs_M20"]) * fp
             ccol1 = (self.ell["fpfs_RS0"] * (1.0 - cut) + self.ell["fpfs_RS2"]) * fp
             ccol2 = (self.ell["fpfs_RS0"] * (1.0 - cut) + self.ell["fpfs_RS2"]) * fp

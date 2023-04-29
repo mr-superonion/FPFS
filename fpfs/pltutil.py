@@ -13,25 +13,24 @@
 #
 # python lib
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 
-colors0 = [
+colors = [
     "#000000",
-    "#1A85FF",
-    "#D41159",
-    "#DE8817",
-    "#A3D68A",
-    "#35C3D7",
-    "#8B0F8C",
+    "#1976D2",
+    "#E53935",
+    "#43A047",
+    "#673AB7",
+    "#4DD0E1",
+    "#E91E63",
+    "#F2D026",
+    "#333333",
+    "#9E9E9E",
+    "#FB8C00",
+    "#FFB300",
+    "#795548",
 ]
-colors = []
-for _ic, _cc in enumerate(colors0):
-    cc2 = mcolors.ColorConverter().to_rgb(_cc)
-    colors.append((cc2[0], cc2[1], cc2[2], 1 - 0.1 * _ic))
-    del cc2
 
 cblues = ["#004c6d", "#346888", "#5886a5", "#7aa6c2", "#9dc6e0", "#c1e7ff"]
-
 creds = ["#DC1C13", "#EA4C46", "#F07470", "#F1959B", "#F6BDC0", "#F8D8E3"]
 
 
