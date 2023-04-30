@@ -401,14 +401,13 @@ class measure_source(measure_base):
             raise ValueError("only support for nnord=4 or nnord=6")
         assert len(out) == len(self.chi_types)
         self.chi = out
-        del out
         return
 
     def prepare_psi(self, psi):
-        """Prepares the basis to estimate chivatives (or equivalent moments)
+        """Prepares the basis to estimate detection modes
 
         Args:
-            psi (ndarray):  2d shapelet basis
+            psi (ndarray):  2d detection basis
         """
         self.psi_types = []
         out = []
@@ -422,8 +421,6 @@ class measure_source(measure_base):
         out = np.stack(out)
         assert len(out) == len(self.psi_types)
         self.psi = out
-        self.psi0 = psi
-        del out
         return
 
     def itransform(self, data, out_type="chi"):
@@ -523,53 +520,3 @@ class measure_source(measure_base):
         mm = rfn.merge_arrays([mm, mp], flatten=True, usemask=False)
         del gal_deconv, mp
         return mm
-
-
-class test_noise:
-    _DefaultName = "fpfsTestNoi"
-
-    def __init__(self, ngrid, noise_mod=None, noise_ps=None):
-        self.ngrid = ngrid
-        # Preparing noise Model
-        self.noise_mod = noise_mod
-        self.noise_ps = noise_ps
-        self.rlim = int(ngrid // 4)
-        return
-
-    def test(self, gal_data):
-        """Tests the noise subtraction
-
-        Args:
-            gal_data:    galaxy image [float array (list)]
-        Returns:
-            out :   FPFS moments
-        """
-        if isinstance(gal_data, np.ndarray):
-            # single galaxy
-            out = self.__test(gal_data)
-            return out
-        elif isinstance(gal_data, list):
-            assert isinstance(gal_data[0], np.ndarray)
-            # list of galaxies
-            results = []
-            for gal in gal_data:
-                _g = self.__test(gal)
-                results.append(_g)
-            out = np.stack(results)
-            return out
-
-    def __test(self, data):
-        """Tests the noise subtraction
-
-        Args:
-            data:    image array [centroid does not matter]
-        """
-        assert len(data.shape) == 2
-        gal_pow = imgutil.get_fourier_pow(data)
-        if (self.noise_ps is not None) or (self.noise_mod is not None):
-            if self.noise_mod is not None:
-                self.noise_ps = imgutil.fit_noise_ps(
-                    self.ngrid, gal_pow, self.noise_mod, self.rlim
-                )
-            gal_pow = gal_pow - self.noise_ps
-        return gal_pow
