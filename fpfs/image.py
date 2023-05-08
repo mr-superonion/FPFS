@@ -13,9 +13,9 @@
 #
 # python lib
 
-import numba
 import logging
 import numpy as np
+import jax.numpy as jnp
 import numpy.lib.recfunctions as rfn
 from . import imgutil
 
@@ -51,69 +51,30 @@ def detect_sources(
         coords (ndarray):       peak values and the shear responses
     """
 
-    psf_data = np.array(psf_data, dtype="<f8")
+    psf_data = jnp.array(psf_data, dtype="<f8")
     assert (
         img_data.shape == psf_data.shape
     ), "image and PSF should have the same\
             shape. Please do padding before using this function."
-    ny, nx = psf_data.shape
-    psf_fourier = np.fft.rfft2(np.fft.ifftshift(psf_data))
-    gauss_kernel, _ = imgutil.gauss_kernel(
-        ny, nx, gsigma, return_grid=True, use_rfft=True
-    )
-
-    # convolved images
-    img_fourier = np.fft.rfft2(img_data) / psf_fourier * gauss_kernel
-    if klim > 0.0:
-        # apply a truncation in Fourier space
-        nxklim = int(klim * nx / np.pi / 2.0 + 0.5)
-        nyklim = int(klim * ny / np.pi / 2.0 + 0.5)
-        img_fourier[nyklim + 1 : -nyklim, :] = 0.0
-        img_fourier[:, nxklim + 1 :] = 0.0
-    else:
-        # no truncation in Fourier space
-        pass
-    del psf_fourier, psf_data
-    img_conv = np.fft.irfft2(img_fourier, (ny, nx))
+    img_conv = imgutil.convolve2gausspsf(img_data, psf_data, gsigma, klim)
     # the coordinates is not given, so we do another detection
     if not isinstance(thres, (int, float)):
         raise ValueError("thres must be float, but now got %s" % type(thres))
     if not isinstance(thres2, (int, float)):
         raise ValueError("thres2 must be float, but now got %s" % type(thres))
-    coords = imgutil.find_peaks(img_conv, thres, thres2)
+    if not thres > 0.0:
+        raise ValueError("detection threshold should be positive")
+    if not thres2 <= 0.0:
+        raise ValueError("difference threshold should be non-positive")
+    dd = imgutil.find_peaks(img_conv, thres, thres2)
+    coords = np.array(
+        np.zeros(dd.size // 2),
+        dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
+    )
+    coords["fpfs_y"] = dd[0]
+    coords["fpfs_x"] = dd[1]
+    del dd
     return coords
-
-
-@numba.njit
-def get_klim(psf_array, sigma, thres=1e-20):
-    """Gets klim, the region outside klim is supressed by the shaplet Gaussian
-    kernel in FPFS shear estimation method; therefore we set values in this
-    region to zeros
-
-    Args:
-        psf_array (ndarray):    PSF's Fourier power or Fourier transform
-        sigma (float):          one sigma of Gaussian Fourier power
-        thres (float):          the threshold for a tuncation on Gaussian
-                                [default: 1e-20]
-    Returns:
-        klim (float):           the limit radius
-    """
-    ngrid = psf_array.shape[0]
-    klim = ngrid // 2 - 1
-    for dist in range(ngrid // 5, ngrid // 2 - 1):
-        ave = abs(
-            np.exp(-(dist**2.0) / 2.0 / sigma**2.0)
-            / psf_array[ngrid // 2 + dist, ngrid // 2]
-        )
-        ave += abs(
-            np.exp(-(dist**2.0) / 2.0 / sigma**2.0)
-            / psf_array[ngrid // 2, ngrid // 2 + dist]
-        )
-        ave = ave / 2.0
-        if ave <= thres:
-            klim = dist
-            break
-    return klim
 
 
 class measure_base:
@@ -161,6 +122,7 @@ class measure_base:
         # self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
         # sigma_arcsec  =   1./self.sigmaF*self.pix_scale
 
+        # the following two assumes pixel_scale = 1
         self.sigmaF = self.pix_scale / sigma_arcsec
         self.sigmaF_det = self.pix_scale / sigma_detect
         sigma_pixf = self.sigmaF / self._dk
@@ -174,7 +136,7 @@ class measure_base:
             % (sigma_detect)
         )
         # effective nyquest wave number
-        self.klim_pix = get_klim(
+        self.klim_pix = imgutil.get_klim(
             self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / np.sqrt(2.0)
         )  # in pixel units
         self.klim = self.klim_pix * self._dk  # assume pixel scale is 1

@@ -11,6 +11,7 @@ with open(fname, "r") as ff:
 
 
 scripts = [
+    "bin/fpfs_config",
     "bin/fpfs_sim.py",
     "bin/fpfs_procsim.py",
     "bin/fpfs_summary.py",
@@ -22,11 +23,10 @@ setup(
     description="FPFS shear estimator",
     author="Xiangchong Li",
     author_email="mr.superonion@hotmail.com",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[
-        "numpy<1.23",
-        "numba",
-        "scipy",
+        "numpy",
+        "jax",
         "schwimmbad",
         "galsim",
         "astropy",
