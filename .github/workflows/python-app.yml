@@ -45,4 +45,5 @@ jobs:
 
     - name: Test with pytest
       run: |
+        source fpfs_config
         pytest -vv
