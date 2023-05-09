@@ -13,11 +13,12 @@
 #
 # python lib
 
+import jax
 import logging
 import numpy as np
 import jax.numpy as jnp
-import numpy.lib.recfunctions as rfn
 from . import imgutil
+from functools import partial
 
 
 logging.basicConfig(
@@ -107,16 +108,16 @@ class measure_base:
         self.nnord = nnord
 
         # Preparing PSF
-        psf_data = np.array(psf_data, dtype="<f8")
-        self.psf_fourier = np.fft.fftshift(np.fft.fft2(psf_data))
-        self.psf_pow = imgutil.get_fourier_pow(psf_data)
+        psf_data = jnp.array(psf_data, dtype="<f8")
+        self.psf_fourier = jnp.fft.fftshift(jnp.fft.fft2(psf_data))
+        self.psf_pow = jnp.array(imgutil.get_fourier_pow(psf_data))
 
         # A few import scales
         self.pix_scale = pix_scale  # this is only used to normalize basis functions
-        self._dk = 2.0 * np.pi / self.ngrid  # assuming pixel scale is 1
+        self._dk = 2.0 * jnp.pi / self.ngrid  # assuming pixel scale is 1
         # # old function uses beta
         # # scale radius of PSF's Fourier transform (in units of dk)
-        # sigmaPsf    =   imgutil.get_r_naive(self.psf_pow)*np.sqrt(2.)
+        # sigmaPsf    =   imgutil.get_r_naive(self.psf_pow)*jnp.sqrt(2.)
         # # shapelet scale
         # sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
         # self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
@@ -137,16 +138,16 @@ class measure_base:
         )
         # effective nyquest wave number
         self.klim_pix = imgutil.get_klim(
-            self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / np.sqrt(2.0)
+            self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
         )  # in pixel units
         self.klim = self.klim_pix * self._dk  # assume pixel scale is 1
         # index bounds
-        self._indx = np.arange(
+        self._indx = jnp.arange(
             self.ngrid // 2 - self.klim_pix,
             self.ngrid // 2 + self.klim_pix + 1,
         )
         self._indy = self._indx[:, None]
-        self._ind2d = np.ix_(self._indx, self._indx)
+        self._ind2d = jnp.ix_(self._indx, self._indx)
         return
 
     def set_klim(self, klim):
@@ -155,13 +156,14 @@ class measure_base:
         kerenl
         """
         self.klim_pix = klim
-        self._indx = np.arange(
+        self._indx = jnp.arange(
             self.ngrid // 2 - self.klim_pix, self.ngrid // 2 + self.klim_pix + 1
         )
         self._indy = self._indx[:, None]
-        self._ind2d = np.ix_(self._indx, self._indx)
+        self._ind2d = jnp.ix_(self._indx, self._indx)
         return
 
+    @partial(jax.jit, static_argnames=["self"])
     def deconvolve(self, data, prder=1.0, frder=1.0):
         """Deconvolves input data with the PSF or PSF power
 
@@ -177,13 +179,13 @@ class measure_base:
             out (ndarray):
                 Deconvolved galaxy power [truncated at klim]
         """
-        out = np.zeros(data.shape, dtype=np.complex64)
-        out[self._ind2d] = (
+        out = jnp.zeros(data.shape, dtype="complex128")
+        out2 = out.at[self._ind2d].set(
             data[self._ind2d]
             / self.psf_pow[self._ind2d] ** prder
             / self.psf_fourier[self._ind2d] ** frder
         )
-        return out
+        return out2
 
 
 class measure_noise_cov(measure_base):
@@ -233,13 +235,13 @@ class measure_noise_cov(measure_base):
         Return:
             cov_matrix (ndarray):   covariance matrix of FPFS basis modes
         """
-        noise_ps = np.array(noise_ps, dtype="<f8")
+        noise_ps = jnp.array(noise_ps, dtype="<f8")
         noise_ps_deconv = self.deconvolve(noise_ps, prder=1, frder=0)
         cov_matrix = (
-            np.real(
-                np.tensordot(
+            jnp.real(
+                jnp.tensordot(
                     self.bfunc * noise_ps_deconv[None, self._indy, self._indx],
-                    np.conjugate(self.bfunc),
+                    jnp.conjugate(self.bfunc),
                     axes=((1, 2), (1, 2)),
                 )
             )
@@ -256,7 +258,6 @@ class measure_source(measure_base):
         sigma_arcsec (float):   Shapelet kernel size
         nnord (int):            the highest order of Shapelets radial components
                                 [default: 4]
-        debug (bool):           Whether debug or not [default: False]
         pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
         sigma_detect (float):   detection kernel size
     """
@@ -268,7 +269,6 @@ class measure_source(measure_base):
         psf_data,
         sigma_arcsec,
         nnord=4,
-        debug=False,
         pix_scale=0.168,
         sigma_detect=None,
     ):
@@ -309,10 +309,6 @@ class measure_source(measure_base):
         self.prepare_chi(chi)
         self.prepare_psi(psi)
         del chi
-        if debug:
-            self.stackPow = np.zeros(psf_data.shape, dtype="<f8")
-        else:
-            self.stackPow = None
         return
 
     def prepare_chi(self, chi):
@@ -330,7 +326,6 @@ class measure_source(measure_base):
             out.append(chi.real[3])  # x40
             out.append(chi.real[4])  # x42c
             out.append(chi.imag[4])  # x42s
-            out = np.stack(out)
             self.chi_types = [
                 ("fpfs_M00", "<f8"),
                 ("fpfs_M20", "<f8"),
@@ -362,6 +357,7 @@ class measure_source(measure_base):
         else:
             raise ValueError("only support for nnord=4 or nnord=6")
         assert len(out) == len(self.chi_types)
+        out = jnp.stack(out)
         self.chi = out
         return
 
@@ -380,17 +376,17 @@ class measure_source(measure_base):
             self.psi_types.append(("fpfs_v%d" % _, "<f8"))
             self.psi_types.append(("fpfs_v%dr1" % _, "<f8"))
             self.psi_types.append(("fpfs_v%dr2" % _, "<f8"))
-        out = np.stack(out)
+        out = jnp.stack(out)
         assert len(out) == len(self.psi_types)
         self.psi = out
         return
 
-    def itransform(self, data, out_type="chi"):
+    @partial(jax.jit, static_argnames=["self"])
+    def _itransform_chi(self, data):
         """Projects image onto shapelet basis vectors
 
         Args:
             data (ndarray): image to transfer
-            out_type (str): transform type ('chi', 'psi', 'cov', or 'detcov')
         Returns:
             out (ndarray):  projection in shapelet space
         """
@@ -399,27 +395,39 @@ class measure_source(measure_base):
         # pixel (in unit of nano Jy for HSC). After dividing pix_scale**2., in
         # units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
         # Correspondingly, covariances are divided by self.pix_scale**4.
-        if out_type == "chi":
-            # chivatives/Moments
-            _ = (
-                np.sum(data[None, self._indy, self._indx] * self.chi, axis=(1, 2)).real
-                / self.pix_scale**2.0
-            )
-            out = np.array(tuple(_), dtype=self.chi_types)
-        elif out_type == "psi":
-            # chivatives/Moments
-            _ = (
-                np.sum(data[None, self._indy, self._indx] * self.psi, axis=(1, 2)).real
-                / self.pix_scale**2.0
-            )
-            out = np.array(tuple(_), dtype=self.psi_types)
-        else:
-            raise ValueError(
-                "out_type can only be 'chi' or 'psi',\
-                    but the input is '%s'"
-                % out_type
-            )
-        return out
+        # chivatives/Moments
+        out = (
+            jnp.sum(
+                data[None, self._indy, self._indx] * self.chi,
+                axis=(1, 2),
+            ).real
+            / self.pix_scale**2.0
+        )
+        return tuple(out)
+
+    @partial(jax.jit, static_argnames=["self"])
+    def _itransform_psi(self, data):
+        """Projects image onto shapelet basis vectors
+
+        Args:
+            data (ndarray): image to transfer
+        Returns:
+            out (ndarray):  projection in shapelet space
+        """
+
+        # Here we divide by self.pix_scale**2. since pixel values are flux in
+        # pixel (in unit of nano Jy for HSC). After dividing pix_scale**2., in
+        # units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
+        # Correspondingly, covariances are divided by self.pix_scale**4.
+        # chivatives/Moments
+        out = (
+            jnp.sum(
+                data[None, self._indy, self._indx] * self.psi,
+                axis=(1, 2),
+            ).real
+            / self.pix_scale**2.0
+        )
+        return tuple(out)
 
     def measure(self, gal_data, psf_fourier=None):
         """Measures the FPFS moments
@@ -432,19 +440,19 @@ class measure_source(measure_base):
         """
         if psf_fourier is not None:
             self.psf_fourier = psf_fourier
-            self.psf_pow = (np.conjugate(psf_fourier) * psf_fourier).real
+            self.psf_pow = (jnp.conjugate(psf_fourier) * psf_fourier).real
         if isinstance(gal_data, np.ndarray):
             assert gal_data.shape[-1] == gal_data.shape[-2]
             if len(gal_data.shape) == 2:
                 # single galaxy
-                out = self.__measure(gal_data)
+                out = self.__results(self.__measure(gal_data))
                 return out
             elif len(gal_data.shape) == 3:
                 results = []
                 for gal in gal_data:
                     _g = self.__measure(gal)
                     results.append(_g)
-                out = rfn.stack_arrays(results, usemask=False)
+                out = self.__results((results))
                 return out
             else:
                 raise ValueError("Input galaxy data has wrong ndarray shape.")
@@ -455,13 +463,14 @@ class measure_source(measure_base):
             for gal in gal_data:
                 _g = self.__measure(gal)
                 results.append(_g)
-            out = rfn.stack_arrays(results, usemask=False)
+            out = self.__results((results))
             return out
         else:
             raise TypeError(
                 "Input galaxy data has wrong type (neither list nor ndarray)."
             )
 
+    @partial(jax.jit, static_argnames=["self"])
     def __measure(self, data):
         """Measures the FPFS moments
 
@@ -470,15 +479,13 @@ class measure_source(measure_base):
         Returns:
             mm (ndarray):       FPFS moments
         """
-        if self.stackPow is not None:
-            # stacking the PF of galaxies as a test
-            gal_pow = imgutil.get_fourier_pow(data)
-            self.stackPow += gal_pow
-            return 0
-        gal_fourier = np.fft.fftshift(np.fft.fft2(data))
+        gal_fourier = jnp.fft.fftshift(jnp.fft.fft2(data))
         gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
-        mm = self.itransform(gal_deconv, out_type="chi")  # FPFS shapelets
-        mp = self.itransform(gal_deconv, out_type="psi")  # FPFS detection
-        mm = rfn.merge_arrays([mm, mp], flatten=True, usemask=False)
-        del gal_deconv, mp
-        return mm
+        mm = self._itransform_chi(gal_deconv)  # FPFS shapelets
+        mp = self._itransform_psi(gal_deconv)  # FPFS detection
+        return mm + mp
+
+    def __results(self, reslist):
+        tps = self.chi_types + self.psi_types
+        out = np.array(reslist, dtype=tps)
+        return out
