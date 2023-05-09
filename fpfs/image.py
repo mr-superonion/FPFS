@@ -36,6 +36,7 @@ def detect_sources(
     thres2=-0.01,
     klim=-1.0,
     pixel_scale=1.0,
+    structured=False,
 ):
     """Returns the coordinates of detected sources
 
@@ -48,6 +49,7 @@ def detect_sources(
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
         pixel_scale (float):    pixel scale in arcsec [set to 1]
+        structured (bool):      whether return structured array
     Returns:
         coords (ndarray):       peak values and the shear responses
     """
@@ -67,14 +69,18 @@ def detect_sources(
         raise ValueError("detection threshold should be positive")
     if not thres2 <= 0.0:
         raise ValueError("difference threshold should be non-positive")
-    dd = imgutil.find_peaks(img_conv, thres, thres2)
-    coords = np.array(
-        np.zeros(dd.size // 2),
+    dd = imgutil.find_peaks(img_conv, thres, thres2).T
+    if not structured:
+        return dd
+    else:
+        return results_coords(dd)
+
+
+def results_coords(dd):
+    coords = np.rec.fromarrays(
+        dd.T,
         dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
     )
-    coords["fpfs_y"] = dd[0]
-    coords["fpfs_x"] = dd[1]
-    del dd
     return coords
 
 
@@ -403,7 +409,7 @@ class measure_source(measure_base):
             ).real
             / self.pix_scale**2.0
         )
-        return tuple(out)
+        return out
 
     @partial(jax.jit, static_argnames=["self"])
     def _itransform_psi(self, data):
@@ -427,9 +433,9 @@ class measure_source(measure_base):
             ).real
             / self.pix_scale**2.0
         )
-        return tuple(out)
+        return out
 
-    def measure(self, gal_data, psf_fourier=None):
+    def measure(self, coords, exposure, psf_fourier=None):
         """Measures the FPFS moments
 
         Args:
@@ -441,37 +447,30 @@ class measure_source(measure_base):
         if psf_fourier is not None:
             self.psf_fourier = psf_fourier
             self.psf_pow = (jnp.conjugate(psf_fourier) * psf_fourier).real
-        if isinstance(gal_data, np.ndarray):
-            assert gal_data.shape[-1] == gal_data.shape[-2]
-            if len(gal_data.shape) == 2:
-                # single galaxy
-                out = self.__results(self.__measure(gal_data))
-                return out
-            elif len(gal_data.shape) == 3:
-                results = []
-                for gal in gal_data:
-                    _g = self.__measure(gal)
-                    results.append(_g)
-                out = self.__results((results))
-                return out
-            else:
-                raise ValueError("Input galaxy data has wrong ndarray shape.")
-        elif isinstance(gal_data, list):
-            assert isinstance(gal_data[0], np.ndarray)
-            # list of galaxies
-            results = []
-            for gal in gal_data:
-                _g = self.__measure(gal)
-                results.append(_g)
-            out = self.__results((results))
-            return out
-        else:
-            raise TypeError(
-                "Input galaxy data has wrong type (neither list nor ndarray)."
+        exposure = jnp.array(exposure)
+
+        if len(coords.shape) == 2:
+            func = jax.vmap(
+                self.__measure_coords,
+                in_axes=(0, None),
+                out_axes=(0),
             )
+            return func(coords, exposure)
+        elif len(coords.shape) == 1:
+            return self.__measure_coords(coords, exposure)
 
     @partial(jax.jit, static_argnames=["self"])
-    def __measure(self, data):
+    def __measure_coords(self, cc, image):
+        stamp = jax.lax.dynamic_slice(
+            image,
+            (cc[0] - self.ngrid // 2, cc[1] - self.ngrid // 2),
+            (self.ngrid, self.ngrid),
+        )
+        out = self.__measure_stamp(stamp)
+        return out
+
+    @partial(jax.jit, static_argnames=["self"])
+    def __measure_stamp(self, data):
         """Measures the FPFS moments
 
         Args:
@@ -483,9 +482,9 @@ class measure_source(measure_base):
         gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
         mm = self._itransform_chi(gal_deconv)  # FPFS shapelets
         mp = self._itransform_psi(gal_deconv)  # FPFS detection
-        return mm + mp
+        return jnp.hstack([mm, mp])
 
-    def __results(self, reslist):
+    def get_results(self, out):
         tps = self.chi_types + self.psi_types
-        out = np.array(reslist, dtype=tps)
-        return out
+        res = np.rec.fromarrays(out.T, dtype=tps)
+        return res
