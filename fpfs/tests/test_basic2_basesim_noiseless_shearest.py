@@ -31,28 +31,17 @@ def simulate_gal_psf(scale, ind0, rcut):
     indx = np.arange(32, 256, 64)
     indy = np.arange(32, 64, 64)
     inds = np.meshgrid(indy, indx, indexing="ij")
-    coords = np.array(
-        np.zeros(inds[0].size),
-        dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
-    )
-    coords["fpfs_y"] = np.ravel(inds[0])
-    coords["fpfs_x"] = np.ravel(inds[1])
-    image_list = [
-        gal_data[
-            cc["fpfs_y"] - rcut : cc["fpfs_y"] + rcut,
-            cc["fpfs_x"] - rcut : cc["fpfs_x"] + rcut,
-        ]
-        for cc in coords
-    ]
-    return image_list, psf_data
+    coords = np.vstack(inds).T
+    return gal_data, psf_data, coords
 
 
 def do_test(scale, ind0, rcut):
     thres = 1e-5
-    image_list, psf_data = simulate_gal_psf(scale, ind0, rcut)
+    gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
     fpfs_task = fpfs.image.measure_source(psf_data, sigma_arcsec=0.7)
     # linear observables
-    mms = fpfs_task.measure(image_list)
+    mms = fpfs_task.measure(gal_data, coords)
+    mms = fpfs_task.get_results(mms)
     # non-linear observables
     ells = fpfs.catalog.fpfs_m2e(mms, const=2000)
     resp = np.average(ells["fpfs_R1E"])

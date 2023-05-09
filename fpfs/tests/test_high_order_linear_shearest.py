@@ -34,35 +34,25 @@ def simulate_gal_psf(scale, ind0, rcut, gname):
     indx = np.arange(32, 256, 64)
     indy = np.arange(32, 64, 64)
     inds = np.meshgrid(indy, indx, indexing="ij")
-    coords = np.array(
-        np.zeros(inds[0].size),
-        dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")],
-    )
-    coords["fpfs_y"] = np.ravel(inds[0])
-    coords["fpfs_x"] = np.ravel(inds[1])
-    image_list = [
-        gal_data[
-            cc["fpfs_y"] - rcut : cc["fpfs_y"] + rcut,
-            cc["fpfs_x"] - rcut : cc["fpfs_x"] + rcut,
-        ]
-        for cc in coords
-    ]
-    return image_list, psf_data
+    inds = np.meshgrid(indy, indx, indexing="ij")
+    coords = np.vstack(inds).T
+    return gal_data, psf_data, coords
 
 
 def get_multiplicative_bias(scale, ind0, rcut):
-    image_list = dict()
     gnames = ["g1-0000", "g1-2222"]
-    psf_data = None
-    for gname in gnames:
-        images, psf = simulate_gal_psf(scale=scale, ind0=ind0, rcut=rcut, gname=gname)
-        image_list[gname] = images
-        psf_data = psf  # They have the same psf
-    fpfs_task = fpfs.image.measure_source(psf_data, sigma_arcsec=0.5, nnord=6)
+    mm_names = {
+        "g1-2222": "p",
+        "g1-0000": "n",
+    }
     mms = dict()
-    print(len(image_list["g1-2222"]))
-    mms["p"] = fpfs_task.measure(image_list["g1-2222"])
-    mms["n"] = fpfs_task.measure(image_list["g1-0000"])
+    for gname in gnames:
+        gal, psf, coords = simulate_gal_psf(
+            scale=scale, ind0=ind0, rcut=rcut, gname=gname
+        )
+        fpfs_task = fpfs.image.measure_source(psf, sigma_arcsec=0.5, nnord=6)
+        out = fpfs_task.get_results(fpfs_task.measure(gal, coords))
+        mms[mm_names[gname]] = out
     num = np.average(mms["p"]["fpfs_M42c"] - mms["n"]["fpfs_M42c"])
     denom = (
         0.02

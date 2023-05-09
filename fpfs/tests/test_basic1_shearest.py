@@ -43,6 +43,7 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
             end = beg + 2 * rcut
             gal = gal[beg:end, beg:end]
             modes = fpfs_task.measure(gal)
+            modes = fpfs_task.get_results(modes)
             results.append(modes)
             del gal, modes, beg, end, ngrid
         end = time.time()

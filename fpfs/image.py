@@ -401,7 +401,6 @@ class measure_source(measure_base):
         # pixel (in unit of nano Jy for HSC). After dividing pix_scale**2., in
         # units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
         # Correspondingly, covariances are divided by self.pix_scale**4.
-        # chivatives/Moments
         out = (
             jnp.sum(
                 data[None, self._indy, self._indx] * self.chi,
@@ -435,11 +434,11 @@ class measure_source(measure_base):
         )
         return out
 
-    def measure(self, coords, exposure, psf_fourier=None):
+    def measure(self, exposure, coords=None, psf_fourier=None):
         """Measures the FPFS moments
 
         Args:
-            gal_data (ndarray|list):    galaxy image
+            exposure (ndarray):         galaxy image
             psf_fourier (ndarray):      PSF's Fourier transform
         Returns:
             out (ndarray):              FPFS moments
@@ -448,16 +447,15 @@ class measure_source(measure_base):
             self.psf_fourier = psf_fourier
             self.psf_pow = (jnp.conjugate(psf_fourier) * psf_fourier).real
         exposure = jnp.array(exposure)
-
-        if len(coords.shape) == 2:
-            func = jax.vmap(
-                self.__measure_coords,
-                in_axes=(0, None),
-                out_axes=(0),
-            )
-            return func(coords, exposure)
-        elif len(coords.shape) == 1:
-            return self.__measure_coords(coords, exposure)
+        if coords is None:
+            coords = jnp.array(exposure.shape) // 2
+        coords = jnp.atleast_2d(coords.T).T
+        func = jax.vmap(
+            self.__measure_coords,
+            in_axes=(0, None),
+            out_axes=(0),
+        )
+        return func(coords, exposure)
 
     @partial(jax.jit, static_argnames=["self"])
     def __measure_coords(self, cc, image):
