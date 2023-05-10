@@ -134,6 +134,7 @@ class measure_base:
         self.sigmaF_det = float(self.pix_scale / sigma_detect)
         sigma_pixf = self.sigmaF / self._dk
         sigma_pixf_det = self.sigmaF_det / self._dk
+        logging.info("Order of the shear estimator: nnord=%d" % self.nnord)
         logging.info(
             "Shapelet kernel in configuration space: sigma= %.4f arcsec"
             % (sigma_arcsec)
