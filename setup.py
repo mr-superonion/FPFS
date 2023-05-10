@@ -13,8 +13,8 @@ with open(fname, "r") as ff:
 scripts = [
     "bin/fpfs_config",
     "bin/fpfs_sim.py",
-    "bin/fpfs_procsim.py",
-    "bin/fpfs_summary.py",
+    "bin/fpfs_process_sim.py",
+    "bin/fpfs_summary_sim.py",
 ]
 
 setup(
@@ -27,11 +27,12 @@ setup(
     install_requires=[
         "numpy",
         "schwimmbad",
-        "jax",
-        "flax",
+        "jax>=0.4.9",
+        "jaxlib>=0.4.9",
         "galsim",
         "astropy",
         "matplotlib",
+        "fitsio",
     ],
     packages=find_packages(),
     scripts=scripts,

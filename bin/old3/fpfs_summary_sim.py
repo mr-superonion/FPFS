@@ -19,8 +19,12 @@ import schwimmbad
 import numpy as np
 import pandas as pd
 from fpfs.default import (
-    sigP, sigM, sigR,
-    cutP, cutM, cutR,
+    sigP,
+    sigM,
+    sigR,
+    cutP,
+    cutM,
+    cutR,
 )
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
