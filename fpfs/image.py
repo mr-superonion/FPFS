@@ -134,6 +134,7 @@ class measure_base:
         self.sigmaF_det = float(self.pix_scale / sigma_detect)
         sigma_pixf = self.sigmaF / self._dk
         sigma_pixf_det = self.sigmaF_det / self._dk
+        logging.info("Order of the shear estimator: nnord=%d" % self.nnord)
         logging.info(
             "Shapelet kernel in configuration space: sigma= %.4f arcsec"
             % (sigma_arcsec)
@@ -298,7 +299,6 @@ class measure_source(measure_base):
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indM = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
             self._nameM = ["M00", "M20", "M22", "M40", "M42", "M60"]
-        # estimation with M_{42}
         else:
             raise ValueError(
                 "only support for nnord= 4 or nnord=6, but your input\

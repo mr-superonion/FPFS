@@ -44,6 +44,15 @@ class Worker(object):
             os.makedirs(self.catdir, exist_ok=True)
         print("The output directory for shear catalogs is %s. " % self.catdir)
 
+        # order of shear estimator
+        self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
+        if self.nnord not in [4, 6]:
+            raise ValueError(
+                "Only support for nnord= 4 or nnord=6, but your input\
+                    is nnord=%d"
+                % self.nnord
+            )
+
         # setup survey parameters
         self.scale = cparser.getfloat("survey", "pixel_scale")
         self.psf_fname = cparser.get("procsim", "psf_filename")
@@ -136,6 +145,7 @@ class Worker(object):
         meas_task = fpfs.image.measure_source(
             psf_data2,
             sigma_arcsec=self.sigma_as,
+            nnord=self.nnord,
             pix_scale=self.scale,
             sigma_detect=self.sigma_det,
         )
