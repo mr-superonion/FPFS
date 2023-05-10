@@ -11,10 +11,10 @@ with open(fname, "r") as ff:
 
 
 scripts = [
+    "bin/fpfs_config",
     "bin/fpfs_sim.py",
-    "bin/fpfs_procsim.py",
-    "bin/fpfs_summary.py",
-    "bin/setup_fpfs",
+    "bin/fpfs_process_sim.py",
+    "bin/fpfs_summary_sim.py",
 ]
 
 setup(
@@ -23,15 +23,16 @@ setup(
     description="FPFS shear estimator",
     author="Xiangchong Li",
     author_email="mr.superonion@hotmail.com",
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     install_requires=[
-        "numpy<1.23",
-        "numba",
-        "scipy",
+        "numpy",
         "schwimmbad",
+        "jax>=0.4.9",
+        "jaxlib>=0.4.9",
         "galsim",
         "astropy",
         "matplotlib",
+        "fitsio",
     ],
     packages=find_packages(),
     scripts=scripts,

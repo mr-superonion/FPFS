@@ -21,7 +21,7 @@ galaxies). The galaxies are render into 64x64 postage stamps. Note, the
 galaxies are isolated here. Users can use the following command to run the
 simulation in parallel:
 ```shell
-fpfs_sim.py --config ./config_sim_gal.ini --minId 0 --maxId 1 --ncores 1
+fpfs_process_sim.py --config ./config_procsim.ini --minId 0 --maxId 3
 ```
 
 ### blended galaxies
@@ -30,7 +30,7 @@ distributed within a circle. Note the galaxies are blended here. It supports
 simulations with different number densities. Users can use the following
 command to run the simulation in parallel:
 ```shell
-fpfs_sim.py --config ./config_sim_galB.ini --minId 0 --maxId 1 --ncores 1
+fpfs_process_sim.py --config ./config_procsim_blend.ini --minId 0 --maxId 3
 ```
 
 <img src="./simulation_isoblend.png" alt="sim_demo" width="800">
@@ -45,11 +45,11 @@ sample.
 First, run the FPFS shear estimator on simulated images to generate shear
 catalogs:
 ```shell
-fpfs_procsim.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
+fpfs_summary_sim.py --config ./config_procsim.ini --minId 0 --maxId 3
 ```
 Then get the summary statistics (average shear) from the shear catalog:
 ```shell
-fpfs_summary.py --config ./config_procsim.ini --minId 0 --maxId 1 --ncores 1
+fpfs_summary_sim.py --config ./config_procsim_blend.ini --minId 0 --maxId 3
 ```
 The outputs are the multiplicative biases in different magnitude bins.
 

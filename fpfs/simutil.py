@@ -195,6 +195,8 @@ def make_cosmo_sim(
         magzero (float):        magnitude zero point
         rot2 (float):           additional rotational angle [in units of radians]
     """
+    if catname is None:
+        catname = os.path.join(__data_dir__, "cat_used.fits")
     np.random.seed(ind0)
     out_fname = os.path.join(out_dir, "image-%d-%s.fits" % (ind0, gname))
     if os.path.isfile(out_fname):
@@ -638,7 +640,6 @@ def make_noise_sim(
 
     Args:
         out_dir (str):          output directory
-        catname (str):          input correlation function name
         ind0 (int):             index of the simulation
         ny (int):               number of pixels in y direction
         nx (int):               number of pixels in x direction

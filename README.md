@@ -22,7 +22,7 @@ Documentation for FPFS modules can be found [here](https://fpfs.readthedocs.io/e
 
 ## Installation
 
-For stable version:
+For stable (old) version, which have not been updated:
 ```shell
 pip install fpfs
 ```
@@ -32,6 +32,11 @@ Or clone the repository:
 git clone https://github.com/mr-superonion/FPFS.git
 cd FPFS
 pip install -e . --user
+```
+
+Before using the code, please setup the jax environment
+```shell
+source fpfs_config
 ```
 ----
 

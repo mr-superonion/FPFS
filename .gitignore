@@ -31,3 +31,8 @@ x*-err-*
 x*-out-*
 .hypothesis
 output/
+basicCenter_psf60
+basicShift_psf60
+cosmo085_psf60
+cat_try*/
+sum_try*/

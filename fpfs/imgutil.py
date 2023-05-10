@@ -13,11 +13,14 @@
 #
 # python lib
 
+import jax
 import math
 import numpy as np
-import scipy.ndimage as ndi
+import jax.numpy as jnp
+from functools import partial
 
 
+@partial(jax.jit, static_argnames=["ny", "nx", "do_shift", "return_grid"])
 def _gauss_kernel(ny, nx, sigma, do_shift=False, return_grid=False):
     """Generates a Gaussian kernel on grids for np.fft.fft transform
 
@@ -34,20 +37,21 @@ def _gauss_kernel(ny, nx, sigma, do_shift=False, return_grid=False):
         xgrid,ygrid (typle):    grids for [y, x] axes if return_grid
     """
     out = np.empty((ny, nx))
-    x = np.fft.fftfreq(nx, 1 / np.pi / 2.0)
-    y = np.fft.fftfreq(ny, 1 / np.pi / 2.0)
+    x = jnp.fft.fftfreq(nx, 1 / np.pi / 2.0)
+    y = jnp.fft.fftfreq(ny, 1 / np.pi / 2.0)
     if do_shift:
-        x = np.fft.fftshift(x)
-        y = np.fft.fftshift(y)
-    ygrid, xgrid = np.meshgrid(y, x, indexing="ij")
+        x = jnp.fft.fftshift(x)
+        y = jnp.fft.fftshift(y)
+    ygrid, xgrid = jnp.meshgrid(y, x, indexing="ij")
     r2 = xgrid**2.0 + ygrid**2.0
-    out = np.exp(-r2 / 2.0 / sigma**2.0)
+    out = jnp.exp(-r2 / 2.0 / sigma**2.0)
     if not return_grid:
         return out
     else:
         return out, (ygrid, xgrid)
 
 
+@partial(jax.jit, static_argnames=["ny", "nx", "return_grid"])
 def _gauss_kernel_rfft(ny, nx, sigma, return_grid=False):
     """Generates a Gaussian kernel on grids for np.fft.rfft transform
 
@@ -55,17 +59,17 @@ def _gauss_kernel_rfft(ny, nx, sigma, return_grid=False):
         ny (int):    		    grid size in y-direction
         nx (int):    		    grid size in x-direction
         sigma (float):		    scale of Gaussian in Fourier space
-        return_grid (bool):     return grids or not [default: False]
+        return_grid (bool):     return grids or not
     Returns:
         out (ndarray):          Gaussian on grids
         ygrid, xgrid (typle):   grids for [y, x] axes, if return_grid
     """
-    out = np.empty((ny, nx // 2 + 1))
-    x = np.fft.rfftfreq(nx, 1 / np.pi / 2.0)
-    y = np.fft.fftfreq(ny, 1 / np.pi / 2.0)
-    ygrid, xgrid = np.meshgrid(y, x, indexing="ij")
+    out = jnp.empty((ny, nx // 2 + 1))
+    x = jnp.fft.rfftfreq(nx, 1 / np.pi / 2.0)
+    y = jnp.fft.fftfreq(ny, 1 / np.pi / 2.0)
+    ygrid, xgrid = jnp.meshgrid(y, x, indexing="ij")
     r2 = xgrid**2.0 + ygrid**2.0
-    out = np.exp(-r2 / 2.0 / sigma**2.0)
+    out = jnp.exp(-r2 / 2.0 / sigma**2.0)
     if not return_grid:
         return out
     else:
@@ -79,9 +83,9 @@ def gauss_kernel(ny, nx, sigma, do_shift=False, return_grid=False, use_rfft=Fals
         ny (int):    		    grid size in y-direction
         nx (int):    		    grid size in x-direction
         sigma (float):		    scale of Gaussian in Fourier space
-        do_shift (bool):	    center at (0,0) [True] or [ny/2,nx/2] [default: False]
-        return_grid (bool):     return grids [True] or not [default: False]
-        use_rfft (bool):        whether use rfft [True] or not [default: False]
+        do_shift (bool):	    center at (0,0) [True] or [ny/2,nx/2]
+        return_grid (bool):     return grids [True] or not
+        use_rfft (bool):        whether use rfft [True] or not
     Returns:
         out (tuple):            Gaussian kernel and grids, if return_grid
     """
@@ -122,7 +126,8 @@ def get_fourier_pow_rft(input_data):
     return foupow
 
 
-def get_fourier_pow(input_data, noise_pow=None):
+@jax.jit
+def get_fourier_pow(input_data):
     """Gets Fourier power function
 
     Args:
@@ -130,14 +135,11 @@ def get_fourier_pow(input_data, noise_pow=None):
     Returns:
         out (ndarray):      Fourier Power [centered at [ngrid//2,ngrid//2]]
     """
-    out = np.fft.fftshift(np.abs(np.fft.fft2(input_data)) ** 2.0).astype(np.float64)
-    if isinstance(noise_pow, float):
-        out = out - np.ones(input_data.shape) * noise_pow * input_data.size
-    elif isinstance(noise_pow, np.ndarray):
-        out = out - noise_pow
+    out = jnp.fft.fftshift(jnp.abs(jnp.fft.fft2(input_data)) ** 2.0).astype(jnp.float64)
     return out
 
 
+@jax.jit
 def get_r_naive(input_data):
     """A naive way to estimate Radius. Note, this naive estimation is heavily
     influenced by noise.
@@ -148,11 +150,11 @@ def get_r_naive(input_data):
         sigma (ndarray):    effective radius
     """
 
-    input_data2 = np.abs(input_data)
+    input_data2 = jnp.abs(input_data)
     # Get the half light radius of noiseless PSF
     thres = input_data2.max() * 0.5
-    sigma = np.sum(input_data2 > thres)
-    sigma = np.sqrt(sigma / np.pi)
+    sigma = jnp.sum(input_data2 > thres)
+    sigma = jnp.sqrt(sigma / jnp.pi)
     return sigma
 
 
@@ -312,7 +314,18 @@ def shapelets2d_real(ngrid, nord, sigma):
     return chi_2, name_s
 
 
-def fpfs_bases(ngrid, nord, sigma):
+def fpfs_bases(ngrid, nord, sigma, sigma_det=None):
+    """Returns the FPFS bases (shapelets and detectlets)
+
+    Args:
+        ngrid (int):            stamp size
+        nnord (int):            the highest order of Shapelets radial
+                                components [default: 4]
+        sigma (float):          shapelet kernel scale in Fourier space
+        sigma_det (float):      detectlet kernel scale in Fourier space
+    """
+    if sigma_det is None:
+        sigma_det = sigma
     bfunc, bnames = shapelets2d_real(
         ngrid,
         nord,
@@ -320,7 +333,7 @@ def fpfs_bases(ngrid, nord, sigma):
     )
     psi = detlets2d(
         ngrid,
-        sigma,
+        sigma_det,
     )
     bnames = bnames + [
         "v0",
@@ -431,36 +444,101 @@ def cut_img(img, rcut):
     return out
 
 
-def find_peaks(imgCov, thres, thres2=0.0, negBd=20.0):
+@jax.jit
+def _find_peaks_jit(imgCov, thres, thres2=0.0):
+    sel = imgCov > thres
+    for ax in [-1, -2]:
+        for shift in [-1, 1]:
+            filtered = imgCov - jnp.roll(imgCov, shift=shift, axis=ax)
+            sel = jnp.logical_and(sel, (filtered >= thres2))
+    return sel
+
+
+def find_peaks(imgCov, thres, thres2=0.0, bound=16.0):
     """Detects peaks and returns the coordinates (y,x)
+    This function does the pre-selection in Li & Mandelbaum (2023)
 
     Args:
         imgCov (ndarray):       convolved image
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
+        bound (float):          minimum distance to the image boundary
     Returns:
         coord_array (ndarray):  ndarray of coordinates [y,x]
     """
-    footprint = np.ones((3, 3))
-    footprint[1, 1] = 0
-    footprint[0, 0] = 0
-    footprint[0, 2] = 0
-    footprint[2, 0] = 0
-    footprint[2, 2] = 0
-    filtered = ndi.maximum_filter(imgCov, footprint=footprint, mode="constant")
-    data = np.int_(
-        np.asarray(np.where(((imgCov > filtered + thres2) & (imgCov > thres))))
-    )
-    out = np.array(np.zeros(data.size // 2), dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")])
-    out["fpfs_y"] = data[0]
-    out["fpfs_x"] = data[1]
+    sel = _find_peaks_jit(imgCov, thres, thres2=0.0)
+    data = jnp.array(jnp.int_(jnp.asarray(jnp.where(sel))))
+    del sel
     ny, nx = imgCov.shape
-    # avoid pixels near boundary
-    msk = (
-        (out["fpfs_y"] > negBd)
-        & (out["fpfs_y"] < ny - negBd)
-        & (out["fpfs_x"] > negBd)
-        & (out["fpfs_x"] < nx - negBd)
+    y = data[0]
+    x = data[1]
+    msk = (y > bound) & (y < ny - bound) & (x > bound) & (x < nx - bound)
+    data = data[:, msk]
+    return data
+
+
+@partial(jax.jit, static_argnames=["klim"])
+def convolve2gausspsf(img_data, psf_data, gsigma, klim):
+    """This function convolves an image to transform the PSF to a Gaussian
+
+    Args:
+        img_data (ndarray):     image data
+        psf_data (ndarray):     psf data
+        gsigma (float):         sigma of Gaussian
+        klim (float):           maximum wavenumber in Fourier space
+    Returns:
+        img_conv (ndarray):     the reconvolved image
+    """
+    ny, nx = psf_data.shape
+    psf_fourier = jnp.fft.rfft2(jnp.fft.ifftshift(psf_data))
+    gauss_kernel, _ = _gauss_kernel_rfft(ny, nx, gsigma, return_grid=True)
+
+    # convolved images
+    img_fourier = jnp.fft.rfft2(img_data) / psf_fourier * gauss_kernel
+    if klim > 0.0:
+        # apply a truncation in Fourier space
+        nxklim = int(klim * nx / jnp.pi / 2.0 + 0.5)
+        nyklim = int(klim * ny / jnp.pi / 2.0 + 0.5)
+        img_fourier.at[nyklim + 1 : -nyklim, :].set(0.0)
+        img_fourier.at[:, nxklim + 1 :].set(0.0)
+    img_conv = jnp.fft.irfft2(img_fourier, (ny, nx))
+    return img_conv
+
+
+@jax.jit
+def get_klim(psf_array, sigma, thres=1e-20):
+    """Gets klim, the region outside klim is supressed by the shaplet Gaussian
+    kernel in FPFS shear estimation method; therefore we set values in this
+    region to zeros
+
+    Args:
+        psf_array (ndarray):    PSF's Fourier power or Fourier transform
+        sigma (float):          one sigma of Gaussian Fourier power
+        thres (float):          the threshold for a tuncation on Gaussian
+                                [default: 1e-20]
+    Returns:
+        klim (float):           the limit radius
+    """
+    ngrid = psf_array.shape[0]
+
+    def cond_fun(dist):
+        ave = abs(
+            jnp.exp(-(dist**2.0) / 2.0 / sigma**2.0)
+            / psf_array[ngrid // 2 + dist, ngrid // 2]
+        )
+        ave += abs(
+            jnp.exp(-(dist**2.0) / 2.0 / sigma**2.0)
+            / psf_array[ngrid // 2, ngrid // 2 + dist]
+        )
+        ave = ave / 2.0
+        return ave > thres
+
+    def body_fun(dist):
+        return dist + 1
+
+    klim = jax.lax.while_loop(
+        cond_fun=cond_fun,
+        body_fun=body_fun,
+        init_val=ngrid // 5,
     )
-    coord_array = out[msk]
-    return coord_array
+    return klim
