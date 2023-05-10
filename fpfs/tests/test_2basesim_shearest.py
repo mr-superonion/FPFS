@@ -56,7 +56,7 @@ def do_test(scale, ind0, rcut):
     coords2 = fpfs.image.detect_sources(
         gal_data,
         psf_data2,
-        gsigma=0.24,
+        gsigma=fpfs_task.sigmaF_det,
         thres=0.01,
         thres2=0.00,
         klim=fpfs_task.klim,

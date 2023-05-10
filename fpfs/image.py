@@ -130,8 +130,8 @@ class measure_base:
         # sigma_arcsec  =   1./self.sigmaF*self.pix_scale
 
         # the following two assumes pixel_scale = 1
-        self.sigmaF = self.pix_scale / sigma_arcsec
-        self.sigmaF_det = self.pix_scale / sigma_detect
+        self.sigmaF = float(self.pix_scale / sigma_arcsec)
+        self.sigmaF_det = float(self.pix_scale / sigma_detect)
         sigma_pixf = self.sigmaF / self._dk
         sigma_pixf_det = self.sigmaF_det / self._dk
         logging.info(
@@ -146,7 +146,7 @@ class measure_base:
         self.klim_pix = imgutil.get_klim(
             self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
         )  # in pixel units
-        self.klim = np.float(self.klim_pix * self._dk)  # assume pixel scale is 1
+        self.klim = float(self.klim_pix * self._dk)  # assume pixel scale is 1
         # index bounds
         self._indx = jnp.arange(
             self.ngrid // 2 - self.klim_pix,
