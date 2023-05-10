@@ -46,7 +46,7 @@ class Worker(object):
 
         # order of shear estimator
         self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
-        if self.nord not in [4, 6]:
+        if self.nnord not in [4, 6]:
             raise ValueError(
                 "Only support for nnord= 4 or nnord=6, but your input\
                     is nnord=%d"
