@@ -1,6 +1,7 @@
 import fpfs
 import galsim
 import numpy as np
+import jax.numpy as jnp
 
 
 def simulate_gal_psf(scale, ind0, rcut):
@@ -38,6 +39,7 @@ def simulate_gal_psf(scale, ind0, rcut):
 def do_test(scale, ind0, rcut):
     thres = 1e-5
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
+    # test shear estimation
     fpfs_task = fpfs.image.measure_source(psf_data, sigma_arcsec=0.7)
     # linear observables
     mms = fpfs_task.measure(gal_data, coords)
@@ -47,12 +49,26 @@ def do_test(scale, ind0, rcut):
     resp = np.average(ells["fpfs_R1E"])
     shear = np.average(ells["fpfs_e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)
+    # test detection
+    p1 = 32 - rcut
+    p2 = 64 * 2 - rcut
+    psf_data2 = jnp.pad(psf_data, ((p1, p1), (p2, p2)))
+    coords2 = fpfs.image.detect_sources(
+        gal_data,
+        psf_data2,
+        gsigma=0.24,
+        thres=0.01,
+        thres2=0.00,
+        klim=fpfs_task.klim,
+    )
+    assert np.all(coords2 == coords)
     return
 
 
 def test_hsc():
     print("Testing HSC-like image")
     do_test(0.168, 2, 16)
+    do_test(0.168, 4, 32)
     return
 
 

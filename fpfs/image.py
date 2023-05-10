@@ -146,7 +146,7 @@ class measure_base:
         self.klim_pix = imgutil.get_klim(
             self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
         )  # in pixel units
-        self.klim = self.klim_pix * self._dk  # assume pixel scale is 1
+        self.klim = np.float(self.klim_pix * self._dk)  # assume pixel scale is 1
         # index bounds
         self._indx = jnp.arange(
             self.ngrid // 2 - self.klim_pix,
