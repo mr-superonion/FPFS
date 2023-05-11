@@ -24,8 +24,6 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-_DefaultImgSize = 6400
-
 
 class Worker(object):
     def __init__(self, config_name):
@@ -64,11 +62,6 @@ class Worker(object):
         self.image_ny = cparser.getint("survey", "image_ny")
         self.magz = cparser.getfloat("survey", "mag_zero")
         assert self.image_ny == self.image_nx, "image_nx must equals image_ny!"
-        assert self.image_ny <= _DefaultImgSize, (
-            "image_nx (image_ny) should \
-                    not be greater than %d !"
-            % _DefaultImgSize
-        )
 
         # setup WL distortion parameter
         glist = []
@@ -79,7 +72,7 @@ class Worker(object):
             glist.append("g2")
         if len(glist) > 0:
             zlist = json.loads(cparser.get("distortion", "shear_z_list"))
-            self.pendList = ["%s_%s" % (i1, i2) for i1 in glist for i2 in zlist]
+            self.szlist = ["%s_%s" % (i1, i2) for i1 in glist for i2 in zlist]
         else:
             raise ValueError("problem in distortion setup")
 
@@ -140,6 +133,9 @@ class Worker(object):
             )
             cov_elem = noise_task.measure(self.noise_pow)
             pyfits.writeto(self.ncov_fname, np.array(cov_elem))
+        else:
+            cov_elem = pyfits.getdata(self.ncov_fname)
+        std_modes = np.sqrt(np.diagonal(cov_elem))
 
         # FPFS measurement task
         meas_task = fpfs.image.measure_source(
@@ -151,7 +147,7 @@ class Worker(object):
         )
         print("The upper limit of wave number is %s pixels" % (meas_task.klim_pix))
 
-        for ishear in self.pendList:
+        for ishear in self.szlist:
             print("FPFS measurement on simulation: %04d, %s" % (imid, ishear))
             gal_fname = os.path.join(
                 self.imgdir,
@@ -172,9 +168,10 @@ class Worker(object):
                 print("Already has measurement for this simulation.")
                 continue
 
-            cutmag = 26.0
-            thres = 10 ** ((self.magz - cutmag) / 2.5) * self.scale**2.0
-            thres2 = -thres / 20.0
+            idm00 = fpfs.catalog.indexes["m00"]
+            idv0 = fpfs.catalog.indexes["v0"]
+            thres = 10.0 * std_modes[idm00] * self.scale**2.0
+            thres2 = -2.0 * std_modes[idv0] * self.scale**2.0
             coords = fpfs.image.detect_sources(
                 gal_data,
                 psf_data3,
