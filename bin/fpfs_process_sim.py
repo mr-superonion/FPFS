@@ -13,16 +13,17 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
-import os
 import gc
-import jax
-import fpfs
 import json
-import schwimmbad
-import numpy as np
-import astropy.io.fits as pyfits
+import os
 from argparse import ArgumentParser
 from configparser import ConfigParser
+
+import astropy.io.fits as pyfits
+import fpfs
+import jax
+import numpy as np
+import schwimmbad
 
 _DefaultImgSize = 6400
 
@@ -135,6 +136,7 @@ class Worker(object):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_data2,
                 sigma_arcsec=self.sigma_as,
+                nnord=self.nnord,
                 pix_scale=self.scale,
                 sigma_detect=self.sigma_det,
             )
