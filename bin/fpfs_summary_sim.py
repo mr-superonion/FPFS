@@ -22,12 +22,12 @@ import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
-msig = 0.15
-rsig = 0.15
+msig = 0.20
+rsig = 0.30
 psig = 0.15
 mcut = 25.0
 rcut = 0.03
-pcut = 0.005
+pcut = 0.05
 rcut_upp = 2.0
 
 
@@ -42,10 +42,10 @@ class Worker(object):
         self.catdir = cparser.get("procsim", "cat_dir")
         self.sum_dir = cparser.get("procsim", "sum_dir")
         do_noirev = cparser.getboolean("FPFS", "do_noirev")
+        ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
+        cov_mat = pyfits.getdata(ncov_fname)
         if do_noirev:
             print("Correct for noise bias")
-            ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
-            cov_mat = pyfits.getdata(ncov_fname)
             self.nn = fpfs.catalog.imptcov_to_fpfscov(cov_mat)
         else:
             print("Do not correct for noise bias")
@@ -58,7 +58,7 @@ class Worker(object):
         # detection cut
         self.do_detcut = cparser.getboolean("FPFS", "do_detcut")
         if self.do_detcut:
-            self.selnm.append("detect2")
+            self.selnm.append("detect")
             self.cutsig.append(psig)
             self.cut.append(pcut)
         # magnitude cut
