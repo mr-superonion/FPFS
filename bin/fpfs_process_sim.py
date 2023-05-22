@@ -187,7 +187,6 @@ class Worker(object):
             del out, coords, gal_data, out_fname
             gc.collect()
         jax.clear_caches()
-        jax.clear_backends()
         print("finish %s" % (imid))
         return
 
