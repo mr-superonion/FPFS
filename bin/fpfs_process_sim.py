@@ -128,6 +128,7 @@ class Worker(object):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_data2,
                 sigma_arcsec=self.sigma_as,
+                nnord=self.nnord,
                 pix_scale=self.scale,
                 sigma_detect=self.sigma_det,
             )
