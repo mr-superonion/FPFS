@@ -21,7 +21,7 @@ then
     return
 fi
 
-export JAX_ENABLE_X64="false"
+export JAX_ENABLE_X64="true"
 export JAX_PLATFORMS="cpu"
 export TF_CPP_MIN_LOG_LEVEL=0
 

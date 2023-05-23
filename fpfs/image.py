@@ -293,12 +293,10 @@ class measure_source(measure_base):
             # This setup is for shear response only
             # Only uses M00, M20, M22 (real and img) and M40, M42
             self._indM = np.array([0, 10, 12, 20, 22])[:, None, None]
-            self._nameM = ["M00", "M20", "M22", "M40", "M42"]
         elif nnord == 6:
             # This setup is able to derive kappa response and shear response
             # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
             self._indM = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
-            self._nameM = ["M00", "M20", "M22", "M40", "M42", "M60"]
         else:
             raise ValueError(
                 "only support for nnord= 4 or nnord=6, but your input\
@@ -376,12 +374,12 @@ class measure_source(measure_base):
         self.psi_types = []
         out = []
         for _ in range(8):
-            out.append(psi[_, 0])  # psi
-            out.append(psi[_, 1])  # psi;1
-            out.append(psi[_, 2])  # psi;2
+            out.append(psi[_, 0])  # ps_i
             self.psi_types.append(("fpfs_v%d" % _, "<f8"))
-            self.psi_types.append(("fpfs_v%dr1" % _, "<f8"))
-            self.psi_types.append(("fpfs_v%dr2" % _, "<f8"))
+        for j in range(2):
+            for i in range(8):
+                out.append(psi[i, j])  # ps_i;j
+                self.psi_types.append(("fpfs_v%dr%d" % (i, j + 1), "<f8"))
         out = jnp.stack(out)
         assert len(out) == len(self.psi_types)
         self.psi = out
