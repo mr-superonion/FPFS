@@ -534,7 +534,7 @@ def make_basic_sim(
                 del gal0
                 # gal0  =  cosmos_cat.makeGalaxy(gal_type='parametric',\
                 #             index=ss['index'],gsparams=bigfft)
-                gal0 = generate_cosmos_gal(ss, truncr=5.0, gsparams=bigfft)
+                gal0 = generate_cosmos_gal(ss, truncr=-1.0, gsparams=bigfft)
                 # accounting for zeropoint difference between COSMOS HST and HSC
                 # HSC's i-band coadds zero point is 27
                 flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
