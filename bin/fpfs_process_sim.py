@@ -184,6 +184,8 @@ class Worker(object):
             print("pre-selected number of sources: %d" % len(coords))
             out = meas_task.measure(gal_data, coords)
             out = meas_task.get_results(out)
+            out = out[out["fpfs_M00"] + out["fpfs_M20"] > std_modes[idm00] / 10.0]
+            print("final number of sources: %d" % len(out))
             pyfits.writeto(out_fname, out)
             del out, coords, gal_data, out_fname
             gc.collect()
