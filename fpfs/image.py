@@ -432,7 +432,7 @@ class measure_source(measure_base):
         )
         return out
 
-    def measure(self, exposure, coords=None, psf_fourier=None):
+    def measure(self, exposure, coords=None):
         """Measures the FPFS moments
 
         Args:
@@ -441,36 +441,40 @@ class measure_source(measure_base):
         Returns:
             out (ndarray):              FPFS moments
         """
-        if psf_fourier is not None:
-            self.psf_fourier = psf_fourier
-            self.psf_pow = (jnp.conjugate(psf_fourier) * psf_fourier).real
         exposure = jnp.array(exposure)
         if coords is None:
             coords = jnp.array(exposure.shape) // 2
         coords = jnp.atleast_2d(coords.T).T
         func = jax.vmap(
-            self.__measure_coords,
+            self.measure_coord,
             in_axes=(0, None),
             out_axes=(0),
         )
         return func(coords, exposure)
 
     @partial(jax.jit, static_argnames=["self"])
-    def __measure_coords(self, cc, image):
+    def measure_coord(self, cc, image):
+        """Measures the FPFS moments from a coordinate (jitted)
+
+        Args:
+            cc (ndarray):       galaxy peak coordinate
+            image (ndarray):    exposure
+        Returns:
+            mm (ndarray):       FPFS moments
+        """
         stamp = jax.lax.dynamic_slice(
             image,
             (cc[0] - self.ngrid // 2, cc[1] - self.ngrid // 2),
             (self.ngrid, self.ngrid),
         )
-        out = self.__measure_stamp(stamp)
-        return out
+        return self.measure_stamp(stamp)
 
     @partial(jax.jit, static_argnames=["self"])
-    def __measure_stamp(self, data):
-        """Measures the FPFS moments
+    def measure_stamp(self, data):
+        """Measures the FPFS moments from a stamp (jitted)
 
         Args:
-            data (ndarray):     galaxy image array [centroid does not matter]
+            data (ndarray):     galaxy image array
         Returns:
             mm (ndarray):       FPFS moments
         """
