@@ -35,7 +35,6 @@ def detect_sources(
     thres=0.04,
     thres2=-0.01,
     klim=-1.0,
-    pixel_scale=1.0,
     structured=False,
 ):
     """Returns the coordinates of detected sources
@@ -48,7 +47,6 @@ def detect_sources(
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
-        pixel_scale (float):    pixel scale in arcsec [set to 1]
         structured (bool):      whether return structured array
     Returns:
         coords (ndarray):       peak values and the shear responses
