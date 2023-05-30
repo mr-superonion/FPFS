@@ -147,6 +147,10 @@ class measure_base:
         self.klim_pix = imgutil.get_klim(
             self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
         )  # in pixel units
+        self.klim_pix = max(
+            min(self.klim_pix, self.ngrid // 2 - 1),
+            self.ngrid // 3,
+        )
         self.klim = float(self.klim_pix * self._dk)  # assume pixel scale is 1
         # index bounds
         self._indx = jnp.arange(
@@ -303,6 +307,7 @@ class measure_source(measure_base):
                     is nnord=%d"
                 % nnord
             )
+        print(self.klim_pix)
         chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaF).reshape(
             ((nnord + 1) ** 2, self.ngrid, self.ngrid)
         )[self._indM, self._indy, self._indx]
