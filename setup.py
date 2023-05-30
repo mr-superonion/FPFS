@@ -15,6 +15,7 @@ scripts = [
     "bin/fpfs_sim.py",
     "bin/fpfs_process_sim.py",
     "bin/fpfs_summary_sim.py",
+    "bin/impt_summar_sim.py",
 ]
 
 setup(
