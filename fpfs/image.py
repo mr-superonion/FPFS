@@ -305,7 +305,6 @@ class measure_source(measure_base):
                     is nnord=%d"
                 % nnord
             )
-        print(self.klim_pix)
         chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaF).reshape(
             ((nnord + 1) ** 2, self.ngrid, self.ngrid)
         )[self._indM, self._indy, self._indx]
@@ -315,7 +314,7 @@ class measure_source(measure_base):
         )[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
-        del chi
+        del chi, psi
         return
 
     def prepare_chi(self, chi):
@@ -379,10 +378,10 @@ class measure_source(measure_base):
         for _ in range(8):
             out.append(psi[_, 0])  # ps_i
             self.psi_types.append(("fpfs_v%d" % _, "<f8"))
-        for j in range(2):
+        for j in [1, 2]:
             for i in range(8):
                 out.append(psi[i, j])  # ps_i;j
-                self.psi_types.append(("fpfs_v%dr%d" % (i, j + 1), "<f8"))
+                self.psi_types.append(("fpfs_v%dr%d" % (i, j), "<f8"))
         out = jnp.stack(out)
         assert len(out) == len(self.psi_types)
         self.psi = out
