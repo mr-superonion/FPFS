@@ -466,7 +466,7 @@ def find_peaks(imgCov, thres, thres2=0.0, bound=16.0):
     Returns:
         coord_array (ndarray):  ndarray of coordinates [y,x]
     """
-    sel = _find_peaks_jit(imgCov, thres, thres2=0.0)
+    sel = _find_peaks_jit(imgCov, thres, thres2)
     data = jnp.array(jnp.int_(jnp.asarray(jnp.where(sel))))
     del sel
     ny, nx = imgCov.shape
