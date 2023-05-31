@@ -66,11 +66,22 @@ class Worker(object):
         self.catdir = cparser.get("procsim", "cat_dir")
         self.sum_dir = cparser.get("procsim", "sum_dir")
         self.do_noirev = cparser.getboolean("FPFS", "do_noirev")
+
+        # order of shear estimator
+        self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
+        if self.nnord not in [4, 6]:
+            raise ValueError(
+                "Only support for nnord= 4 or nnord=6, but your input\
+                    is nnord=%d"
+                % self.nnord
+            )
+        cov_dim = 31 if self.nnord == 4 else 32
+
         if self.do_noirev:
             ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
             self.cov_mat = fitsio.read(ncov_fname)
         else:
-            self.cov_mat = np.zeros((31, 31))
+            self.cov_mat = np.zeros((cov_dim, cov_dim))
         self.shear_value = cparser.getfloat("distortion", "shear_value")
         # survey parameter
         self.magz = cparser.getfloat("survey", "mag_zero")
@@ -85,10 +96,13 @@ class Worker(object):
             self.sum_dir,
             "bin_%s.fits" % (self.upper_mag),
         )
+
+        # Define a wrapper depending on the order
+        self.impt_fpfs = impt.fpfs if self.nnord == 4 else impt.fpfs4
         return
 
     def prepare_functions(self):
-        params = impt.fpfs.FpfsParams(
+        params = self.impt_fpfs.FpfsParams(
             Const=10.0,
             lower_m00=self.lower_m00,
             lower_r2=0.03,
@@ -99,7 +113,7 @@ class Worker(object):
             sigma_v=0.15,
         )
         funcnm = "ss2"
-        e1 = impt.fpfs.FpfsWeightE1(params, func_name=funcnm)
+        e1 = self.impt_fpfs.FpfsWeightE1(params, func_name=funcnm)
         enoise = impt.BiasNoise(e1, self.cov_mat)
         res1 = impt.RespG1(e1)
         rnoise = impt.BiasNoise(res1, self.cov_mat)
@@ -109,7 +123,7 @@ class Worker(object):
         assert os.path.isfile(
             in_nm
         ), "Cannot find input galaxy shear catalogs : %s " % (in_nm)
-        mm = impt.fpfs.read_catalog(in_nm)
+        mm = self.impt_fpfs.read_catalog(in_nm)
         # noise bias
 
         def fune(carry, ss):
