@@ -450,11 +450,11 @@ def _find_peaks_jit(imgCov, thres, thres2=0.0):
     for ax in [-1, -2]:
         for shift in [-1, 1]:
             filtered = imgCov - jnp.roll(imgCov, shift=shift, axis=ax)
-            sel = jnp.logical_and(sel, (filtered >= thres2))
+            sel = jnp.logical_and(sel, (filtered > thres2))
     return sel
 
 
-def find_peaks(imgCov, thres, thres2=0.0, bound=16.0):
+def find_peaks(imgCov, thres, thres2=0.0, bound=20.0):
     """Detects peaks and returns the coordinates (y,x)
     This function does the pre-selection in Li & Mandelbaum (2023)
 
@@ -466,7 +466,7 @@ def find_peaks(imgCov, thres, thres2=0.0, bound=16.0):
     Returns:
         coord_array (ndarray):  ndarray of coordinates [y,x]
     """
-    sel = _find_peaks_jit(imgCov, thres, thres2=0.0)
+    sel = _find_peaks_jit(imgCov, thres, thres2)
     data = jnp.array(jnp.int_(jnp.asarray(jnp.where(sel))))
     del sel
     ny, nx = imgCov.shape

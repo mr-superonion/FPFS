@@ -35,7 +35,6 @@ def detect_sources(
     thres=0.04,
     thres2=-0.01,
     klim=-1.0,
-    pixel_scale=1.0,
     structured=False,
 ):
     """Returns the coordinates of detected sources
@@ -48,7 +47,6 @@ def detect_sources(
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
-        pixel_scale (float):    pixel scale in arcsec [set to 1]
         structured (bool):      whether return structured array
     Returns:
         coords (ndarray):       peak values and the shear responses
@@ -147,6 +145,10 @@ class measure_base:
         self.klim_pix = imgutil.get_klim(
             self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
         )  # in pixel units
+        self.klim_pix = max(
+            min(self.klim_pix, self.ngrid // 2 - 1),
+            self.ngrid // 3,
+        )
         self.klim = float(self.klim_pix * self._dk)  # assume pixel scale is 1
         # index bounds
         self._indx = jnp.arange(
@@ -312,7 +314,7 @@ class measure_source(measure_base):
         )[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
-        del chi
+        del chi, psi
         return
 
     def prepare_chi(self, chi):
@@ -376,10 +378,10 @@ class measure_source(measure_base):
         for _ in range(8):
             out.append(psi[_, 0])  # ps_i
             self.psi_types.append(("fpfs_v%d" % _, "<f8"))
-        for j in range(2):
+        for j in [1, 2]:
             for i in range(8):
                 out.append(psi[i, j])  # ps_i;j
-                self.psi_types.append(("fpfs_v%dr%d" % (i, j + 1), "<f8"))
+                self.psi_types.append(("fpfs_v%dr%d" % (i, j), "<f8"))
         out = jnp.stack(out)
         assert len(out) == len(self.psi_types)
         self.psi = out
