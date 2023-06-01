@@ -146,7 +146,6 @@ class Worker(object):
             pix_scale=self.scale,
             sigma_detect=self.sigma_det,
         )
-        print("The upper limit of wave number is %s pixels" % (meas_task.klim_pix))
 
         idm00 = fpfs.catalog.indexes["m00"]
         idv0 = fpfs.catalog.indexes["v0"]
@@ -179,7 +178,6 @@ class Worker(object):
                 gsigma=meas_task.sigmaF_det,
                 thres=thres,
                 thres2=thres2,
-                klim=meas_task.klim,
             )
             print("pre-selected number of sources: %d" % len(coords))
             out = meas_task.measure(gal_data, coords)

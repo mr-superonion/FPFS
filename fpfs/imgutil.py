@@ -445,31 +445,31 @@ def cut_img(img, rcut):
 
 
 @jax.jit
-def _find_peaks_jit(imgCov, thres, thres2=0.0):
-    sel = imgCov > thres
+def _find_peaks_jit(img_conv, thres, thres2=0.0):
+    sel = img_conv > thres
     for ax in [-1, -2]:
         for shift in [-1, 1]:
-            filtered = imgCov - jnp.roll(imgCov, shift=shift, axis=ax)
+            filtered = img_conv - jnp.roll(img_conv, shift=shift, axis=ax)
             sel = jnp.logical_and(sel, (filtered > thres2))
     return sel
 
 
-def find_peaks(imgCov, thres, thres2=0.0, bound=20.0):
+def find_peaks(img_conv, thres, thres2=0.0, bound=20.0):
     """Detects peaks and returns the coordinates (y,x)
     This function does the pre-selection in Li & Mandelbaum (2023)
 
     Args:
-        imgCov (ndarray):       convolved image
+        img_conv (ndarray):       convolved image
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         bound (float):          minimum distance to the image boundary
     Returns:
         coord_array (ndarray):  ndarray of coordinates [y,x]
     """
-    sel = _find_peaks_jit(imgCov, thres, thres2)
+    sel = _find_peaks_jit(img_conv, thres, thres2)
     data = jnp.array(jnp.int_(jnp.asarray(jnp.where(sel))))
     del sel
-    ny, nx = imgCov.shape
+    ny, nx = img_conv.shape
     y = data[0]
     x = data[1]
     msk = (y > bound) & (y < ny - bound) & (x > bound) & (x < nx - bound)
@@ -477,8 +477,8 @@ def find_peaks(imgCov, thres, thres2=0.0, bound=20.0):
     return data
 
 
-@partial(jax.jit, static_argnames=["klim"])
-def convolve2gausspsf(img_data, psf_data, gsigma, klim):
+@jax.jit
+def convolve2gausspsf(img_data, psf_data, gsigma):
     """This function convolves an image to transform the PSF to a Gaussian
 
     Args:
@@ -491,16 +491,10 @@ def convolve2gausspsf(img_data, psf_data, gsigma, klim):
     """
     ny, nx = psf_data.shape
     psf_fourier = jnp.fft.rfft2(jnp.fft.ifftshift(psf_data))
-    gauss_kernel, _ = _gauss_kernel_rfft(ny, nx, gsigma, return_grid=True)
+    gauss_kernel = _gauss_kernel_rfft(ny, nx, gsigma, return_grid=False)
 
     # convolved images
     img_fourier = jnp.fft.rfft2(img_data) / psf_fourier * gauss_kernel
-    if klim > 0.0:
-        # apply a truncation in Fourier space
-        nxklim = int(klim * nx / jnp.pi / 2.0 + 0.5)
-        nyklim = int(klim * ny / jnp.pi / 2.0 + 0.5)
-        img_fourier.at[nyklim + 1 : -nyklim, :].set(0.0)
-        img_fourier.at[:, nxklim + 1 :].set(0.0)
     img_conv = jnp.fft.irfft2(img_fourier, (ny, nx))
     return img_conv
 
