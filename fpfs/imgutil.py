@@ -445,28 +445,29 @@ def cut_img(img, rcut):
 
 
 @jax.jit
-def _find_peaks_jit(img_conv, thres, thres2=0.0):
-    sel = img_conv > thres
+def get_pixel_detect_mask(sel, img, thres2):
     for ax in [-1, -2]:
         for shift in [-1, 1]:
-            filtered = img_conv - jnp.roll(img_conv, shift=shift, axis=ax)
+            filtered = img - jnp.roll(img, shift=shift, axis=ax)
             sel = jnp.logical_and(sel, (filtered > thres2))
     return sel
 
 
-def find_peaks(img_conv, thres, thres2=0.0, bound=20.0):
+def find_peaks(img_conv, img_conv_det, thres, thres2=0.0, bound=20.0):
     """Detects peaks and returns the coordinates (y,x)
     This function does the pre-selection in Li & Mandelbaum (2023)
 
     Args:
-        img_conv (ndarray):       convolved image
-        thres (float):          detection threshold
-        thres2 (float):         peak identification difference threshold
-        bound (float):          minimum distance to the image boundary
+        img_conv (ndarray):         convolved image
+        img_conv_det (ndarray):     convolved image
+        thres (float):              detection threshold
+        thres2 (float):             peak identification difference threshold
+        bound (float):              minimum distance to the image boundary
     Returns:
-        coord_array (ndarray):  ndarray of coordinates [y,x]
+        coord_array (ndarray):      ndarray of coordinates [y,x]
     """
-    sel = _find_peaks_jit(img_conv, thres, thres2)
+    sel = img_conv > thres
+    sel = get_pixel_detect_mask(sel, img_conv_det, thres2)
     data = jnp.array(jnp.int_(jnp.asarray(jnp.where(sel))))
     del sel
     ny, nx = img_conv.shape
@@ -478,20 +479,19 @@ def find_peaks(img_conv, thres, thres2=0.0, bound=20.0):
 
 
 @jax.jit
-def convolve2gausspsf(img_data, psf_data, gsigma):
+def convolve2gausspsf(img_data, psf_data, sigmaf):
     """This function convolves an image to transform the PSF to a Gaussian
 
     Args:
         img_data (ndarray):     image data
         psf_data (ndarray):     psf data
-        gsigma (float):         sigma of Gaussian
-        klim (float):           maximum wavenumber in Fourier space
+        sigmaf (float):         sigma of Gaussian
     Returns:
         img_conv (ndarray):     the reconvolved image
     """
     ny, nx = psf_data.shape
     psf_fourier = jnp.fft.rfft2(jnp.fft.ifftshift(psf_data))
-    gauss_kernel = _gauss_kernel_rfft(ny, nx, gsigma, return_grid=False)
+    gauss_kernel = _gauss_kernel_rfft(ny, nx, sigmaf, return_grid=False)
 
     # convolved images
     img_fourier = jnp.fft.rfft2(img_data) / psf_fourier * gauss_kernel

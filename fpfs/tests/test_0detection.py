@@ -55,7 +55,7 @@ def do_test(scale, ind0, rcut):
     img_conv = fpfs.imgutil.convolve2gausspsf(
         gal_data,
         psf_data2,
-        fpfs_task.sigmaF_det,
+        fpfs_task.sigmaf,
     )
     m00_sm = np.array([img_conv[tuple(cc)] for cc in coords])
     np.testing.assert_array_almost_equal(m00_sm, mms["fpfs_M00"] * scale**2.0)
