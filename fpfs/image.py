@@ -31,11 +31,11 @@ logging.basicConfig(
 def detect_sources(
     img_data,
     psf_data,
-    gsigma,
+    sigmaf,
+    sigmaf_det=None,
     thres=0.04,
     thres2=-0.01,
-    klim=-1.0,
-    pixel_scale=1.0,
+    bound=20,
     structured=False,
 ):
     """Returns the coordinates of detected sources
@@ -48,18 +48,20 @@ def detect_sources(
         thres (float):          detection threshold
         thres2 (float):         peak identification difference threshold
         klim (float):           limiting wave number in Fourier space
-        pixel_scale (float):    pixel scale in arcsec [set to 1]
         structured (bool):      whether return structured array
     Returns:
         coords (ndarray):       peak values and the shear responses
     """
+    if sigmaf_det is None:
+        sigmaf_det = sigmaf
 
     psf_data = jnp.array(psf_data, dtype="<f8")
     assert (
         img_data.shape == psf_data.shape
     ), "image and PSF should have the same\
             shape. Please do padding before using this function."
-    img_conv = imgutil.convolve2gausspsf(img_data, psf_data, gsigma, klim)
+    img_conv = imgutil.convolve2gausspsf(img_data, psf_data, sigmaf)
+    img_conv_det = imgutil.convolve2gausspsf(img_data, psf_data, sigmaf_det)
     # the coordinates is not given, so we do another detection
     if not isinstance(thres, (int, float)):
         raise ValueError("thres must be float, but now got %s" % type(thres))
@@ -69,7 +71,7 @@ def detect_sources(
         raise ValueError("detection threshold should be positive")
     if not thres2 <= 0.0:
         raise ValueError("difference threshold should be non-positive")
-    dd = imgutil.find_peaks(img_conv, thres, thres2).T
+    dd = imgutil.find_peaks(img_conv, img_conv_det, thres, thres2, bound).T
     if not structured:
         return dd
     else:
@@ -102,16 +104,16 @@ class measure_base:
         self,
         psf_data,
         sigma_arcsec,
+        sigma_detect=None,
         nnord=4,
         pix_scale=0.168,
-        sigma_detect=None,
     ):
         if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
             raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
-        if sigma_detect is None:
-            sigma_detect = sigma_arcsec
         self.ngrid = psf_data.shape[0]
         self.nnord = nnord
+        if sigma_detect is None:
+            sigma_detect = sigma_arcsec
 
         # Preparing PSF
         psf_data = jnp.array(psf_data, dtype="<f8")
@@ -126,14 +128,14 @@ class measure_base:
         # sigmaPsf    =   imgutil.get_r_naive(self.psf_pow)*jnp.sqrt(2.)
         # # shapelet scale
         # sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
-        # self.sigmaF =   sigma_pix*self._dk      # assume pixel scale is 1
-        # sigma_arcsec  =   1./self.sigmaF*self.pix_scale
+        # self.sigmaf =   sigma_pix*self._dk      # assume pixel scale is 1
+        # sigma_arcsec  =   1./self.sigmaf*self.pix_scale
 
         # the following two assumes pixel_scale = 1
-        self.sigmaF = float(self.pix_scale / sigma_arcsec)
-        self.sigmaF_det = float(self.pix_scale / sigma_detect)
-        sigma_pixf = self.sigmaF / self._dk
-        sigma_pixf_det = self.sigmaF_det / self._dk
+        self.sigmaf = float(self.pix_scale / sigma_arcsec)
+        self.sigmaf_det = float(self.pix_scale / sigma_detect)
+        sigma_pixf = self.sigmaf / self._dk
+        sigma_pixf_det = self.sigmaf_det / self._dk
         logging.info("Order of the shear estimator: nnord=%d" % self.nnord)
         logging.info(
             "Shapelet kernel in configuration space: sigma= %.4f arcsec"
@@ -147,6 +149,10 @@ class measure_base:
         self.klim_pix = imgutil.get_klim(
             self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
         )  # in pixel units
+        self.klim_pix = max(
+            min(self.klim_pix, self.ngrid // 2 - 1),
+            self.ngrid // 3,
+        )
         self.klim = float(self.klim_pix * self._dk)  # assume pixel scale is 1
         # index bounds
         self._indx = jnp.arange(
@@ -227,8 +233,8 @@ class measure_noise_cov(measure_base):
         bfunc, bnames = imgutil.fpfs_bases(
             self.ngrid,
             nnord,
-            self.sigmaF,
-            self.sigmaF_det,
+            self.sigmaf,
+            self.sigmaf_det,
         )
         self.bfunc = bfunc[:, self._indy, self._indx]
         self.bnames = bnames
@@ -303,16 +309,20 @@ class measure_source(measure_base):
                     is nnord=%d"
                 % nnord
             )
-        chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaF).reshape(
-            ((nnord + 1) ** 2, self.ngrid, self.ngrid)
+        chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaf).reshape(
+            (
+                (nnord + 1) ** 2,
+                self.ngrid,
+                self.ngrid,
+            )
         )[self._indM, self._indy, self._indx]
         psi = imgutil.detlets2d(
             self.ngrid,
-            self.sigmaF_det,
+            self.sigmaf_det,
         )[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
-        del chi
+        del chi, psi
         return
 
     def prepare_chi(self, chi):
@@ -376,10 +386,10 @@ class measure_source(measure_base):
         for _ in range(8):
             out.append(psi[_, 0])  # ps_i
             self.psi_types.append(("fpfs_v%d" % _, "<f8"))
-        for j in range(2):
+        for j in [1, 2]:
             for i in range(8):
                 out.append(psi[i, j])  # ps_i;j
-                self.psi_types.append(("fpfs_v%dr%d" % (i, j + 1), "<f8"))
+                self.psi_types.append(("fpfs_v%dr%d" % (i, j), "<f8"))
         out = jnp.stack(out)
         assert len(out) == len(self.psi_types)
         self.psi = out
@@ -441,16 +451,11 @@ class measure_source(measure_base):
         Returns:
             out (ndarray):              FPFS moments
         """
-        exposure = jnp.array(exposure)
         if coords is None:
             coords = jnp.array(exposure.shape) // 2
         coords = jnp.atleast_2d(coords.T).T
-        func = jax.vmap(
-            self.measure_coord,
-            in_axes=(0, None),
-            out_axes=(0),
-        )
-        return func(coords, exposure)
+        func = lambda xi: self.measure_coord(xi, jnp.array(exposure))
+        return jax.lax.map(func, coords)
 
     @partial(jax.jit, static_argnames=["self"])
     def measure_coord(self, cc, image):

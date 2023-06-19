@@ -37,40 +37,56 @@ def simulate_gal_psf(scale, ind0, rcut):
 
 
 def do_test(scale, ind0, rcut):
-    thres = 1e-5
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
     # test shear estimation
-    fpfs_task = fpfs.image.measure_source(psf_data, sigma_arcsec=0.7)
+    fpfs_task = fpfs.image.measure_source(
+        psf_data,
+        sigma_arcsec=0.6,
+        sigma_detect=0.5,
+        pix_scale=scale,
+    )
     # linear observables
     mms = fpfs_task.measure(gal_data, coords)
     mms = fpfs_task.get_results(mms)
-    # non-linear observables
-    ells = fpfs.catalog.fpfs_m2e(mms, const=2000)
-    resp = np.average(ells["fpfs_R1E"])
-    shear = np.average(ells["fpfs_e1"]) / resp
-    assert np.all(np.abs(shear + 0.02) < thres)
     # test detection
     p1 = 32 - rcut
     p2 = 64 * 2 - rcut
     psf_data2 = jnp.pad(psf_data, ((p1, p1), (p2, p2)))
-    coords2 = fpfs.image.detect_sources(
+    img_conv = fpfs.imgutil.convolve2gausspsf(
         gal_data,
         psf_data2,
-        sigmaf=fpfs_task.sigmaf,
-        sigmaf_det=fpfs_task.sigmaf_det,
-        thres=0.01,
-        thres2=0.00,
+        fpfs_task.sigmaf,
     )
-    assert np.all(coords2 == coords)
+    m00_sm = np.array([img_conv[tuple(cc)] for cc in coords])
+    np.testing.assert_array_almost_equal(m00_sm, mms["fpfs_M00"] * scale**2.0)
+    img_conv_det = fpfs.imgutil.convolve2gausspsf(
+        gal_data,
+        psf_data2,
+        fpfs_task.sigmaf_det,
+    )
+    img_u = img_conv_det - jnp.roll(img_conv_det, shift=-1, axis=-1)
+    v0_sm = np.array([img_u[tuple(cc)] for cc in coords])
+    np.testing.assert_array_almost_equal(v0_sm, mms["fpfs_v0"] * scale**2.0)
+
+    img_u = img_conv_det - jnp.roll(img_conv_det, shift=-1, axis=-2)
+    v2_sm = np.array([img_u[tuple(cc)] for cc in coords])
+    np.testing.assert_array_almost_equal(v2_sm, mms["fpfs_v2"] * scale**2.0)
+
+    img_u = img_conv_det - jnp.roll(img_conv_det, shift=1, axis=-1)
+    v4_sm = np.array([img_u[tuple(cc)] for cc in coords])
+    np.testing.assert_array_almost_equal(v4_sm, mms["fpfs_v4"] * scale**2.0)
+
+    img_u = img_conv_det - jnp.roll(img_conv_det, shift=1, axis=-2)
+    v6_sm = np.array([img_u[tuple(cc)] for cc in coords])
+    np.testing.assert_array_almost_equal(v6_sm, mms["fpfs_v6"] * scale**2.0)
     return
 
 
-def test_hsc():
-    print("Testing HSC-like image")
+def test_detection():
+    do_test(0.2, 1, 16)
     do_test(0.168, 2, 16)
-    do_test(0.168, 4, 32)
     return
 
 
 if __name__ == "__main__":
-    test_hsc()
+    test_detection()

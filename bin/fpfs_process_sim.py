@@ -146,8 +146,11 @@ class Worker(object):
             pix_scale=self.scale,
             sigma_detect=self.sigma_det,
         )
-        print("The upper limit of wave number is %s pixels" % (meas_task.klim_pix))
 
+        idm00 = fpfs.catalog.indexes["m00"]
+        idv0 = fpfs.catalog.indexes["v0"]
+        thres = 8.0 * std_modes[idm00] * self.scale**2.0
+        thres2 = -2.0 * std_modes[idv0] * self.scale**2.0
         for ishear in self.szlist:
             print("FPFS measurement on simulation: %04d, %s" % (imid, ishear))
             gal_fname = os.path.join(
@@ -169,22 +172,18 @@ class Worker(object):
                 print("Already has measurement for this simulation.")
                 continue
 
-            idm00 = fpfs.catalog.indexes["m00"]
-            idv0 = fpfs.catalog.indexes["v0"]
-            thres = 10.0 * std_modes[idm00] * self.scale**2.0
-            thres2 = -2.0 * std_modes[idv0] * self.scale**2.0
             coords = fpfs.image.detect_sources(
                 gal_data,
                 psf_data3,
-                gsigma=meas_task.sigmaF_det,
+                sigmaf=meas_task.sigmaf,
+                sigmaf_det=meas_task.sigmaf_det,
                 thres=thres,
                 thres2=thres2,
-                klim=meas_task.klim,
             )
             print("pre-selected number of sources: %d" % len(coords))
             out = meas_task.measure(gal_data, coords)
             out = meas_task.get_results(out)
-            out = out[out["fpfs_M00"] + out["fpfs_M20"] > std_modes[idm00] / 10.0]
+            out = out[out["fpfs_M00"] + out["fpfs_M20"] > 0.0]
             print("final number of sources: %d" % len(out))
             pyfits.writeto(out_fname, out)
             del out, coords, gal_data, out_fname
