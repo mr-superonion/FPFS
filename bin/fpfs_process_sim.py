@@ -32,7 +32,6 @@ class Worker(object):
         # setup processor
         self.imgdir = cparser.get("procsim", "img_dir")
         self.catdir = cparser.get("procsim", "cat_dir")
-        self.do_det = cparser.getboolean("FPFS", "do_det")
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
