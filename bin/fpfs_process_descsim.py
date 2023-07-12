@@ -14,15 +14,12 @@
 # GNU General Public License for more details.
 #
 import os
+import time
 import fpfs
 import glob
-import pickle
 import schwimmbad
 import numpy as np
 import astropy.io.fits as pyfits
-import lsst.geom as lsstgeom
-import lsst.afw.image as afwimage
-from descwl_shear_sims.psfs import make_dm_psf
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
@@ -34,20 +31,36 @@ band_map = {
     "a": 4,
 }
 
-nstd_map = {
-    "g": 0.315,
-    "r": 0.371,
-    "i": 0.595,
-    "z": 1.155,
-    "a": 0.27934,
-}
+version = 1
 
-w_map = {
-    "g": 0.12503653,
-    "r": 0.47022727,
-    "i": 0.30897575,
-    "z": 0.09576044,
-}
+if version == 1:
+    nstd_map = {
+        "g": 0.315,
+        "r": 0.371,
+        "i": 0.595,
+        "z": 1.155,
+        "a": 0.2186,
+    }
+    w_map = {
+        "g": 0.48179905,
+        "r": 0.34732755,
+        "i": 0.13503710,
+        "z": 0.03583629,
+    }
+elif version == 2:
+    nstd_map = {
+        "g": 0.315,
+        "r": 0.371,
+        "i": 0.595,
+        "z": 1.155,
+        "a": 0.27934,
+    }
+    w_map = {
+        "g": 0.12503653,
+        "r": 0.47022727,
+        "i": 0.30897575,
+        "z": 0.09576044,
+    }
 
 
 def get_seed_from_fname(fname, band):
@@ -78,66 +91,35 @@ class Worker(object):
         self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
 
         # setup survey parameters
-        self.noi_ratio = cparser.getfloat("survey", "noise_ratio")
+        self.noise_ratio = cparser.getfloat("survey", "noise_ratio")
         self.ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
         self.magz = cparser.getfloat("survey", "mag_zero")
         self.band = cparser.get("survey", "band")
-        self.nstd_f = nstd_map[self.band] * self.noi_ratio
-        if self.noi_ratio > 1e-5:
-            ngrid = 2 * self.rcut
-            self.noise_pow = np.ones((ngrid, ngrid)) * self.nstd_f**2.0 * ngrid**2.0
+        self.scale = cparser.getfloat("survey", "pixel_scale")
+        self.nstd_f = nstd_map[self.band] * self.noise_ratio
+        ngrid = 2 * self.rcut
+        self.noise_pow = np.ones((ngrid, ngrid)) * self.nstd_f**2.0 * ngrid**2.0
         return
 
-    def prepare_psf(self, exposure, rcut):
-        # pad to (64, 64) and then cut off
-        ngrid = 64
-        beg = ngrid // 2 - rcut
-        end = beg + 2 * rcut
-        bbox = exposure.getBBox()
-        bcent = bbox.getCenter()
-        psf_model = exposure.getPsf()
-        psf_array = psf_model.computeImage(lsstgeom.Point2I(bcent)).getArray()
-        npad = (ngrid - psf_array.shape[0]) // 2
-        psf_array2 = np.pad(psf_array, (npad + 1, npad), mode="constant")[
-            beg:end, beg:end
-        ]
-        del npad
-        # pad to exposure size
+    def prepare_noise_psf(self, fname):
+        exposure = pyfits.getdata(fname)
+        self.image_nx = exposure.shape[1]
+        psf_array2 = pyfits.getdata(self.psf_fname)
         npad = (self.image_nx - psf_array2.shape[0]) // 2
         psf_array3 = np.pad(psf_array2, (npad, npad), mode="constant")
-        return psf_array2, psf_array3
-
-    def prepare_noise_psf(self, fname):
-        exposure = afwimage.ExposureF.readFits(fname)
-        wcs = exposure.getInfo().getWcs()
-        self.scale = wcs.getPixelScale().asArcseconds()
-        with open(self.psf_fname, "rb") as f:
-            psf_dict = pickle.load(f)
-        psf_dm = make_dm_psf(**psf_dict)
-        exposure.setPsf(psf_dm)
-        # zero_flux = exposure.getPhotoCalib().getInstFluxAtZeroMagnitude()
-        # magz = np.log10(zero_flux) * 2.5
-        self.image_nx = exposure.getWidth()
-        psf_array2, psf_array3 = self.prepare_psf(
-            exposure,
-            self.rcut,
-        )
         # FPFS Tasks
         # noise cov task
-        if self.noi_ratio > 1e-10:
-            if not os.path.isfile(self.ncov_fname):
-                noise_task = fpfs.image.measure_noise_cov(
-                    psf_array2,
-                    sigma_arcsec=self.sigma_as,
-                    sigma_detect=self.sigma_det,
-                    pix_scale=self.scale,
-                )
-                cov_elem = np.array(noise_task.measure(self.noise_pow))
-                pyfits.writeto(self.ncov_fname, cov_elem, overwrite=True)
-            else:
-                cov_elem = pyfits.getdata(self.ncov_fname)
+        if not os.path.isfile(self.ncov_fname):
+            noise_task = fpfs.image.measure_noise_cov(
+                psf_array2,
+                sigma_arcsec=self.sigma_as,
+                sigma_detect=self.sigma_det,
+                pix_scale=self.scale,
+            )
+            cov_elem = np.array(noise_task.measure(self.noise_pow))
+            pyfits.writeto(self.ncov_fname, cov_elem, overwrite=True)
         else:
-            cov_elem = np.zeros((31, 31))
+            cov_elem = pyfits.getdata(self.ncov_fname)
         return psf_array2, psf_array3, cov_elem
 
     def prepare_image(self, fname):
@@ -150,15 +132,13 @@ class Worker(object):
         weight_all = 0.0
         for band in blist:
             print("processing %s band" % band)
-            noi_std = nstd_map[band] * self.noi_ratio
+            noi_std = nstd_map[band] * self.noise_ratio
             weight = w_map[band]
             weight_all = weight_all + weight
             fname2 = fname.replace("_g.fits", "_%s.fits" % band)
-            exposure = afwimage.ExposureF.readFits(fname2)
-            mi = exposure.getMaskedImage()
-            im = mi.getImage()
-            gal_array = gal_array + im.getArray() * weight
-
+            im = pyfits.getdata(fname2)
+            gal_array = gal_array + im * weight
+            del im
             if noi_std > 1e-5:
                 # noise
                 seed = get_seed_from_fname(fname, band)
@@ -195,12 +175,11 @@ class Worker(object):
         idm00 = fpfs.catalog.indexes["m00"]
         idv0 = fpfs.catalog.indexes["v0"]
         if std_modes[idm00] > 1e-10:
-            thres = 8.5 * std_modes[idm00] * self.scale**2.0
-            thres2 = -1.0 * std_modes[idv0] * self.scale**2.0
+            thres = 9.5 * std_modes[idm00] * self.scale**2.0
+            thres2 = -1.5 * std_modes[idv0] * self.scale**2.0
         else:
-            magz = 30.0
-            cutmag = 26.5
-            thres = 10 ** ((magz - cutmag) / 2.5) * self.scale**2.0
+            cutmag = self.magz * 0.935
+            thres = 10 ** ((self.magz - cutmag) / 2.5) * self.scale**2.0
             thres2 = -0.05
 
         coords = fpfs.image.detect_sources(
@@ -222,12 +201,19 @@ class Worker(object):
     def run(self, fname):
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
         out_fname = out_fname.replace("image-", "src-").replace("_g.fits", ".fits")
-        if os.path.exists(out_fname):
+        if os.path.isfile(out_fname):
             print("Already has measurement for this simulation. ")
             return
         psf_array2, psf_array3, cov_elem = self.prepare_noise_psf(fname)
         gal_array = self.prepare_image(fname)
+        start_time = time.time()
         cat = self.process_image(gal_array, psf_array2, psf_array3, cov_elem)
+        # Stop the timer
+        end_time = time.time()
+        # Calculate the elapsed time
+        elapsed_time = end_time - start_time
+        # Print the elapsed time
+        print(f"Elapsed time: {elapsed_time} seconds")
         pyfits.writeto(out_fname, cat)
         return
 
@@ -259,6 +245,8 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
     fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_g.fits"))
+    nfiles = len(fname_list)
+    fname_list = fname_list
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()
