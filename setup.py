@@ -16,6 +16,7 @@ scripts = [
     "bin/fpfs_process_sim.py",
     "bin/fpfs_summary_sim.py",
     "bin/fpfs_process_descsim.py",
+    "bin/fpfs_summary_descsim.py",
 ]
 
 setup(
