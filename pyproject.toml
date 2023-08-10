@@ -7,7 +7,7 @@ name = "FPFS"
 version = "3.1.0"
 authors = [
   { name="Xiangchong Li", email="mr.superonion@hotmail.com" },
-  { name="Andy Park", },
+  { name="Andy Park", email="" },
 ]
 description = "An analytic shear estimator"
 readme = "README.md"
