@@ -250,9 +250,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_g.fits"))
+    band = "a"
+    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_%s.fits" % band))
     nfiles = len(fname_list)
-    fname_list = fname_list
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()
