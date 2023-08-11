@@ -194,20 +194,25 @@ class Worker(object):
         print("pre-selected number of sources: %d" % len(coords))
         out = meas_task.measure(gal_array, coords)
         out = meas_task.get_results(out)
-        out = out[(out["fpfs_M00"] + out["fpfs_M20"]) > 0.0]
+        sel = (out["fpfs_M00"] + out["fpfs_M20"]) > 0.0
+        out = out[sel]
         print("final number of sources: %d" % len(out))
-        return out
+        coords = coords[sel]
+        return out, coords
 
     def run(self, fname):
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
         out_fname = out_fname.replace("image-", "src-").replace("_g.fits", ".fits")
+
+        det_fname = os.path.join(self.catdir, fname.split("/")[-1])
+        det_fname = det_fname.replace("image-", "det-").replace("_g.fits", ".fits")
         if os.path.isfile(out_fname):
             print("Already has measurement for this simulation. ")
             return
         psf_array2, psf_array3, cov_elem = self.prepare_noise_psf(fname)
         gal_array = self.prepare_image(fname)
         start_time = time.time()
-        cat = self.process_image(gal_array, psf_array2, psf_array3, cov_elem)
+        cat, det = self.process_image(gal_array, psf_array2, psf_array3, cov_elem)
         # Stop the timer
         end_time = time.time()
         # Calculate the elapsed time
@@ -215,6 +220,7 @@ class Worker(object):
         # Print the elapsed time
         print(f"Elapsed time: {elapsed_time} seconds")
         pyfits.writeto(out_fname, cat)
+        pyfits.writeto(det_fname, det)
         return
 
 
@@ -244,9 +250,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
-    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_g.fits"))
+    band = "a"
+    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_%s.fits" % band))
     nfiles = len(fname_list)
-    fname_list = fname_list
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()
