@@ -1,40 +1,30 @@
-import pandas as pd
-import pyarrow as pa
-import pyarrow.parquet as pq
+import fitsio
+from datetime import date
+from numpy.lib.recfunctions import structured_to_unstructured
+from . import __version__
 
 
-def read_catalog(filename, arr, compression="snappy"):
+def save_catalog(filename, arr, **kwargs):
     """
-    Save a numpy.ndarray to a Parquet file.
+    Save a numpy.ndarray to a fits file.
 
     Parameters:
-        arr (numpy.ndarray): Numpy array to save.
-        filename (str): Path of the output Parquet file.
-        compression (str): Compression algorithm to use (gzip, Snappy, or LZ4).
+        arr (numpy.ndarray):
+            Numpy array to save.
+        filename (str):
+            Path of the output fits file.
     """
-    if compression in ["gzip", "Snappy", "LZ4"]:
-        # Convert numpy array to PyArrow table
-        table = pa.Table.from_pandas(pd.DataFrame(arr))
-
-        # Write the table to a Parquet file with specified compression
-        pq.write_table(table, filename, compression=compression)
-    else:
-        raise ValueError("compression type %s is not supported'" % compression)
+    for key, value in kwargs.items():
+        if not isinstance(value, str):
+            raise ValueError(f"Value for key '{key}' is not a string!")
+    # change to unstructured data to save disk space
+    if arr.dtype.names is not None:
+        arr = structured_to_unstructured(arr)
+    today = date.today()
+    kwargs["compress"] = ("rice",)
+    kwargs["image compress"] = ("fpfs",)
+    kwargs["version"] = (__version__,)
+    kwargs["date"] = (today,)
+    # rice compression is used by default
+    fitsio.write(filename, arr, header=kwargs, compress="rice")
     return
-
-
-def save_catalog(filename):
-    """
-    Read a Parquet file into a numpy.ndarray.
-
-    Parameters:
-        filename (str): Path of the Parquet file.
-
-    Returns:
-        numpy.ndarray: Array read from the Parquet file.
-    """
-    # Read Parquet file to PyArrow table
-    table = pq.read_table(filename)
-
-    # Convert to pandas DataFrame and then to numpy array
-    return table.to_pandas().values
