@@ -148,6 +148,9 @@ class Worker(object):
 
         idm00 = fpfs.catalog.indexes["m00"]
         idv0 = fpfs.catalog.indexes["v0"]
+        # Temp fix for 4th order estimator
+        if self.nnord == 6:
+            idv0 += 1
         thres = 8.0 * std_modes[idm00] * self.scale**2.0
         thres2 = -2.0 * std_modes[idv0] * self.scale**2.0
         for ishear in self.szlist:
