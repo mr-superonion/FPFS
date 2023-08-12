@@ -19,6 +19,7 @@ import fpfs
 import glob
 import schwimmbad
 import numpy as np
+from mpi4py import MPI
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
@@ -109,6 +110,7 @@ class Worker(object):
         return
 
     def prepare_noise_psf(self, fname):
+        rank = MPI.COMM_WORLD.Get_rank()
         exposure = pyfits.getdata(fname)
         self.image_nx = exposure.shape[1]
         psf_array2 = pyfits.getdata(self.psf_fname)
@@ -116,7 +118,7 @@ class Worker(object):
         psf_array3 = np.pad(psf_array2, (npad, npad), mode="constant")
         # FPFS Tasks
         # noise cov task
-        if not os.path.isfile(self.ncov_fname):
+        if rank == 0:
             noise_task = fpfs.image.measure_noise_cov(
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
@@ -147,7 +149,7 @@ class Worker(object):
             im = pyfits.getdata(fname2)
             gal_array = gal_array + im * weight
             del im
-            if noi_std > 1e-5:
+            if noi_std > 1e-10:
                 # noise
                 seed = get_seed_from_fname(fname, band)
                 rng = np.random.RandomState(seed)
