@@ -88,7 +88,14 @@ class Worker(object):
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
+        # order of shear estimator
         self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
+        if self.nnord not in [4, 6]:
+            raise ValueError(
+                "Only support for nnord= 4 or nnord=6, but your input\
+                    is nnord=%d"
+                % self.nnord
+            )
 
         # setup survey parameters
         self.noise_ratio = cparser.getfloat("survey", "noise_ratio")
@@ -114,6 +121,7 @@ class Worker(object):
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
                 sigma_detect=self.sigma_det,
+                nnord=self.nnord,
                 pix_scale=self.scale,
             )
             cov_elem = np.array(noise_task.measure(self.noise_pow))
@@ -174,6 +182,9 @@ class Worker(object):
         std_modes = np.sqrt(np.diagonal(cov_elem))
         idm00 = fpfs.catalog.indexes["m00"]
         idv0 = fpfs.catalog.indexes["v0"]
+        # Temp fix for 4th order estimator
+        if self.nnord == 6:
+            idv0 += 1
         if std_modes[idm00] > 1e-10:
             thres = 9.5 * std_modes[idm00] * self.scale**2.0
             thres2 = -1.5 * std_modes[idv0] * self.scale**2.0
@@ -198,6 +209,7 @@ class Worker(object):
         out = out[sel]
         print("final number of sources: %d" % len(out))
         coords = coords[sel]
+        coords = np.rec.fromarrays(coords.T, dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")])
         return out, coords
 
     def run(self, fname):

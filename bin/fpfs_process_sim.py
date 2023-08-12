@@ -170,6 +170,9 @@ class Worker(object):
             out_fname = os.path.join(
                 self.catdir, "src_%05d-%s-rot_0.fits" % (imid, ishear)
             )
+            det_fname = os.path.join(
+                self.catdir, "det_%05d-%s-rot_0.fits" % (imid, ishear)
+            )
             if os.path.exists(out_fname):
                 print("Already has measurement for this simulation.")
                 continue
@@ -185,9 +188,15 @@ class Worker(object):
             print("pre-selected number of sources: %d" % len(coords))
             out = meas_task.measure(gal_data, coords)
             out = meas_task.get_results(out)
-            out = out[(out["fpfs_M00"] + out["fpfs_M20"]) > 0.0]
+            sel = (out["fpfs_M00"] + out["fpfs_M20"]) > 0.0
+            out = out[sel]
             print("final number of sources: %d" % len(out))
+            coords = coords[sel]
+            coords = np.rec.fromarrays(
+                coords.T, dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")]
+            )
             pyfits.writeto(out_fname, out)
+            pyfits.writeto(det_fname, coords)
             del out, coords, gal_data, out_fname
             gc.collect()
             jax.clear_caches()
