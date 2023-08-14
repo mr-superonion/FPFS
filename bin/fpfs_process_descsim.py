@@ -233,8 +233,8 @@ class Worker(object):
         elapsed_time = end_time - start_time
         # Print the elapsed time
         print(f"Elapsed time: {elapsed_time} seconds")
-        pyfits.writeto(out_fname, cat)
-        pyfits.writeto(det_fname, det)
+        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nnord="6")
+        fpfs.io.save_catalog(det_fname, det, dtype="position", nnord="6")
         return
 
 
