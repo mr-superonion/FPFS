@@ -118,7 +118,7 @@ class Worker(object):
         psf_array3 = np.pad(psf_array2, (npad, npad), mode="constant")
         # FPFS Tasks
         # noise cov task
-        if rank == 0:
+        if rank == 0 and os.path.isfile(self.ncov_fname):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_array2,
                 sigma_arcsec=self.sigma_as,

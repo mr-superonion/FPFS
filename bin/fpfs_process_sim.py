@@ -125,7 +125,7 @@ class Worker(object):
         # FPFS Task
         # FPFS noise task
         rank = MPI.COMM_WORLD.Get_rank()
-        if rank == 0 and self.noi_var > 1e-20:
+        if rank == 0 and self.noi_var > 1e-20 and not os.path.isfile(self.ncov_fname):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_data2,
                 sigma_arcsec=self.sigma_as,
