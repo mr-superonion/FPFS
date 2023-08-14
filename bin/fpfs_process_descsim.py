@@ -233,8 +233,8 @@ class Worker(object):
         elapsed_time = end_time - start_time
         # Print the elapsed time
         print(f"Elapsed time: {elapsed_time} seconds")
-        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nnord="6")
-        fpfs.io.save_catalog(det_fname, det, dtype="position", nnord="6")
+        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nnord=str(self.nnord))
+        fpfs.io.save_catalog(det_fname, det, dtype="position", nnord=str(self.nnord))
         return
 
 
