@@ -450,6 +450,7 @@ def make_basic_sim(
     magzero=27.0,
     rot2=0,
     shear_value=0.02,
+    ngrid=64,
 ):
     """Makes basic **isolated** galaxy image simulation.
 
@@ -477,11 +478,13 @@ def make_basic_sim(
             return pyfits.getdata(out_fname)
         else:
             return None
-
+    if nx % ngrid != 0:
+        raise ValueError("nx is not divisible by ngrid")
+    if ny % ngrid != 0:
+        raise ValueError("ny is not divisible by ngrid")
     # Basic parameters
-    ngrid = 64
-    ngalx = int(nx // 64)
-    ngaly = int(ny // 64)
+    ngalx = int(nx // ngrid)
+    ngaly = int(ny // ngrid)
     ngal = ngalx * ngaly
     # Get the shear information
     shear_list = np.array([-shear_value, 0.0, shear_value])

@@ -5,6 +5,41 @@ import numpy as np
 """ This test checks the high-order linear shear estimator
 """
 
+col_names_4 = (
+    "fpfs_M00",
+    "fpfs_M20",
+    "fpfs_M22c",
+    "fpfs_M22s",
+    "fpfs_M40",
+    "fpfs_M42c",
+    "fpfs_M42s",
+    "fpfs_M60",
+    "fpfs_v0",
+    "fpfs_v1",
+    "fpfs_v2",
+    "fpfs_v3",
+    "fpfs_v4",
+    "fpfs_v5",
+    "fpfs_v6",
+    "fpfs_v7",
+    "fpfs_v0r1",
+    "fpfs_v1r1",
+    "fpfs_v2r1",
+    "fpfs_v3r1",
+    "fpfs_v4r1",
+    "fpfs_v5r1",
+    "fpfs_v6r1",
+    "fpfs_v7r1",
+    "fpfs_v0r2",
+    "fpfs_v1r2",
+    "fpfs_v2r2",
+    "fpfs_v3r2",
+    "fpfs_v4r2",
+    "fpfs_v5r2",
+    "fpfs_v6r2",
+    "fpfs_v7r2",
+)
+
 
 def simulate_gal_psf(scale, ind0, rcut, gname):
     out_dir = "galaxy_basicCenter_psf60"
@@ -52,6 +87,7 @@ def get_multiplicative_bias(scale, ind0, rcut):
         )
         fpfs_task = fpfs.image.measure_source(psf, sigma_arcsec=0.5, nnord=6)
         out = fpfs_task.get_results(fpfs_task.measure(gal, coords))
+        assert out.dtype.names == col_names_4
         mms[mm_names[gname]] = out
     num = np.average(mms["p"]["fpfs_M42c"] - mms["n"]["fpfs_M42c"])
     denom = (

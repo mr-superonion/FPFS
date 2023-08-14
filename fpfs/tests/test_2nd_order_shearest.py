@@ -3,6 +3,40 @@ import galsim
 import numpy as np
 import jax.numpy as jnp
 
+col_names_2 = (
+    "fpfs_M00",
+    "fpfs_M20",
+    "fpfs_M22c",
+    "fpfs_M22s",
+    "fpfs_M40",
+    "fpfs_M42c",
+    "fpfs_M42s",
+    "fpfs_v0",
+    "fpfs_v1",
+    "fpfs_v2",
+    "fpfs_v3",
+    "fpfs_v4",
+    "fpfs_v5",
+    "fpfs_v6",
+    "fpfs_v7",
+    "fpfs_v0r1",
+    "fpfs_v1r1",
+    "fpfs_v2r1",
+    "fpfs_v3r1",
+    "fpfs_v4r1",
+    "fpfs_v5r1",
+    "fpfs_v6r1",
+    "fpfs_v7r1",
+    "fpfs_v0r2",
+    "fpfs_v1r2",
+    "fpfs_v2r2",
+    "fpfs_v3r2",
+    "fpfs_v4r2",
+    "fpfs_v5r2",
+    "fpfs_v6r2",
+    "fpfs_v7r2",
+)
+
 
 def simulate_gal_psf(scale, ind0, rcut):
     out_dir = "galaxy_basicCenter_psf60"
@@ -44,6 +78,7 @@ def do_test(scale, ind0, rcut):
     # linear observables
     mms = fpfs_task.measure(gal_data, coords)
     mms = fpfs_task.get_results(mms)
+    assert mms.dtype.names == col_names_2
     # non-linear observables
     ells = fpfs.catalog.fpfs_m2e(mms, const=2000)
     resp = np.average(ells["fpfs_R1E"])
