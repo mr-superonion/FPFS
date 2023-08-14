@@ -197,8 +197,10 @@ class Worker(object):
             coords = np.rec.fromarrays(
                 coords.T, dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")]
             )
-            pyfits.writeto(out_fname, out)
-            pyfits.writeto(det_fname, coords)
+            fpfs.io.save_catalog(out_fname, out, dtype="shape", nnord=str(self.nnord))
+            fpfs.io.save_catalog(
+                det_fname, coords, dtype="position", nnord=str(self.nnord)
+            )
             del out, coords, gal_data, out_fname
             gc.collect()
             jax.clear_caches()
