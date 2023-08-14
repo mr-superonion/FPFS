@@ -125,39 +125,22 @@ class Worker(object):
         return psf_array2, psf_array3, cov_elem
 
     def prepare_image(self, fname):
-        if self.band != "a":
-            blist = [self.band]
-        else:
-            blist = ["g", "r", "i", "z"]
-
         gal_array = np.zeros((self.image_nx, self.image_nx))
-        weight_all = 0.0
-        for band in blist:
-            print("processing %s band" % band)
-            noi_std = nstd_map[band] * self.noise_ratio
-            weight = w_map[band]
-            weight_all = weight_all + weight
-            fname2 = fname.replace("_g.fits", "_%s.fits" % band)
-            im = pyfits.getdata(fname2)
-            gal_array = gal_array + im * weight
-            del im
-            if noi_std > 1e-10:
-                # noise
-                seed = get_seed_from_fname(fname, band)
-                rng = np.random.RandomState(seed)
-                print("Using noisy setup with std: %.2f" % noi_std)
-                print("The random seed is %d" % seed)
-                gal_array = (
-                    gal_array
-                    + rng.normal(
-                        scale=noi_std,
-                        size=gal_array.shape,
-                    )
-                    * weight
-                )
-            else:
-                print("Using noiseless setup")
-        gal_array = gal_array / weight_all
+        print("processing %s band" % self.band)
+        fname2 = fname.replace("_g.fits", "_%s.fits" % self.band)
+        gal_array = pyfits.getdata(fname2)
+        if self.nstd_f > 1e-10:
+            # noise
+            seed = get_seed_from_fname(fname, self.band)
+            rng = np.random.RandomState(seed)
+            print("Using noisy setup with std: %.2f" % self.nstd_f)
+            print("The random seed is %d" % seed)
+            gal_array = gal_array + rng.normal(
+                scale=self.nstd_f,
+                size=gal_array.shape,
+            )
+        else:
+            print("Using noiseless setup")
         return gal_array
 
     def process_image(self, gal_array, psf_array2, psf_array3, cov_elem):
