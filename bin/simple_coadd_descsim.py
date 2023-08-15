@@ -18,6 +18,7 @@ import glob
 import schwimmbad
 import numpy as np
 import astropy.io.fits as pyfits
+from fpfs.io import save_image
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
@@ -130,7 +131,6 @@ class Worker(object):
         self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
 
         # setup survey parameters
-        self.noi_ratio = cparser.getfloat("survey", "noise_ratio")
         self.magz = cparser.getfloat("survey", "mag_zero")
         return
 
@@ -151,19 +151,6 @@ class Worker(object):
             fname2 = fname.replace("_g.fits", "_%s.fits" % band)
             this_gal = pyfits.getdata(fname2)
             gal_array = gal_array + this_gal * weight
-            seed = get_seed_from_fname(fname, band)
-            rng = np.random.RandomState(seed)
-            noi_std = nstd_map[band] * self.noi_ratio
-            print("Using noisy setup with std: %.2f" % noi_std)
-            print("The random seed is %d" % seed)
-            gal_array = (
-                gal_array
-                + rng.normal(
-                    scale=noi_std,
-                    size=gal_array.shape,
-                )
-                * weight
-            )
         gal_array = gal_array / weight_all
         return gal_array
 
@@ -175,7 +162,7 @@ class Worker(object):
             print("Already has measurement for this simulation. ")
             return
         exposure = self.prepare_image(fname)
-        pyfits_writeto(out_fname, exposure, compression_type="RICE_1")
+        save_image(out_fname, exposure)
         return
 
 
@@ -206,6 +193,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
     fname_list = glob.glob(os.path.join(worker.img_dir, "image-*_g.fits"))
+    fname_list = np.sort(fname_list)
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()

@@ -19,7 +19,6 @@ import fpfs
 import glob
 import schwimmbad
 import numpy as np
-from mpi4py import MPI
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
@@ -110,7 +109,6 @@ class Worker(object):
         return
 
     def prepare_noise_psf(self, fname):
-        rank = MPI.COMM_WORLD.Get_rank()
         exposure = pyfits.getdata(fname)
         self.image_nx = exposure.shape[1]
         psf_array2 = pyfits.getdata(self.psf_fname)
@@ -118,7 +116,7 @@ class Worker(object):
         psf_array3 = np.pad(psf_array2, (npad, npad), mode="constant")
         # FPFS Tasks
         # noise cov task
-        if rank == 0 and not os.path.isfile(self.ncov_fname):
+        if not os.path.isfile(self.ncov_fname):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
@@ -135,8 +133,7 @@ class Worker(object):
     def prepare_image(self, fname):
         gal_array = np.zeros((self.image_nx, self.image_nx))
         print("processing %s band" % self.band)
-        fname2 = fname.replace("_g.fits", "_%s.fits" % self.band)
-        gal_array = pyfits.getdata(fname2)
+        gal_array = pyfits.getdata(fname)
         if self.nstd_f > 1e-10:
             # noise
             seed = get_seed_from_fname(fname, self.band)
@@ -199,10 +196,10 @@ class Worker(object):
 
     def run(self, fname):
         out_fname = os.path.join(self.catdir, fname.split("/")[-1])
-        out_fname = out_fname.replace("image-", "src-").replace("_g.fits", ".fits")
+        out_fname = out_fname.replace("image-", "src-")
 
         det_fname = os.path.join(self.catdir, fname.split("/")[-1])
-        det_fname = det_fname.replace("image-", "det-").replace("_g.fits", ".fits")
+        det_fname = det_fname.replace("image-", "det-")
         if os.path.isfile(out_fname):
             print("Already has measurement for this simulation. ")
             return
@@ -249,6 +246,8 @@ if __name__ == "__main__":
     worker = Worker(args.config)
     band = "a"
     fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_%s.fits" % band))
+    fname_list = np.sort(fname_list)
+    # fname_list = [os.path.join(worker.imgdir, "image-00000_g1-0_rot0_a.fits")]
     nfiles = len(fname_list)
     for r in pool.map(worker.run, fname_list):
         pass
