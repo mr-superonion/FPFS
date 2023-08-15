@@ -62,59 +62,6 @@ elif version == 2:
     }
 
 
-def pyfits_getdata(filename):
-    """
-    Quickly reads the data from a FITS file using fits.getdata.
-
-    Parameters:
-    - filename: Name of the FITS file to read
-
-    Returns:
-    - data: numpy array containing the image data
-    """
-    return pyfits.getdata(filename)
-
-
-def pyfits_writeto(output_filename, data, compression_type="RICE_1"):
-    """
-    Writes a FITS image with compression.
-
-    Parameters:
-    data:
-        numpy array containing the image data
-    output_filename:
-        Name of the output FITS file
-    compression_type:
-        Compression algorithm ('RICE_1', 'GZIP_1', 'GZIP_2' or None)
-    header:
-        Header data to be added to the FITS file (optional)
-
-    Returns:
-        None
-    """
-
-    # Create a compressed image HDU
-    if compression_type is None:
-        hdu = pyfits.ImageHDU(
-            data=data,
-            header=None,
-        )
-    else:
-        hdu = pyfits.CompImageHDU(
-            data=data, header=None, compression_type=compression_type
-        )
-    # Write the compressed image to a new FITS file
-    hdu.writeto(output_filename, overwrite=True)
-    return
-
-
-def get_seed_from_fname(fname, band):
-    fid = int(fname.split("image-")[-1].split("_")[0]) + 212
-    rid = int(fname.split("rot")[1][0])
-    bid = band_map[band]
-    return (fid * 2 + rid) * 4 + bid
-
-
 class Worker(object):
     def __init__(self, config_name):
         cparser = ConfigParser()
@@ -123,15 +70,6 @@ class Worker(object):
         if not os.path.isdir(self.img_dir):
             raise FileNotFoundError("Cannot find input images directory!")
         print("The input directory for galaxy images is %s. " % self.img_dir)
-
-        # setup FPFS task
-        self.psf_fname = cparser.get("procsim", "psf_fname")
-        self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
-        self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
-        self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
-
-        # setup survey parameters
-        self.magz = cparser.getfloat("survey", "mag_zero")
         return
 
     def prepare(self, fname):
@@ -163,6 +101,7 @@ class Worker(object):
             return
         exposure = self.prepare_image(fname)
         save_image(out_fname, exposure)
+        print(out_fname)
         return
 
 
@@ -193,7 +132,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
     fname_list = glob.glob(os.path.join(worker.img_dir, "image-*_g.fits"))
-    fname_list = np.sort(fname_list)
+    fname_list = np.sort(fname_list)  # [0:1]
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()
