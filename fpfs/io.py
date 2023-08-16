@@ -9,10 +9,10 @@ def save_catalog(filename, arr, **kwargs):
     Save a numpy.ndarray to a fits file.
 
     Parameters:
-        arr (numpy.ndarray):
-            Numpy array to save.
         filename (str):
             Path of the output fits file.
+        arr (numpy.ndarray):
+            Numpy array to save.
     """
     for key, value in kwargs.items():
         if not isinstance(value, str):
