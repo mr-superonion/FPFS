@@ -40,6 +40,7 @@ interesting or use the pipeline. Comments are welcome.
 ## Developers
 
 + Xiangchong Li (xiangchl at andrew.cmu.edu)
++ Andy Park (chanhyup at andrew.cmu.edu)
 
 If you have any trouble installing or using the code, or find a bug, or have a
 suggestion for a new feature, please open up an Issue on our [GitHub
