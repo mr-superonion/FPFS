@@ -73,14 +73,14 @@ class Worker(object):
         return
 
     def prepare(self, fname):
-        exposure = pyfits.getdata(fname)
-        self.image_nx = exposure.shape[1]
+        header = pyfits.getheader(fname)
+        self.image_nx = int(header["NAXIS1"])
         return
 
     def prepare_image(self, fname):
         blist = ["g", "r", "i", "z"]
         self.prepare(fname)
-        gal_array = np.zeros((self.image_nx, self.image_nx))
+        gal_array = np.zeros((self.image_nx, self.image_nx), dtype=np.float32)
         weight_all = 0.0
         for band in blist:
             print("processing %s band" % band)
@@ -95,13 +95,12 @@ class Worker(object):
     def run(self, fname):
         out_dir = self.img_dir
         out_fname = os.path.join(out_dir, fname.split("/")[-1])
-        out_fname = out_fname.replace("_g.fits", "_a.fits")
+        out_fname = out_fname.replace("_g.fits", "_a.fits") + "4"
         if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
             return
         exposure = self.prepare_image(fname)
         save_image(out_fname, exposure)
-        print(out_fname)
         return
 
 

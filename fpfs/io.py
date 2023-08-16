@@ -23,15 +23,15 @@ def save_catalog(filename, arr, **kwargs):
         arr = structured_to_unstructured(arr)
     assert "dtype" in kwargs.keys(), "dtype (shape or coords?) is not specific"
     today = date.today()
-    kwargs["compress"] = ("gzip",)
+    kwargs["compress"] = ("fitsio-gzip_2",)
     kwargs["image compress"] = ("fpfs",)
     kwargs["version"] = (__version__,)
     kwargs["date"] = (today,)
     if kwargs["dtype"] == "shape":
-        # gzip compression is used by default
-        fitsio.write(filename, arr, header=kwargs, compress="gzip", qlevel=None)
+        # gzip compression is used for shape catalogs
+        fitsio.write(filename, arr, header=kwargs, compress="GZIP_2", qlevel=None)
     elif kwargs["dtype"] == "position":
-        # position, intergers, no compression
+        # position catalogs. array of intergers, no compression
         fitsio.write(filename, arr, header=kwargs)
     else:
         raise ValueError(
@@ -51,5 +51,5 @@ def save_image(filename, arr):
             Path of the output fits file.
     """
     # gzip compression is used by default
-    fitsio.write(filename, arr, compress="gzip", qlevel=None)
+    fitsio.write(filename, arr, compress="GZIP_2", qlevel=None)
     return
