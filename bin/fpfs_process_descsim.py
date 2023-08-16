@@ -13,17 +13,16 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
-import glob
+
 import os
 import time
+import fpfs
+import glob
+import schwimmbad
+import numpy as np
+import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
-
-import astropy.io.fits as pyfits
-import numpy as np
-
-import fpfs
-import schwimmbad
 
 band_map = {
     "g": 0,
