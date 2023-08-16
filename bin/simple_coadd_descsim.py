@@ -18,6 +18,7 @@ import glob
 import schwimmbad
 import numpy as np
 import astropy.io.fits as pyfits
+from fpfs.io import save_image
 from argparse import ArgumentParser
 from configparser import ConfigParser
 
@@ -61,59 +62,6 @@ elif version == 2:
     }
 
 
-def pyfits_getdata(filename):
-    """
-    Quickly reads the data from a FITS file using fits.getdata.
-
-    Parameters:
-    - filename: Name of the FITS file to read
-
-    Returns:
-    - data: numpy array containing the image data
-    """
-    return pyfits.getdata(filename)
-
-
-def pyfits_writeto(output_filename, data, compression_type="RICE_1"):
-    """
-    Writes a FITS image with compression.
-
-    Parameters:
-    data:
-        numpy array containing the image data
-    output_filename:
-        Name of the output FITS file
-    compression_type:
-        Compression algorithm ('RICE_1', 'GZIP_1', 'GZIP_2' or None)
-    header:
-        Header data to be added to the FITS file (optional)
-
-    Returns:
-        None
-    """
-
-    # Create a compressed image HDU
-    if compression_type is None:
-        hdu = pyfits.ImageHDU(
-            data=data,
-            header=None,
-        )
-    else:
-        hdu = pyfits.CompImageHDU(
-            data=data, header=None, compression_type=compression_type
-        )
-    # Write the compressed image to a new FITS file
-    hdu.writeto(output_filename, overwrite=True)
-    return
-
-
-def get_seed_from_fname(fname, band):
-    fid = int(fname.split("image-")[-1].split("_")[0]) + 212
-    rid = int(fname.split("rot")[1][0])
-    bid = band_map[band]
-    return (fid * 2 + rid) * 4 + bid
-
-
 class Worker(object):
     def __init__(self, config_name):
         cparser = ConfigParser()
@@ -122,16 +70,6 @@ class Worker(object):
         if not os.path.isdir(self.img_dir):
             raise FileNotFoundError("Cannot find input images directory!")
         print("The input directory for galaxy images is %s. " % self.img_dir)
-
-        # setup FPFS task
-        self.psf_fname = cparser.get("procsim", "psf_fname")
-        self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
-        self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
-        self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
-
-        # setup survey parameters
-        self.noi_ratio = cparser.getfloat("survey", "noise_ratio")
-        self.magz = cparser.getfloat("survey", "mag_zero")
         return
 
     def prepare(self, fname):
@@ -151,19 +89,6 @@ class Worker(object):
             fname2 = fname.replace("_g.fits", "_%s.fits" % band)
             this_gal = pyfits.getdata(fname2)
             gal_array = gal_array + this_gal * weight
-            seed = get_seed_from_fname(fname, band)
-            rng = np.random.RandomState(seed)
-            noi_std = nstd_map[band] * self.noi_ratio
-            print("Using noisy setup with std: %.2f" % noi_std)
-            print("The random seed is %d" % seed)
-            gal_array = (
-                gal_array
-                + rng.normal(
-                    scale=noi_std,
-                    size=gal_array.shape,
-                )
-                * weight
-            )
         gal_array = gal_array / weight_all
         return gal_array
 
@@ -175,7 +100,8 @@ class Worker(object):
             print("Already has measurement for this simulation. ")
             return
         exposure = self.prepare_image(fname)
-        pyfits_writeto(out_fname, exposure, compression_type="RICE_1")
+        save_image(out_fname, exposure)
+        print(out_fname)
         return
 
 
@@ -206,6 +132,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
     fname_list = glob.glob(os.path.join(worker.img_dir, "image-*_g.fits"))
+    fname_list = np.sort(fname_list)  # [0:1]
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()

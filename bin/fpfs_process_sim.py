@@ -20,7 +20,6 @@ import fpfs
 import json
 import schwimmbad
 import numpy as np
-from mpi4py import MPI
 import astropy.io.fits as pyfits
 from argparse import ArgumentParser
 from configparser import ConfigParser
@@ -124,8 +123,7 @@ class Worker(object):
 
         # FPFS Task
         # FPFS noise task
-        rank = MPI.COMM_WORLD.Get_rank()
-        if rank == 0 and self.noi_var > 1e-20 and not os.path.isfile(self.ncov_fname):
+        if self.noi_var > 1e-20 and not os.path.isfile(self.ncov_fname):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_data2,
                 sigma_arcsec=self.sigma_as,

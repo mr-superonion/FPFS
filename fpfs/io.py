@@ -21,10 +21,25 @@ def save_catalog(filename, arr, **kwargs):
     if arr.dtype.names is not None:
         arr = structured_to_unstructured(arr)
     today = date.today()
-    kwargs["compress"] = ("rice",)
+    kwargs["compress"] = ("gzip",)
     kwargs["image compress"] = ("fpfs",)
     kwargs["version"] = (__version__,)
     kwargs["date"] = (today,)
-    # rice compression is used by default
-    fitsio.write(filename, arr, header=kwargs, compress="rice")
+    # gzip compression is used by default
+    fitsio.write(filename, arr, header=kwargs, compress="gzip", qlevel=None)
+    return
+
+
+def save_image(filename, arr):
+    """
+    Save a numpy.ndarray to a fits file.
+
+    Parameters:
+        arr (numpy.ndarray):
+            Numpy array to save.
+        filename (str):
+            Path of the output fits file.
+    """
+    # gzip compression is used by default
+    fitsio.write(filename, arr, compress="gzip", qlevel=None)
     return
