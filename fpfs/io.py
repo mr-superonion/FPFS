@@ -1,5 +1,6 @@
 import fitsio
 from datetime import date
+from numpy import dtype
 from numpy.lib.recfunctions import structured_to_unstructured
 from . import __version__
 
@@ -20,13 +21,22 @@ def save_catalog(filename, arr, **kwargs):
     # change to unstructured data to save disk space
     if arr.dtype.names is not None:
         arr = structured_to_unstructured(arr)
+    assert "dtype" in kwargs.keys(), "dtype (shape or coords?) is not specific"
     today = date.today()
     kwargs["compress"] = ("gzip",)
     kwargs["image compress"] = ("fpfs",)
     kwargs["version"] = (__version__,)
     kwargs["date"] = (today,)
-    # gzip compression is used by default
-    fitsio.write(filename, arr, header=kwargs, compress="gzip", qlevel=None)
+    if kwargs["dtype"] == "shape":
+        # gzip compression is used by default
+        fitsio.write(filename, arr, header=kwargs, compress="gzip", qlevel=None)
+    elif kwargs["dtype"] == "position":
+        # position, intergers, no compression
+        fitsio.write(filename, arr, header=kwargs)
+    else:
+        raise ValueError(
+            "dtype supports 'shape' or 'position'. %s is not supported." % dtype
+        )
     return
 
 
