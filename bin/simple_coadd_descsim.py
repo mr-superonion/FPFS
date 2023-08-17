@@ -95,7 +95,7 @@ class Worker(object):
     def run(self, fname):
         out_dir = self.img_dir
         out_fname = os.path.join(out_dir, fname.split("/")[-1])
-        out_fname = out_fname.replace("_g.fits", "_a.fits") + "4"
+        out_fname = out_fname.replace("_g.fits", "_a.fits")
         if os.path.exists(out_fname):
             print("Already has measurement for this simulation. ")
             return
