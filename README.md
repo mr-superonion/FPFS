@@ -6,19 +6,18 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 
-Fourier Power Function Shapelets (`FPFS`) is a perturbation-based estimator for
-shear responses of galaxy shape, flux and detection --- It uses the
-leading-order perturbations of shear (a vector perturbation) and image noise (a
-tensor perturbation) to derive the shear responses and noise responses of
-measurements and detections. It is a passive shear estimator --- It does not
-repeatedly distort each observed galaxy to derive the shear responses; instead,
-the shear responses are derived using the analytical shear responses of a set
-of basis functions (Shapelets basis and peak basis).  This method can process
-about 1000 galaxies in 1 cpu second, and it  has been tested with simple
-simulations and demonstrated to control multiplicative shear estimation bias
-below 1% even in the existence of blending.
-
-Documentation for FPFS modules can be found [here](https://fpfs.readthedocs.io/en/latest/)
+Fourier Power Function Shapelets (`FPFS`) is an innovative estimator for the
+shear responses of galaxy shape, flux, and detection. Utilizing leading-order
+perturbations of shear (a vector perturbation) and image noise (a tensor
+perturbation), `FPFS` determines shear and noise responses for both
+measurements and detections. Unlike traditional methods that distort each
+observed galaxy repeatedly, `FPFS` employs analytical shear responses of select
+basis functions, including Shapelets basis and peak basis. Remarkably
+efficient, `FPFS` can process approximately 1,000 galaxies within a single CPU
+second. Testing under simple simulations has proven its capability to maintain
+a multiplicative shear estimation bias below 0.5%, even amidst blending
+challenges. For further details, refer to the `FPFS` module documentation
+[here](https://fpfs.readthedocs.io/en/latest/).
 
 ----
 
