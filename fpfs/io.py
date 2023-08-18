@@ -1,6 +1,5 @@
 import fitsio
 from datetime import date
-from numpy import dtype
 from numpy.lib.recfunctions import structured_to_unstructured
 from . import __version__
 
@@ -35,7 +34,8 @@ def save_catalog(filename, arr, **kwargs):
         fitsio.write(filename, arr, header=kwargs)
     else:
         raise ValueError(
-            "dtype supports 'shape' or 'position'. %s is not supported." % dtype
+            "dtype supports 'shape' or 'position'. %s is not supported."
+            % kwargs["dtype"]
         )
     return
 
