@@ -213,11 +213,24 @@ class Worker(object):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs procsim")
-    parser.add_argument("--minId", required=True, type=int, help="minimum ID, e.g. 0")
     parser.add_argument(
-        "--maxId", required=True, type=int, help="maximum ID, e.g. 4000"
+        "--config",
+        required=True,
+        type=str,
+        help="configure file name",
     )
-    parser.add_argument("--config", required=True, type=str, help="configure file name")
+    parser.add_argument(
+        "--min_id",
+        required=True,
+        type=int,
+        help="minimum ID, e.g. 0",
+    )
+    parser.add_argument(
+        "--max_id",
+        required=True,
+        type=int,
+        help="maximum ID, e.g. 4000",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--ncores",
@@ -238,7 +251,7 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
 
     worker = Worker(args.config)
-    refs = list(range(args.minId, args.maxId))
+    refs = list(range(args.min_id, args.max_id))
     for r in pool.map(worker, refs):
         pass
     pool.close()

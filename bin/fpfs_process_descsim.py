@@ -17,7 +17,6 @@
 import os
 import time
 import fpfs
-import glob
 import schwimmbad
 import numpy as np
 import astropy.io.fits as pyfits
@@ -62,6 +61,29 @@ elif version == 2:
         "i": 0.30897575,
         "z": 0.09576044,
     }
+
+
+def get_sim_fname(directory, ftype, min_id, max_id, nshear, nrot, band):
+    """Generate filename for simulations
+    Args:
+        ftype (str):    file type ('src' for source, and 'image' for exposure
+        min_id (int):   minimum id
+        max_id (int):   maximum id
+        nshear (int):   number of shear
+        nrot (int):     number of rotations
+        band (str):     'grizy' or 'a'
+    Returns:
+        out (list):     a list of file name
+    """
+    out = [
+        os.path.join(
+            directory, "%s-%05d_g1-%d_rot%d_%s.fits" % (ftype, fid, gid, rid, band)
+        )
+        for fid in range(min_id, max_id)
+        for gid in range(nshear)
+        for rid in range(nrot)
+    ]
+    return out
 
 
 def get_seed_from_fname(fname, band):
@@ -227,6 +249,18 @@ if __name__ == "__main__":
         type=str,
         help="configure file name",
     )
+    parser.add_argument(
+        "--min_id",
+        required=True,
+        type=int,
+        help="minimum ID, e.g. 0",
+    )
+    parser.add_argument(
+        "--max_id",
+        required=True,
+        type=int,
+        help="maximum ID, e.g. 4000",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--ncores",
@@ -246,10 +280,15 @@ if __name__ == "__main__":
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
     band = "a"
-    fname_list = glob.glob(os.path.join(worker.imgdir, "image-*_%s.fits" % band))
-    fname_list = np.sort(fname_list)
-    # fname_list = [os.path.join(worker.imgdir, "image-00000_g1-0_rot0_a.fits")]
-    nfiles = len(fname_list)
+    fname_list = get_sim_fname(
+        worker.imgdir,
+        "image",
+        args.min_id,
+        args.max_id,
+        2,
+        2,
+        band,
+    )
     for r in pool.map(worker.run, fname_list):
         pass
     pool.close()
