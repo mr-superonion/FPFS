@@ -42,7 +42,6 @@ col_names_4 = (
 
 
 def simulate_gal_psf(scale, ind0, rcut, gname):
-    out_dir = "galaxy_basicCenter_psf60"
     psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(
         e1=0.02, e2=-0.02
     )
@@ -53,16 +52,15 @@ def simulate_gal_psf(scale, ind0, rcut, gname):
         .array
     )
     psf_data = psf_data[32 - rcut : 32 + rcut, 32 - rcut : 32 + rcut]
-    gal_data = fpfs.simutil.make_basic_sim(
-        out_dir,
+    gal_data = fpfs.simutil.make_isolate_sim(
+        gal_type="basic",
         psf_obj=psf_obj,
         gname=gname,
-        ind0=ind0,
+        seed=ind0,
         ny=64,
         nx=256,
         scale=scale,
-        do_write=False,
-        return_array=True,
+        do_shift=False,
     )
 
     # force detection at center
