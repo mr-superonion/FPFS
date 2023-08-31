@@ -522,12 +522,12 @@ def _random_gals(
     g2,
     nrot,
     shifts,
+    npoints=30,
 ):
     ud = galsim.UniformDeviate(seed)
     # use galaxies with random knots
     # we only support three versions of small galaxies
     logging.info("Making galaxies with Random Knots.")
-    npoints = 30
     gal0 = None
 
     for iy in range(ngaly):
@@ -588,6 +588,7 @@ def make_isolate_sim(
     nrot=nrot_default,
     mag_cut=None,
     do_shift=None,
+    npoints=30,
 ):
     """Makes basic **isolated** galaxy image simulation.
 
@@ -689,6 +690,7 @@ def make_isolate_sim(
             g2,
             nrot,
             shifts,
+            npoints,
         )
     else:
         raise ValueError("gal_type should cotain 'basic' or 'random'!!")
