@@ -41,20 +41,21 @@ def detect_sources(
     """Returns the coordinates of detected sources
 
     Args:
-        img_data (ndarray):      observed image
-        psf_data (ndarray):      PSF image [must be well-centered]
-        gsigma (float):         sigma of the Gaussian smoothing kernel in
-                                *Fourier* space
-        thres (float):          detection threshold
-        thres2 (float):         peak identification difference threshold
-        klim (float):           limiting wave number in Fourier space
-        structured (bool):      whether return structured array
+        img_data (ndarray):         observed image
+        psf_data (ndarray):         PSF image [must be well-centered]
+        sigmaf (float):             sigma of the Gaussian smoothing kernel in
+                                    *Fourier* space for shapelets
+        sigmaf_det (float):         sigma of the Gaussian smoothing kernel in
+                                    *Fourier* space for detection
+        thres (float):              detection threshold
+        thres2 (float):             peak identification difference threshold
+        klim (float):               limiting wave number in Fourier space
+        structured (bool):          whether return structured array
     Returns:
-        coords (ndarray):       peak values and the shear responses
+        coords (ndarray):           peak values and the shear responses
     """
     if sigmaf_det is None:
         sigmaf_det = sigmaf
-
     psf_data = jnp.array(psf_data, dtype="<f8")
     assert (
         img_data.shape == psf_data.shape
