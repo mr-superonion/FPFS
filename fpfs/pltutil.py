@@ -12,7 +12,9 @@
 # GNU General Public License for more details.
 #
 # python lib
+import numpy as np
 import matplotlib.pyplot as plt
+from astropy.visualization import simple_norm
 
 colors = [
     "#000000",
@@ -88,3 +90,26 @@ def make_figure_axes(ny=1, nx=1, square=True):
     else:
         raise ValueError("Do not have option: ny=%s, nx=%s" % (ny, nx))
     return fig, axes
+
+
+def determine_cuts(data):
+    """
+    Determine min_cut and max_cut for the data using median and standard deviation.
+
+    Parameters:
+        data (ndarray): 2D numpy array containing the image data
+        sigma (int): Number of standard deviations to use for max_cut
+
+    Returns:
+        min_cut, max_cut: Calculated cuts
+    """
+    min_cut = np.percentile(np.ravel(data), 5)
+    max_cut = np.percentile(np.ravel(data), 98)
+    return min_cut, max_cut
+
+
+def make_plot_image(data):
+    min_cut, max_cut = determine_cuts(data)
+    sn = simple_norm(data, "asinh", asinh_a=0.1, min_cut=min_cut, max_cut=max_cut)
+    fig = plt.imshow(data, aspect="equal", cmap="RdYlBu_r", origin="lower", norm=sn)
+    return fig

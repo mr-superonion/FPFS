@@ -1,9 +1,8 @@
-flake8
 astropy
-pytest
-numpy<1.23
-scipy
-numba
+flake8
 galsim
 matplotlib
+numpy
+pytest
 schwimmbad
+scipy

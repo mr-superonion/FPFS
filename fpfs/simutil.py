@@ -52,6 +52,56 @@ def make_ringrot_radians(nord=8):
     return rot_array
 
 
+def coord_distort_1(x, y, xref, yref, gamma1, gamma2, kappa=0.0, inverse=False):
+    """Distorts coordinates by shear
+
+    Args:
+        x (ndarray):    input coordinates [x]
+        y (ndarray):    input coordinates [y]
+        xref (float):   reference point [x]
+        yref (float):   reference point [y]
+        gamma1 (float): first component of shear distortion
+        gamma2 (float): second component of shear distortion
+        kappa (float):  kappa distortion [default: 0]
+        inverse(bool):  if true, from source to lens; else, from lens to source
+    Returns:
+        x2 (ndarray):   distorted coordiantes [x]
+        y2 (ndarray):   distorted coordiantes [y]
+    """
+    if inverse:
+        xu = x - xref
+        yu = y - yref
+        x2 = (1 - kappa - gamma1) * xu - gamma2 * yu + xref
+        y2 = -gamma2 * xu + (1 - kappa + gamma1) * yu + yref
+    else:
+        u_mag = 1.0 / (1 - kappa) ** 2.0 - gamma1**2.0 - gamma2**2.0
+        xu = x - xref
+        yu = y - yref
+        x2 = ((1 - kappa + gamma1) * xu + gamma2 * yu + xref) * u_mag
+        y2 = (gamma2 * xu + (1 - kappa - gamma1) * yu + yref) * u_mag
+    return x2, y2
+
+
+def coord_rotate(x, y, xref, yref, theta):
+    """Rotates coordinates by an angle theta (anticlockwise)
+
+    Args:
+        x (ndarray):    input coordinates [x]
+        y (ndarray):    input coordinates [y]
+        xref (float):   reference point [x]
+        yref (float):   reference point [y]
+        theta (float):  rotation angle [rads]
+    Returns:
+        x2 (ndarray):   rotated coordiantes [x]
+        y2 (ndarray):   rotated coordiantes [y]
+    """
+    xu = x - xref
+    yu = y - yref
+    x2 = np.cos(theta) * xu - np.sin(theta) * yu + xref
+    y2 = np.sin(theta) * xu + np.cos(theta) * yu + yref
+    return x2, y2
+
+
 class sim_test:
     def __init__(self, shear, rng, scale=0.263, psf_fwhm=0.9, gal_hlr=0.5, ngrid=32):
         """Simulates an exponential object with moffat PSF, this class has the same
@@ -120,48 +170,6 @@ class sim_test:
         return img, psf
 
 
-def coord_distort(x, y, xref, yref, gamma1, gamma2, kappa=0.0):
-    """Distorts coordinates by shear
-
-    Args:
-        x (ndarray):    input coordinates [x]
-        y (ndarray):    input coordinates [y]
-        xref (float):   reference point [x]
-        yref (float):   reference point [y]
-        gamma1 (float): first component of shear distortion
-        gamma2 (float): second component of shear distortion
-        kappa (float):  kappa distortion [default: 0]
-    Returns:
-        x2 (ndarray):   distorted coordiantes [x]
-        y2 (ndarray):   distorted coordiantes [y]
-    """
-    xu = x - xref
-    yu = y - yref
-    x2 = (1 + kappa + gamma1) * xu + gamma2 * yu + xref
-    y2 = gamma2 * xu + (1 + kappa - gamma1) * yu + yref
-    return x2, y2
-
-
-def coord_rotate(x, y, xref, yref, theta):
-    """Rotates coordinates by an angle theta
-
-    Args:
-        x (ndarray):    input coordinates [x]
-        y (ndarray):    input coordinates [y]
-        xref (float):   reference point [x]
-        yref (float):   reference point [y]
-        theta (float):  rotation angle [rads]
-    Returns:
-        x2 (ndarray):   rotated coordiantes [x]
-        y2 (ndarray):   rotated coordiantes [y]
-    """
-    xu = x - xref
-    yu = y - yref
-    x2 = np.cos(theta) * xu - np.sin(theta) * yu + xref
-    y2 = np.sin(theta) * xu + np.cos(theta) * yu + yref
-    return x2, y2
-
-
 def make_cosmo_sim(
     out_dir,
     psf_obj,
@@ -196,6 +204,7 @@ def make_cosmo_sim(
         magzero (float):        magnitude zero point
         rot2 (float):           additional rotational angle [in units of radians]
     """
+
     if catname is None:
         catname = os.path.join(__data_dir__, "cat_used.fits")
     np.random.seed(ind0)
@@ -286,7 +295,7 @@ def make_cosmo_sim(
         # lensing shear
         gal = gal.shear(g1=g1, g2=g2)
         # position and subpixel offset
-        xi, yi = coord_distort(xi, yi, nx // 2, ny // 2, g1, g2)
+        xi, yi = coord_distort_1(xi, yi, nx // 2, ny // 2, g1, g2)
         xu = int(xi)
         yu = int(yi)
         dx = (0.5 + xi - xu) * scale
@@ -336,8 +345,8 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     #                   (0.03 arcsec).
     #     SERSICFIT[2]: Sersic n.
     #     SERSICFIT[3]: q, the ratio of minor axis to major axis length.
-    #     SERSICFIT[4]: boxiness, currently fixed to 0, meaning isophotes are all
-    #                   elliptical.
+    #     SERSICFIT[4]: boxiness, currently fixed to 0, meaning isophotes are
+    #                   all elliptical.
     #     SERSICFIT[5]: x0, the central x position in pixels.
     #     SERSICFIT[6]: y0, the central y position in pixels.
     #     SERSICFIT[7]: phi, the position angle in radians. If phi=0, the major
@@ -345,6 +354,8 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     # For 'bulgefit', the result is an array of 16 parameters that comes from
     # doing a 2-component sersic fit.  The first 8 are the parameters for the
     # disk, with n=1, and the last 8 are for the bulge, with n=4.
+    def _galsim_round_sersic(n, sersic_prec):
+        return float(int(n / sersic_prec + 0.5)) * sersic_prec
 
     bparams = record["bulgefit"]
     sparams = record["sersicfit"]
@@ -352,18 +363,12 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     if use_bulgefit:
         # Bulge parameters:
         # Minor-to-major axis ratio:
-        bulge_q = bparams[11]
-        # Position angle, now represented as a galsim.Angle:
-        bulge_beta = bparams[15] * galsim.radians
-        disk_q = bparams[3]
-        disk_beta = bparams[7] * galsim.radians
         bulge_hlr = record["hlr"][1]
         bulge_flux = record["flux"][1]
         disk_hlr = record["hlr"][2]
         disk_flux = record["flux"][2]
         if truncr <= 0.99:
             btrunc = None
-            # Then combine the two components of the galaxy.
             bulge = galsim.DeVaucouleurs(
                 flux=bulge_flux, half_light_radius=bulge_hlr, gsparams=gsparams
             )
@@ -372,7 +377,6 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
             )
         else:
             btrunc = bulge_hlr * truncr
-            # Then combine the two components of the galaxy.
             bulge = galsim.DeVaucouleurs(
                 flux=bulge_flux,
                 half_light_radius=bulge_hlr,
@@ -388,10 +392,15 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
                 gsparams=gsparams,
             )
         # Apply shears for intrinsic shape.
+        bulge_q = bparams[11]
+        bulge_beta = bparams[15] * galsim.radians
         if bulge_q < 1.0:  # pragma: no branch
             bulge = bulge.shear(q=bulge_q, beta=bulge_beta)
+        disk_q = bparams[3]
+        disk_beta = bparams[7] * galsim.radians
         if disk_q < 1.0:  # pragma: no branch
             disk = disk.shear(q=disk_q, beta=disk_beta)
+        # Then combine the two components of the galaxy.
         gal = bulge + disk
     else:
         # Do a similar manipulation to the stored quantities for the single
@@ -411,9 +420,12 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
         # GalSim is much more efficient if only a finite number of Sersic n
         # values are used. This (optionally given constructor args) rounds n to
         # the nearest 0.05. change to 0.1 to speed up
-        gal_n = galsim_round_sersic(gal_n, 0.1)
+        gal_n = _galsim_round_sersic(gal_n, 0.1)
         gal_hlr = record["hlr"][0]
         gal_flux = record["flux"][0]
+
+        gal_q = sparams[3]
+        gal_beta = sparams[7] * galsim.radians
         if truncr <= 0.99:
             btrunc = None
             gal = galsim.Sersic(
@@ -428,11 +440,11 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
                 trunc=btrunc,
                 gsparams=gsparams,
             )
+        # Apply shears for intrinsic shape.
+        if gal_q < 1.0:  # pragma: no branch
+            gal = gal.shear(q=gal_q, beta=gal_beta)
+
     return gal
-
-
-def galsim_round_sersic(n, sersic_prec):
-    return float(int(n / sersic_prec + 0.5)) * sersic_prec
 
 
 def _basic_gals(
@@ -522,12 +534,12 @@ def _random_gals(
     g2,
     nrot,
     shifts,
+    npoints=30,
 ):
     ud = galsim.UniformDeviate(seed)
     # use galaxies with random knots
     # we only support three versions of small galaxies
     logging.info("Making galaxies with Random Knots.")
-    npoints = 5
     gal0 = None
 
     for iy in range(ngaly):
@@ -589,6 +601,7 @@ def make_isolate_sim(
     mag_cut=None,
     do_shift=None,
     single=False,
+    npoints=30,
 ):
     """Makes basic **isolated** galaxy image simulation.
 
@@ -693,6 +706,7 @@ def make_isolate_sim(
             g2,
             nrot,
             shifts,
+            npoints,
         )
     else:
         raise ValueError("gal_type should cotain 'basic' or 'random'!!")
@@ -807,3 +821,70 @@ def make_gal_ssbg(shear, psf, rng, r1, r0=20.0):
     noimg = noimg * np.sqrt(back_flux)
     img = img + noimg
     return img
+
+
+class Stamp(object):
+    def __init__(self, coords=None, nn=32, scale=0.2):
+        """Initialize the 2D stamp object. This class enables distorting
+        an image by changing the samplinng position with non-affine
+        transformation
+
+        Args:
+            nn (int):      number of grids on x and y direction
+            scale (float): pixel scale in units of arcsec
+        """
+        if coords is None:
+            indx = np.arange(-int(nn / 2), int((nn + 1) / 2), 1) * scale
+            indy = np.arange(-int(nn / 2), int((nn + 1) / 2), 1) * scale
+            inds = np.meshgrid(indy, indx, indexing="ij")
+            self.coords = np.vstack([np.ravel(_) for _ in inds[::-1]])
+        else:
+            self.coords = coords
+        self.pixel_values = None
+        self.transformed = False
+        if self.coords.shape[0] != 2:
+            raise ValueError("Something wrong with the coordinate shape")
+        self.shape = (nn, nn)
+        return
+
+    def sample_galaxy(self, gal_obj):
+        """Sample the surface density field of a galaxy at the grids
+        This function only conduct sampling; PSF and pixel response are
+        not included.
+
+        Args:
+            gal_obj (galsim):   Galsim galaxy object to sample on the grids
+        Returns:
+            outcome (ndarray):  2D galaxy image on the grids
+        """
+        pixel_values = np.array([gal_obj.xValue(cc) for cc in self.coords.T])
+
+        return np.reshape(pixel_values, self.shape)
+
+    def transform_grids(self, transform_obj):
+        if not hasattr(transform_obj, "transform"):
+            raise TypeError("transform_obj is not in correct data type")
+        self.coords = transform_obj.transform(self.coords)
+        self.transformed = True
+        return
+
+
+class LensTransform1(object):
+    def __init__(self, gamma1, gamma2, kappa):
+        """Initialize the transform object of 2D grids
+        Args:
+            gamma1 (float):     the first component of lensing shear field
+            gamma2 (float):     the second component of lensing shear field
+            kappa (float):      the lensing convergence field
+        """
+        self.s2l_mat = np.array(
+            [[1 - kappa - gamma1, -gamma2], [-gamma2, 1 - kappa + gamma1]]
+        )
+        return
+
+    def transform(self, coords):
+        """transform the center of pixels from lensed plane to pre-lensed plane
+        Args:
+            coords:   coordinates (x, y) of the pixel centers [arcsec]
+        """
+        return self.s2l_mat @ coords
