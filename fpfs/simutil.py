@@ -559,6 +559,7 @@ def _random_gals(
                 ig = ii // nrot
                 ss = cat_input[ig]
                 flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
+                sparams = ss["sersicfit"]
                 gal0 = galsim.RandomKnots(
                     half_light_radius=ss["flux_radius"] * 0.03,
                     npoints=npoints,
@@ -566,6 +567,10 @@ def _random_gals(
                     rng=ud,
                     gsparams=bigfft,
                 )
+                gal_q = sparams[3]
+                gal_beta = sparams[7] * galsim.radians
+                if gal_q < 1.0:
+                    gal0 = gal0.shear(q=gal_q, beta=gal_beta)
                 ang = (np.random.uniform(0.0, np.pi * 2.0) + rot2) * galsim.radians
             else:
                 assert gal0 is not None
@@ -600,7 +605,7 @@ def make_isolate_sim(
     nrot=nrot_default,
     mag_cut=None,
     do_shift=None,
-    single=False,
+    single=None,
     npoints=30,
 ):
     """Makes basic **isolated** galaxy image simulation.
@@ -638,9 +643,12 @@ def make_isolate_sim(
     cat_input = pyfits.getdata(catname)
     if mag_cut is not None:
         cat_input = cat_input[cat_input["mag_auto"] < mag_cut]
-    if single:
+    if single is True:
         logging.info("Creating single Sersic profiles")
         cat_input = cat_input[cat_input["use_bulgefit"] == 0]
+    if single is False:
+        logging.info("Creating double Sersic profiles")
+        cat_input = cat_input[cat_input["use_bulgefit"] != 0]
     ntrain = len(cat_input)
     if not ntrain > ngal:
         raise ValueError("mag_cut is too small")
