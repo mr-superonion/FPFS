@@ -345,8 +345,8 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     #                   (0.03 arcsec).
     #     SERSICFIT[2]: Sersic n.
     #     SERSICFIT[3]: q, the ratio of minor axis to major axis length.
-    #     SERSICFIT[4]: boxiness, currently fixed to 0, meaning isophotes are all
-    #                   elliptical.
+    #     SERSICFIT[4]: boxiness, currently fixed to 0, meaning isophotes are
+    #                   all elliptical.
     #     SERSICFIT[5]: x0, the central x position in pixels.
     #     SERSICFIT[6]: y0, the central y position in pixels.
     #     SERSICFIT[7]: phi, the position angle in radians. If phi=0, the major
@@ -423,6 +423,9 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
         gal_n = _galsim_round_sersic(gal_n, 0.1)
         gal_hlr = record["hlr"][0]
         gal_flux = record["flux"][0]
+
+        gal_q = sparams[3]
+        gal_beta = sparams[7] * galsim.radians
         if truncr <= 0.99:
             btrunc = None
             gal = galsim.Sersic(
@@ -437,6 +440,10 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
                 trunc=btrunc,
                 gsparams=gsparams,
             )
+        # Apply shears for intrinsic shape.
+        if gal_q < 1.0:  # pragma: no branch
+            gal = gal.shear(q=gal_q, beta=gal_beta)
+
     return gal
 
 
