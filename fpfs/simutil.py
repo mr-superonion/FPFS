@@ -527,7 +527,7 @@ def _random_gals(
     # use galaxies with random knots
     # we only support three versions of small galaxies
     logging.info("Making galaxies with Random Knots.")
-    npoints = 30
+    npoints = 5
     gal0 = None
 
     for iy in range(ngaly):
@@ -548,7 +548,7 @@ def _random_gals(
                 ss = cat_input[ig]
                 flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
                 gal0 = galsim.RandomKnots(
-                    half_light_radius=ss["flux_radius"] * 0.05,
+                    half_light_radius=ss["flux_radius"] * 0.03,
                     npoints=npoints,
                     flux=flux,
                     rng=ud,
@@ -588,6 +588,7 @@ def make_isolate_sim(
     nrot=nrot_default,
     mag_cut=None,
     do_shift=None,
+    single=False,
 ):
     """Makes basic **isolated** galaxy image simulation.
 
@@ -624,6 +625,9 @@ def make_isolate_sim(
     cat_input = pyfits.getdata(catname)
     if mag_cut is not None:
         cat_input = cat_input[cat_input["mag_auto"] < mag_cut]
+    if single:
+        logging.info("Creating single Sersic profiles")
+        cat_input = cat_input[cat_input["use_bulgefit"] == 0]
     ntrain = len(cat_input)
     if not ntrain > ngal:
         raise ValueError("mag_cut is too small")
