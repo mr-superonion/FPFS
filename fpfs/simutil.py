@@ -558,20 +558,25 @@ def _random_gals(
                 del gal0
                 ig = ii // nrot
                 ss = cat_input[ig]
+                galp = generate_cosmos_gal(ss, truncr=-1.0)
+                # accounting for zeropoint difference between COSMOS HST and HSC
+                # HSC's i-band coadds zero point is 27
                 flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
-                sparams = ss["sersicfit"]
+                galp = galp.withFlux(flux)
+                # rescale the radius by 'rescale' and keep surface brightness the
+                # same
+                rescale = np.random.uniform(0.95, 1.05)
+                galp = galp.expand(rescale)
+                # rotate by 'ang'
+                ang = (np.random.uniform(0.0, np.pi * 2.0) + rot2) * galsim.radians
+                galp = galp.rotate(ang)
                 gal0 = galsim.RandomKnots(
-                    half_light_radius=ss["flux_radius"] * 0.03,
                     npoints=npoints,
-                    flux=flux,
+                    profile=galp,
                     rng=ud,
                     gsparams=bigfft,
                 )
-                gal_q = sparams[3]
-                gal_beta = sparams[7] * galsim.radians
-                if gal_q < 1.0:
-                    gal0 = gal0.shear(q=gal_q, beta=gal_beta)
-                ang = (np.random.uniform(0.0, np.pi * 2.0) + rot2) * galsim.radians
+                del galp
             else:
                 assert gal0 is not None
                 ang = np.pi / nrot * galsim.radians
