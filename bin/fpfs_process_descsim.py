@@ -111,7 +111,6 @@ class Worker(object):
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
-        # order of shear estimator
         self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
         if self.nnord not in [4, 6]:
             raise ValueError(
@@ -223,7 +222,7 @@ class Worker(object):
 
         det_fname = os.path.join(self.catdir, fname.split("/")[-1])
         det_fname = det_fname.replace("image-", "det-")
-        if os.path.isfile(out_fname):
+        if os.path.isfile(out_fname) and os.path.isfile(det_fname):
             print("Already has measurement for this simulation. ")
             return
         psf_array2, psf_array3, cov_elem = self.prepare_noise_psf(fname)
@@ -236,8 +235,8 @@ class Worker(object):
         elapsed_time = end_time - start_time
         # Print the elapsed time
         print(f"Elapsed time: {elapsed_time} seconds")
-        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nnord=str(self.nnord))
         fpfs.io.save_catalog(det_fname, det, dtype="position", nnord=str(self.nnord))
+        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nnord=str(self.nnord))
         return
 
 
