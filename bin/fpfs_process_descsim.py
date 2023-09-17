@@ -278,7 +278,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     pool = schwimmbad.choose_pool(mpi=args.mpi, processes=args.n_cores)
     worker = Worker(args.config)
-    band = "a"
     fname_list = get_sim_fname(
         worker.imgdir,
         "image",
@@ -286,7 +285,7 @@ if __name__ == "__main__":
         args.max_id,
         2,
         2,
-        band,
+        worker.band,
     )
     for r in pool.map(worker.run, fname_list):
         pass
