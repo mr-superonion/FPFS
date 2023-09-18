@@ -882,8 +882,8 @@ class Stamp(object):
         return
 
 
-class LensTransform1(object):
-    def __init__(self, gamma1, gamma2, kappa):
+class LensTransform(object):
+    def __init__(self, gamma1, gamma2, kappa, F1, F2, G1, G2):
         """Initialize the transform object of 2D grids
         Args:
             gamma1 (float):     the first component of lensing shear field
@@ -893,6 +893,9 @@ class LensTransform1(object):
         self.s2l_mat = np.array(
             [[1 - kappa - gamma1, -gamma2], [-gamma2, 1 - kappa + gamma1]]
         )
+        D1 = -1/2*np.array([[3*F1+G1,F2+G2],[F2+G2,F1-G1]])
+        D2 = -1/2*np.array([[F2+G2,F1-G1],[F1-G1,3*F2-G2]])
+        self.D = np.stack([D1,D2],axis=2)
         return
 
     def transform(self, coords):
@@ -900,4 +903,5 @@ class LensTransform1(object):
         Args:
             coords:   coordinates (x, y) of the pixel centers [arcsec]
         """
-        return self.s2l_mat @ coords
+        return self.s2l_mat @ coords + np.einsum('ijk,jl,kl->il',self.D,coords,coords)
+
