@@ -136,9 +136,8 @@ class Worker(object):
         psf_array2 = pyfits.getdata(self.psf_fname)
         npad = (self.image_nx - psf_array2.shape[0]) // 2
         psf_array3 = np.pad(psf_array2, (npad, npad), mode="constant")
-        # FPFS Tasks
-        # noise cov task
         if not os.path.isfile(self.ncov_fname):
+            # FPFS noise cov task
             noise_task = fpfs.image.measure_noise_cov(
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
