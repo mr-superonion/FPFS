@@ -53,7 +53,8 @@ def simulate_gal_psf(scale, ind0, rcut, gname):
     )
     psf_data = psf_data[32 - rcut : 32 + rcut, 32 - rcut : 32 + rcut]
     gal_data = fpfs.simutil.make_isolate_sim(
-        gal_type="basic",
+        gal_type="mixed",
+        sim_method="fft",
         psf_obj=psf_obj,
         gname=gname,
         seed=ind0,
@@ -61,7 +62,7 @@ def simulate_gal_psf(scale, ind0, rcut, gname):
         nx=256,
         scale=scale,
         do_shift=False,
-    )
+    )[0]
 
     # force detection at center
     indx = np.arange(32, 256, 64)
@@ -73,10 +74,10 @@ def simulate_gal_psf(scale, ind0, rcut, gname):
 
 
 def get_multiplicative_bias(scale, ind0, rcut):
-    gnames = ["g1-0000", "g1-2222"]
+    gnames = ["g1-0", "g1-1"]
     mm_names = {
-        "g1-2222": "p",
-        "g1-0000": "n",
+        "g1-1": "p",
+        "g1-0": "n",
     }
     mms = dict()
     for gname in gnames:
