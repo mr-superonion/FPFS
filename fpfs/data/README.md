@@ -10,3 +10,5 @@ simulated from 3rd order Lanczos kernel.
 
 The [FPFS catalog](./fpfs-cut32-0000-g1-0000.fits) is the output of FPFS with
 $sigma_as=0.45~\mathrm{arcsec}$
+
+The [gamma1_measured_1] is a scan over np.linspace(0.01,0.05,40) with G1 = 0.003, G2 = 0.0025, F1 = 0.0007, F2 = 0.001

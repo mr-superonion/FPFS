@@ -883,7 +883,7 @@ class Stamp(object):
 
 
 class LensTransform(object):
-    def __init__(self, gamma1, gamma2, kappa, F1, F2, G1, G2):
+    def __init__(self, gamma1, gamma2, kappa, F1=0, F2=0, G1=0, G2=0):
         """Initialize the transform object of 2D grids
         Args:
             gamma1 (float):     the first component of lensing shear field
