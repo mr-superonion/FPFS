@@ -97,8 +97,8 @@ class Worker(object):
     def __init__(self, config_name):
         cparser = ConfigParser()
         cparser.read(config_name)
-        self.imgdir = cparser.get("procsim", "img_dir")
-        self.catdir = cparser.get("procsim", "cat_dir")
+        self.imgdir = cparser.get("files", "img_dir")
+        self.catdir = cparser.get("files", "cat_dir")
         if not os.path.isdir(self.imgdir):
             raise FileNotFoundError("Cannot find input images directory!")
         print("The input directory for galaxy images is %s. " % self.imgdir)
@@ -107,7 +107,7 @@ class Worker(object):
         print("The output directory for shear catalogs is %s. " % self.catdir)
 
         # setup FPFS task
-        self.psf_fname = cparser.get("procsim", "psf_fname")
+        self.psf_fname = cparser.get("files", "psf_fname")
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
@@ -240,7 +240,7 @@ class Worker(object):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="fpfs procsim")
+    parser = ArgumentParser(description="fpfs_process_sims")
     parser.add_argument(
         "--config",
         required=True,

@@ -74,13 +74,15 @@ def do_test(scale, ind0, rcut):
     thres = 1e-5
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
     # test shear estimation
-    fpfs_task = fpfs.image.measure_source(psf_data, sigma_arcsec=0.7)
+    fpfs_task = fpfs.image.measure_source(
+        psf_data, pix_scale=scale, sigma_arcsec=0.7
+    )
     # linear observables
     mms = fpfs_task.measure(gal_data, coords)
     mms = fpfs_task.get_results(mms)
     assert mms.dtype.names == col_names_2
     # non-linear observables
-    ells = fpfs.catalog.fpfs_m2e(mms, const=2000)
+    ells = fpfs.catalog.fpfs_m2e(mms, const=20)
     resp = np.average(ells["fpfs_R1E"])
     shear = np.average(ells["fpfs_e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)
@@ -88,13 +90,12 @@ def do_test(scale, ind0, rcut):
     p1 = 32 - rcut
     p2 = 64 * 2 - rcut
     psf_data2 = jnp.pad(psf_data, ((p1, p1), (p2, p2)))
-    coords2 = fpfs.image.detect_sources(
+    coords2 = fpfs_task.detect_sources(
         gal_data,
         psf_data2,
-        sigmaf=fpfs_task.sigmaf,
-        sigmaf_det=fpfs_task.sigmaf_det,
         thres=0.01,
         thres2=0.00,
+        bound=4,
     )
     assert np.all(coords2 == coords)
     return

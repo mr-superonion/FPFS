@@ -26,6 +26,7 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
         # initialize fpfs task with psf and noise variance
         fpfs_task = fpfs.image.measure_source(
             psf,
+            pix_scale=0.168,
             sigma_arcsec=0.59,
         )
         if noii <= 1e-10:

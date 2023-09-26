@@ -167,7 +167,7 @@ def work(ifield=0):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="fpfs procsim")
+    parser = ArgumentParser(description="desc_simulate")
     parser.add_argument(
         "--minId",
         default=5000,

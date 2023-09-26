@@ -39,8 +39,8 @@ class Worker(object):
         self.magz = cparser.getfloat("survey", "mag_zero")
 
         # setup processor
-        self.catdir = cparser.get("procsim", "cat_dir")
-        self.sum_dir = cparser.get("procsim", "sum_dir")
+        self.catdir = cparser.get("files", "cat_dir")
+        self.sum_dir = cparser.get("files", "sum_dir")
         do_noirev = cparser.getboolean("FPFS", "do_noirev")
         ncov_fname = os.path.join(self.catdir, "cov_matrix.fits")
         cov_mat = pyfits.getdata(ncov_fname)
@@ -170,7 +170,7 @@ class Worker(object):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="fpfs procsim")
+    parser = ArgumentParser(description="fpfs summary")
     parser.add_argument("--minId", required=True, type=int, help="minimum ID, e.g. 0")
     parser.add_argument(
         "--maxId", required=True, type=int, help="maximum ID, e.g. 4000"

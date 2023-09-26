@@ -34,9 +34,10 @@ def test_noise_cov():
     """
     noise_task = fpfs.image.measure_noise_cov(
         psf_data,
-        nnord=4,
+        pix_scale=scale,
         sigma_arcsec=0.45,
         sigma_detect=0.45,
+        nnord=4,
     )
 
     # Test whether the impt version is consistent with paper3

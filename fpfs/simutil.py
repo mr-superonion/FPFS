@@ -627,6 +627,7 @@ def make_isolate_sim(
     gal_type="mixed",
     npoints=30,
     sim_method="fft",
+    buff=0,
 ):
     """Makes basic **isolated** galaxy image simulation.
 
@@ -639,15 +640,16 @@ def make_isolate_sim(
         catname (str):          input catalog name
         scale (float):          pixel scale
         magzero (float):        magnitude zero point [27 for HSC]
-        rot2 (list):           additional rotation angle
+        rot2 (list):            additional rotation angle
         shear_value (float):    shear distortion amplitude
         ngrid (int):            stampe size
         nrot (int):             number of rotations
         mag_cut (float):        magnitude cut of the input catalog
         do_shift (bool):        whether do shfits
-        gal_type (float):      galaxy morphology (mixed, sersic, or bulgedisk)
+        gal_type (float):       galaxy morphology (mixed, sersic, or bulgedisk)
         npoints (int):          number of random points when
-        sim_method (str):         galaxy tpye ("fft" or "mc")
+        sim_method (str):       galaxy tpye ("fft" or "mc")
+        buff (int):             buff size
     """
     np.random.seed(seed)
 
@@ -706,7 +708,7 @@ def make_isolate_sim(
     if rot2 is None:
         rot2 = [0.0]
     if sim_method == "fft":
-        return _fft_gals(
+        outcome = _fft_gals(
             seed,
             magzero,
             psf_obj,
@@ -722,7 +724,7 @@ def make_isolate_sim(
             shifts,
         )
     elif sim_method == "mc":
-        return _mc_gals(
+        outcome = _mc_gals(
             seed,
             magzero,
             psf_obj,
@@ -740,6 +742,15 @@ def make_isolate_sim(
         )
     else:
         raise ValueError("sim_method should cotain 'basic' or 'random'!!")
+    buff = int(buff)
+    outcome = [
+        np.pad(
+            array=oo,
+            pad_width=(buff, buff),
+            constant_values=0.,
+        ) for oo in outcome
+    ]
+    return outcome
 
 
 def make_noise_sim(

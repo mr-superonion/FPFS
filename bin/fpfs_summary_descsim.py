@@ -35,8 +35,8 @@ class Worker(object):
         cparser = ConfigParser()
         cparser.read(config_name)
         # setup processor
-        self.catdir = cparser.get("procsim", "cat_dir")
-        self.sum_dir = cparser.get("procsim", "sum_dir")
+        self.catdir = cparser.get("files", "cat_dir")
+        self.sum_dir = cparser.get("files", "sum_dir")
         # survey parameter
         self.magz = cparser.getfloat("survey", "mag_zero")
 
@@ -181,7 +181,7 @@ class Worker(object):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="fpfs procsim")
+    parser = ArgumentParser(description="fpfs summary")
     parser.add_argument(
         "--config",
         required=True,

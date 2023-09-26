@@ -84,7 +84,9 @@ def get_multiplicative_bias(scale, ind0, rcut):
         gal, psf, coords = simulate_gal_psf(
             scale=scale, ind0=ind0, rcut=rcut, gname=gname
         )
-        fpfs_task = fpfs.image.measure_source(psf, sigma_arcsec=0.5, nnord=6)
+        fpfs_task = fpfs.image.measure_source(
+            psf, pix_scale=scale, sigma_arcsec=0.5, nnord=6,
+        )
         out = fpfs_task.get_results(fpfs_task.measure(gal, coords))
         assert out.dtype.names == col_names_4
         mms[mm_names[gname]] = out

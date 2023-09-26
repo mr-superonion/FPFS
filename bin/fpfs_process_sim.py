@@ -30,8 +30,8 @@ class Worker(object):
         cparser = ConfigParser()
         cparser.read(config_name)
         # setup processor
-        self.imgdir = cparser.get("procsim", "img_dir")
-        self.catdir = cparser.get("procsim", "cat_dir")
+        self.imgdir = cparser.get("files", "img_dir")
+        self.catdir = cparser.get("files", "cat_dir")
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
@@ -52,7 +52,7 @@ class Worker(object):
 
         # setup survey parameters
         self.scale = cparser.getfloat("survey", "pixel_scale")
-        self.psf_fname = cparser.get("procsim", "psf_filename")
+        self.psf_fname = cparser.get("files", "psf_filename")
         if not os.path.isfile(self.psf_fname):
             raise FileNotFoundError("Cannot find PSF file: %s" % self.psf_fname)
         self.noi_var = cparser.getfloat("survey", "noi_var")
@@ -212,7 +212,7 @@ class Worker(object):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="fpfs procsim")
+    parser = ArgumentParser(description="fpfs process_sims")
     parser.add_argument(
         "--config",
         required=True,

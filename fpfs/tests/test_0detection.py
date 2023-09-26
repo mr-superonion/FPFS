@@ -57,6 +57,7 @@ def do_test(scale, ind0, rcut):
         gal_data,
         psf_data2,
         fpfs_task.sigmaf,
+        fpfs_task.klim,
     )
     m00_sm = np.array([img_conv[tuple(cc)] for cc in coords])
     np.testing.assert_array_almost_equal(m00_sm, mms["fpfs_M00"] * scale**2.0)
@@ -64,6 +65,7 @@ def do_test(scale, ind0, rcut):
         gal_data,
         psf_data2,
         fpfs_task.sigmaf_det,
+        fpfs_task.klim,
     )
     img_u = img_conv_det - jnp.roll(img_conv_det, shift=-1, axis=-1)
     v0_sm = np.array([img_u[tuple(cc)] for cc in coords])

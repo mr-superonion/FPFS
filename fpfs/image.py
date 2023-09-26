@@ -28,57 +28,6 @@ logging.basicConfig(
 )
 
 
-def detect_sources(
-    img_data,
-    psf_data,
-    sigmaf,
-    sigmaf_det=None,
-    thres=0.04,
-    thres2=-0.01,
-    bound=20,
-    structured=False,
-):
-    """Returns the coordinates of detected sources
-
-    Args:
-        img_data (ndarray):         observed image
-        psf_data (ndarray):         PSF image [must be well-centered]
-        sigmaf (float):             sigma of the Gaussian smoothing kernel in
-                                    *Fourier* space for shapelets
-        sigmaf_det (float):         sigma of the Gaussian smoothing kernel in
-                                    *Fourier* space for detection
-        thres (float):              detection threshold
-        thres2 (float):             peak identification difference threshold
-        klim (float):               limiting wave number in Fourier space
-        structured (bool):          whether return structured array
-    Returns:
-        coords (ndarray):           peak values and the shear responses
-    """
-    if sigmaf_det is None:
-        sigmaf_det = sigmaf
-    psf_data = jnp.array(psf_data, dtype="<f8")
-    assert (
-        img_data.shape == psf_data.shape
-    ), "image and PSF should have the same\
-            shape. Please do padding before using this function."
-    img_conv = imgutil.convolve2gausspsf(img_data, psf_data, sigmaf)
-    img_conv_det = imgutil.convolve2gausspsf(img_data, psf_data, sigmaf_det)
-    # the coordinates is not given, so we do another detection
-    if not isinstance(thres, (int, float)):
-        raise ValueError("thres must be float, but now got %s" % type(thres))
-    if not isinstance(thres2, (int, float)):
-        raise ValueError("thres2 must be float, but now got %s" % type(thres))
-    if not thres > 0.0:
-        raise ValueError("detection threshold should be positive")
-    if not thres2 <= 0.0:
-        raise ValueError("difference threshold should be non-positive")
-    dd = imgutil.find_peaks(img_conv, img_conv_det, thres, thres2, bound).T
-    if not structured:
-        return dd
-    else:
-        return results_coords(dd)
-
-
 def results_coords(dd):
     coords = np.rec.fromarrays(
         dd.T,
@@ -92,11 +41,11 @@ class measure_base:
     and measure_noise_cov
     Args:
         psf_data (ndarray):     an average PSF image used to initialize the task
+        pix_scale (float):      pixel scale in arcsec
+        sigma_arcsec (float):   Shapelet kernel size
+        sigma_detect (float):   detection kernel size
         nnord (int):            the highest order of Shapelets radial
                                 components [default: 4]
-        sigma_arcsec (float):   Shapelet kernel size
-        pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
-        sigma_detect (float):   detection kernel size
     """
 
     _DefaultName = "measure_base"
@@ -104,10 +53,10 @@ class measure_base:
     def __init__(
         self,
         psf_data,
+        pix_scale,
         sigma_arcsec,
         sigma_detect=None,
         nnord=4,
-        pix_scale=0.168,
     ):
         if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
             raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
@@ -119,18 +68,11 @@ class measure_base:
         # Preparing PSF
         psf_data = jnp.array(psf_data, dtype="<f8")
         self.psf_fourier = jnp.fft.fftshift(jnp.fft.fft2(psf_data))
-        self.psf_pow = jnp.array(imgutil.get_fourier_pow(psf_data))
+        self.psf_pow = imgutil.get_fourier_pow_fft(psf_data)
 
         # A few import scales
-        self.pix_scale = pix_scale  # this is only used to normalize basis functions
+        self.pix_scale = pix_scale
         self._dk = 2.0 * jnp.pi / self.ngrid  # assuming pixel scale is 1
-        # # old function uses beta
-        # # scale radius of PSF's Fourier transform (in units of dk)
-        # sigmaPsf    =   imgutil.get_r_naive(self.psf_pow)*jnp.sqrt(2.)
-        # # shapelet scale
-        # sigma_pix   =   max(min(sigmaPsf*beta,6.),1.) # in units of dk
-        # self.sigmaf =   sigma_pix*self._dk      # assume pixel scale is 1
-        # sigma_arcsec  =   1./self.sigmaf*self.pix_scale
 
         # the following two assumes pixel_scale = 1
         self.sigmaf = float(self.pix_scale / sigma_arcsec)
@@ -148,14 +90,18 @@ class measure_base:
         )
         # effective nyquest wave number
         self.klim_pix = imgutil.get_klim(
-            self.psf_pow, (sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0)
+            psf_array=self.psf_pow,
+            sigma=(sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0),
+            thres=1e-20,
         )  # in pixel units
-        self.klim_pix = max(
-            min(self.klim_pix, self.ngrid // 2 - 1),
-            self.ngrid // 3,
+        self.klim_pix = min(self.klim_pix, self.ngrid // 2 - 1)
+
+        self.klim = float(self.klim_pix * self._dk)
+        logging.info(
+            "Maximum |k| is %.3f"
+            % (self.klim)
         )
-        self.klim = float(self.klim_pix * self._dk)  # assume pixel scale is 1
-        # index bounds
+
         self._indx = jnp.arange(
             self.ngrid // 2 - self.klim_pix,
             self.ngrid // 2 + self.klim_pix + 1,
@@ -164,18 +110,6 @@ class measure_base:
         self._ind2d = jnp.ix_(self._indx, self._indx)
         return
 
-    def set_klim(self, klim):
-        """
-        set klim, the area outside klim is supressed by the shaplet Gaussian
-        kerenl
-        """
-        self.klim_pix = klim
-        self._indx = jnp.arange(
-            self.ngrid // 2 - self.klim_pix, self.ngrid // 2 + self.klim_pix + 1
-        )
-        self._indy = self._indx[:, None]
-        self._ind2d = jnp.ix_(self._indx, self._indx)
-        return
 
     @partial(jax.jit, static_argnames=["self"])
     def deconvolve(self, data, prder=1.0, frder=1.0):
@@ -207,11 +141,11 @@ class measure_noise_cov(measure_base):
 
     Args:
         psf_data (ndarray):     an average PSF image used to initialize the task
+        pix_scale (float):      pixel scale in arcsec
         sigma_arcsec (float):   Shapelet kernel size
+        sigma_detect (float):   detection kernel size
         nnord (int):            the highest order of Shapelets radial
                                 components [default: 4]
-        pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
-        sigma_detect (float):   detection kernel size
     """
 
     _DefaultName = "measure_noise_cov"
@@ -219,10 +153,10 @@ class measure_noise_cov(measure_base):
     def __init__(
         self,
         psf_data,
+        pix_scale,
         sigma_arcsec,
-        nnord=4,
-        pix_scale=0.168,
         sigma_detect=None,
+        nnord=4,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -236,25 +170,26 @@ class measure_noise_cov(measure_base):
             nnord,
             self.sigmaf,
             self.sigmaf_det,
+            self.klim,
         )
         self.bfunc = bfunc[:, self._indy, self._indx]
         self.bnames = bnames
         return
 
-    def measure(self, noise_ps):
+    def measure(self, noise_pf):
         """Estimate covariance of measurement error in impt form
 
         Args:
-            noise_ps (ndarray):     power spectrum (assuming homogeneous) of noise
+            noise_pf (ndarray):     power spectrum (assuming homogeneous) of noise
         Return:
             cov_matrix (ndarray):   covariance matrix of FPFS basis modes
         """
-        noise_ps = jnp.array(noise_ps, dtype="<f8")
-        noise_ps_deconv = self.deconvolve(noise_ps, prder=1, frder=0)
+        noise_pf = jnp.array(noise_pf, dtype="<f8")
+        noise_pf_deconv = self.deconvolve(noise_pf, prder=1, frder=0)
         cov_matrix = (
             jnp.real(
                 jnp.tensordot(
-                    self.bfunc * noise_ps_deconv[None, self._indy, self._indx],
+                    self.bfunc * noise_pf_deconv[None, self._indy, self._indx],
                     jnp.conjugate(self.bfunc),
                     axes=((1, 2), (1, 2)),
                 )
@@ -269,11 +204,11 @@ class measure_source(measure_base):
 
     Args:
         psf_data (ndarray):     an average PSF image used to initialize the task
+        pix_scale (float):      pixel scale in arcsec
         sigma_arcsec (float):   Shapelet kernel size
+        sigma_detect (float):   detection kernel size
         nnord (int):            the highest order of Shapelets radial components
                                 [default: 4]
-        pix_scale (float):      pixel scale in arcsec [default: 0.168 arcsec]
-        sigma_detect (float):   detection kernel size
     """
 
     _DefaultName = "measure_source"
@@ -281,10 +216,10 @@ class measure_source(measure_base):
     def __init__(
         self,
         psf_data,
+        pix_scale,
         sigma_arcsec,
-        nnord=4,
-        pix_scale=0.168,
         sigma_detect=None,
+        nnord=4,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -310,21 +245,70 @@ class measure_source(measure_base):
                     is nnord=%d"
                 % nnord
             )
-        chi = imgutil.shapelets2d(self.ngrid, nnord, self.sigmaf).reshape(
-            (
-                (nnord + 1) ** 2,
-                self.ngrid,
-                self.ngrid,
-            )
+        chi = imgutil.shapelets2d(
+            self.ngrid,
+            nnord,
+            self.sigmaf,
+            self.klim,
         )[self._indM, self._indy, self._indx]
         psi = imgutil.detlets2d(
             self.ngrid,
             self.sigmaf_det,
+            self.klim,
         )[:, :, self._indy, self._indx]
         self.prepare_chi(chi)
         self.prepare_psi(psi)
         del chi, psi
         return
+
+    def detect_sources(
+        self,
+        img_data,
+        psf_data,
+        thres,
+        thres2,
+        bound=None,
+    ):
+        """Returns the coordinates of detected sources
+
+        Args:
+            img_data (ndarray):         observed image
+            psf_data (ndarray):         PSF image [must be well-centered]
+            thres (float):              detection threshold
+            thres2 (float):             peak identification difference threshold
+            bound (int):                remove sources at boundary
+        Returns:
+            coords (ndarray):           peak values and the shear responses
+        """
+        if not isinstance(thres, (int, float)):
+            raise ValueError("thres must be float, but now got %s" % type(thres))
+        if not isinstance(thres2, (int, float)):
+            raise ValueError("thres2 must be float, but now got %s" % type(thres))
+        if not thres > 0.0:
+            raise ValueError("detection threshold should be positive")
+        if not thres2 <= 0.0:
+            raise ValueError("difference threshold should be non-positive")
+        psf_data = jnp.array(psf_data, dtype="<f8")
+        assert (
+            img_data.shape == psf_data.shape
+        ), "image and PSF should have the same\
+                shape. Please do padding before using this function."
+        img_conv = imgutil.convolve2gausspsf(
+            img_data,
+            psf_data,
+            self.sigmaf,
+            self.klim,
+        )
+        img_conv_det = imgutil.convolve2gausspsf(
+            img_data,
+            psf_data,
+            self.sigmaf_det,
+            self.klim,
+        )
+        if bound is None:
+            bound = self.ngrid//2 + 5
+        dd = imgutil.find_peaks(img_conv, img_conv_det, thres, thres2, bound).T
+        return dd
 
     def prepare_chi(self, chi):
         """Prepares the basis to estimate shapelet modes
