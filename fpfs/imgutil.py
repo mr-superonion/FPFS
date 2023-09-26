@@ -160,7 +160,7 @@ def shapelets2d(ngrid, nord, sigma, klim):
         ngrid, ngrid, sigma, klim, return_grid=True
     )
     rfunc = np.sqrt(xfunc**2.0 + yfunc**2.0)  # radius
-    r2_over_sigma2 = (rfunc / sigma) ** 2.
+    r2_over_sigma2 = (rfunc / sigma) ** 2.0
     ny, nx = gaufunc.shape
 
     rmask = rfunc != 0.0
@@ -191,7 +191,7 @@ def shapelets2d(ngrid, nord, sigma, klim):
                 pow(-1.0, d1)
                 * pow(cc, 0.5)
                 * lfunc[c1, abs(mm), :, :]
-                * pow(r2_over_sigma2, abs(mm)/2)
+                * pow(r2_over_sigma2, abs(mm) / 2)
                 * gaufunc
                 * eulfunc**mm
                 * (1j) ** nn
@@ -252,9 +252,7 @@ def shapelets2d_real(ngrid, nord, sigma, klim):
             % nord
         )
     # generate the complex shaplet functions
-    chi = shapelets2d(
-        ngrid, nord, sigma, klim
-    )[indm]
+    chi = shapelets2d(ngrid, nord, sigma, klim)[indm]
     # transform to real shapelet functions
     chi_2 = np.zeros((len(name_s), ngrid, ngrid), dtype=np.float64)
     for i, ind in enumerate(ind_s):
@@ -484,8 +482,11 @@ def get_klim(psf_array, sigma, thres=1e-20):
             / psf_array[ngrid // 2, ngrid // 2 + dist]
         )
         return jax.lax.cond(
-            v1 < v2, v1, lambda x: x > thres,
-            v2, lambda x: x > thres,
+            v1 < v2,
+            v1,
+            lambda x: x > thres,
+            v2,
+            lambda x: x > thres,
         )
 
     def body_fun(dist):
@@ -498,16 +499,18 @@ def get_klim(psf_array, sigma, thres=1e-20):
     )
     return klim
 
+
 def truncate_square(arr, rcut):
     if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
         raise ValueError("Input array must be a 2D square array")
 
     ngrid = arr.shape[0]
-    arr[:ngrid//2-rcut, :] = 0
-    arr[ngrid//2+rcut:, :] = 0
-    arr[:, :ngrid//2-rcut] = 0
-    arr[:, ngrid//2+rcut:] = 0
+    arr[: ngrid // 2 - rcut, :] = 0
+    arr[ngrid // 2 + rcut :, :] = 0
+    arr[:, : ngrid // 2 - rcut] = 0
+    arr[:, ngrid // 2 + rcut :] = 0
     return
+
 
 def truncate_circle(arr, rcut):
     if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
@@ -516,7 +519,7 @@ def truncate_circle(arr, rcut):
     y, x = np.ogrid[0:ngrid, 0:ngrid]
     center_x, center_y = ngrid // 2, ngrid // 2
     # Compute the squared distance to the center
-    distance_squared = (x - center_x)**2 + (y - center_y)**2
+    distance_squared = (x - center_x) ** 2 + (y - center_y) ** 2
     # Mask values outside the circle
     arr[distance_squared > rcut**2] = 0.0
     return

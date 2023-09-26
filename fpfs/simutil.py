@@ -187,7 +187,6 @@ def make_cosmo_sim(
     shear_value=0.02,
     nrot=nrot_default,
 ):
-
     """Makes cosmo-like blended galaxy image simulations.
 
     Args:
@@ -337,6 +336,7 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     Returns:
         gal:    Galsim galaxy
     """
+
     # record columns:
     # For 'sersicfit', the result is an array of 8 numbers for each:
     #     SERSICFIT[0]: intensity of light profile at the half-light radius.
@@ -696,10 +696,7 @@ def make_isolate_sim(
         g2 = shear_const
     else:
         raise ValueError("cannot decide g1 or g2")
-    logging.info(
-        "Processing for %s, and shear is %s."
-        % (gname, shear_const)
-    )
+    logging.info("Processing for %s, and shear is %s." % (gname, shear_const))
 
     if do_shift:
         shifts = np.random.uniform(low=-0.5, high=0.5, size=(ngal, 2)) * scale
@@ -747,8 +744,9 @@ def make_isolate_sim(
         np.pad(
             array=oo,
             pad_width=(buff, buff),
-            constant_values=0.,
-        ) for oo in outcome
+            constant_values=0.0,
+        )
+        for oo in outcome
     ]
     return outcome
 

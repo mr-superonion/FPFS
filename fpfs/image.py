@@ -97,10 +97,7 @@ class measure_base:
         self.klim_pix = min(self.klim_pix, self.ngrid // 2 - 1)
 
         self.klim = float(self.klim_pix * self._dk)
-        logging.info(
-            "Maximum |k| is %.3f"
-            % (self.klim)
-        )
+        logging.info("Maximum |k| is %.3f" % (self.klim))
 
         self._indx = jnp.arange(
             self.ngrid // 2 - self.klim_pix,
@@ -109,7 +106,6 @@ class measure_base:
         self._indy = self._indx[:, None]
         self._ind2d = jnp.ix_(self._indx, self._indx)
         return
-
 
     @partial(jax.jit, static_argnames=["self"])
     def deconvolve(self, data, prder=1.0, frder=1.0):
@@ -306,7 +302,7 @@ class measure_source(measure_base):
             self.klim,
         )
         if bound is None:
-            bound = self.ngrid//2 + 5
+            bound = self.ngrid // 2 + 5
         dd = imgutil.find_peaks(img_conv, img_conv_det, thres, thres2, bound).T
         return dd
 
