@@ -19,6 +19,7 @@ scripts = [
     "bin/fpfs_summary_descsim.py",
 ]
 
+
 setup(
     name="fpfs",
     version=__version__,
