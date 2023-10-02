@@ -183,7 +183,7 @@ def make_cosmo_sim(
     do_write=True,
     return_array=False,
     magzero=27.0,
-    rot2=0.0,
+    rot_field=0.0,
     shear_value=0.02,
     nrot=nrot_default,
 ):
@@ -201,11 +201,11 @@ def make_cosmo_sim(
         do_write (bool):        whether write output [default: True]
         return_array (bool):    whether return galaxy array [default: False]
         magzero (float):        magnitude zero point
-        rot2 (float):           additional rotational angle [in units of radians]
+        rot_field (float):      additional rotational angle [in units of radians]
     """
 
     if catname is None:
-        catname = os.path.join(__data_dir__, "cat_used.fits")
+        catname = os.path.join(__data_dir__, "src_cosmos.fits")
     np.random.seed(ind0)
     out_fname = os.path.join(out_dir, "image-%d-%s.fits" % (ind0, gname))
     if os.path.isfile(out_fname):
@@ -243,7 +243,7 @@ def make_cosmo_sim(
     # evenly distributed within a radius, min(nx,ny)*rfrac
     rarray = np.sqrt(r2 * np.random.rand(ngeff))  # radius
     tarray = np.random.uniform(0.0, np.pi / nrot, ngeff)  # theta (0,pi/nrot)
-    tarray = tarray + rot2
+    tarray = tarray + rot_field
     xarray = rarray * np.cos(tarray) + nx // 2  # x
     yarray = rarray * np.sin(tarray) + ny // 2  # y
     rsarray = np.random.uniform(0.95, 1.05, ngeff)
@@ -282,7 +282,7 @@ def make_cosmo_sim(
             g1 = 0.0
             g2 = 0.0
 
-        gal = generate_cosmos_gal(ss, truncr=-1.0, gsparams=bigfft)
+        gal = generate_cosmos_gal(ss, trunc_ratio=-1.0, gsparams=bigfft)
         # determine and assign flux
         # HSC's i-band coadds zero point is 27
         flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
@@ -325,13 +325,13 @@ def make_cosmo_sim(
         return gal_image.array
 
 
-def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
+def generate_cosmos_gal(record, trunc_ratio=5.0, gsparams=None):
     """Generates COSMOS galaxies; modified version of
     https://github.com/GalSim-developers/GalSim/blob/releases/2.3/galsim/scene.py#L626
 
     Args:
         record (ndarray):   one row of the COSMOS galaxy catalog
-        truncr (float):     truncation ratio
+        trunc_ratio (float):     truncation ratio
         gsparams:           An GSParams argument.
     Returns:
         gal:    Galsim galaxy
@@ -357,7 +357,7 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
     def _galsim_round_sersic(n, sersic_prec):
         return float(int(n / sersic_prec + 0.5)) * sersic_prec
 
-    bparams = record["bulgefit"]
+    bdparams = record["bulgefit"]
     sparams = record["sersicfit"]
     use_bulgefit = record["use_bulgefit"]
     if use_bulgefit:
@@ -367,7 +367,7 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
         bulge_flux = record["flux"][1]
         disk_hlr = record["hlr"][2]
         disk_flux = record["flux"][2]
-        if truncr <= 0.99:
+        if trunc_ratio <= 0.99:
             btrunc = None
             bulge = galsim.DeVaucouleurs(
                 flux=bulge_flux, half_light_radius=bulge_hlr, gsparams=gsparams
@@ -376,14 +376,14 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
                 flux=disk_flux, half_light_radius=disk_hlr, gsparams=gsparams
             )
         else:
-            btrunc = bulge_hlr * truncr
+            btrunc = bulge_hlr * trunc_ratio
             bulge = galsim.DeVaucouleurs(
                 flux=bulge_flux,
                 half_light_radius=bulge_hlr,
                 trunc=btrunc,
                 gsparams=gsparams,
             )
-            dtrunc = disk_hlr * truncr
+            dtrunc = disk_hlr * trunc_ratio
             disk = galsim.Sersic(
                 1.0,
                 flux=disk_flux,
@@ -392,15 +392,17 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
                 gsparams=gsparams,
             )
         # Apply shears for intrinsic shape.
-        bulge_q = bparams[11]
-        bulge_beta = bparams[15] * galsim.radians
+        bulge_q = bdparams[11]
+        bulge_beta = bdparams[15] * galsim.radians
         if bulge_q < 1.0:  # pragma: no branch
             bulge = bulge.shear(q=bulge_q, beta=bulge_beta)
-        disk_q = bparams[3]
-        disk_beta = bparams[7] * galsim.radians
+        #
+        disk_q = bdparams[3]
+        disk_beta = bdparams[7] * galsim.radians
         if disk_q < 1.0:  # pragma: no branch
             disk = disk.shear(q=disk_q, beta=disk_beta)
         # Then combine the two components of the galaxy.
+        # No center offset is included
         gal = bulge + disk
     else:
         # Do a similar manipulation to the stored quantities for the single
@@ -424,15 +426,16 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
         gal_hlr = record["hlr"][0]
         gal_flux = record["flux"][0]
 
-        gal_q = sparams[3]
-        gal_beta = sparams[7] * galsim.radians
-        if truncr <= 0.99:
+        if trunc_ratio <= 0.99:
             btrunc = None
             gal = galsim.Sersic(
-                gal_n, flux=gal_flux, half_light_radius=gal_hlr, gsparams=gsparams
+                gal_n,
+                flux=gal_flux,
+                half_light_radius=gal_hlr,
+                gsparams=gsparams,
             )
         else:
-            btrunc = gal_hlr * truncr
+            btrunc = gal_hlr * trunc_ratio
             gal = galsim.Sersic(
                 gal_n,
                 flux=gal_flux,
@@ -441,6 +444,8 @@ def generate_cosmos_gal(record, truncr=5.0, gsparams=None):
                 gsparams=gsparams,
             )
         # Apply shears for intrinsic shape.
+        gal_q = sparams[3]
+        gal_beta = sparams[7] * galsim.radians
         if gal_q < 1.0:  # pragma: no branch
             gal = gal.shear(q=gal_q, beta=gal_beta)
 
@@ -456,18 +461,17 @@ def _fft_gals(
     ngalx,
     ngaly,
     ngrid,
-    rot2,
+    rot_field,
     g1,
     g2,
-    nrot,
-    shifts,
+    nrot_per_gal,
+    do_shift,
 ):
     ngal = ngalx * ngaly
     bigfft = galsim.GSParams(maximum_fft_size=10240)
-    logging.info("Making Basic Simulation. ID: %d" % (seed))
     gal0 = None
     gal_image_list = []
-    for _ in range(len(rot2)):
+    for _ in range(len(rot_field)):
         gal_image = galsim.ImageF(ngalx * ngrid, ngaly * ngrid, scale=scale)
         gal_image.setOrigin(0, 0)
         gal_image_list.append(gal_image)
@@ -476,12 +480,13 @@ def _fft_gals(
         ix = i % ngalx
         iy = i // ngalx
         # each galaxy
-        irot = i % nrot
+        irot = i % nrot_per_gal
         if irot == 0:
+            # prepare the base galaxy
             del gal0
-            ig = i // nrot
+            ig = i // nrot_per_gal
             ss = cat_input[ig]
-            gal0 = generate_cosmos_gal(ss, truncr=-1.0, gsparams=bigfft)
+            gal0 = generate_cosmos_gal(ss, trunc_ratio=5.0, gsparams=bigfft)
             # E.g., HSC's i-band coadds zero point is 27
             flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
             # flux_scaling=   2.587
@@ -490,33 +495,34 @@ def _fft_gals(
             # same
             rescale = np.random.uniform(0.95, 1.05)
             gal0 = gal0.expand(rescale)
-            # rotate by 'ang'
+            # rotate by a random angle
             ang = (np.random.uniform(0.0, np.pi * 2.0)) * galsim.radians
             gal0 = gal0.rotate(ang)
         else:
+            # rotate the base galaxy
             assert gal0 is not None
-            ang = np.pi / nrot * galsim.radians
+            ang = np.pi / nrot_per_gal * galsim.radians
             # update gal0
             gal0 = gal0.rotate(ang)
-        for irot, rr in enumerate(rot2):
-            # base rotation
-            gal_tmp = gal0.rotate(rr * galsim.radians)
-            # shear distortion
-            gal = gal_tmp.shear(g1=g1, g2=g2)
-            del gal_tmp
-            # shift to (ngrid//2,ngrid//2)
-            # the random shift is relative to this point
+        for _, rr in enumerate(rot_field):
+            # base rotation and shear distortion
+            gal = gal0.rotate(rr * galsim.radians).shear(g1=g1, g2=g2)
             gal = galsim.Convolve([psf_obj, gal], gsparams=bigfft)
-            gal = gal.shift(0.5 * scale, 0.5 * scale)
-            if shifts is not None:
-                gal = gal.shift(shifts[i, 0], shifts[i, 1])
+            if do_shift:
+                # shift with a random offset
+                s1 = np.random.uniform(low=-0.5, high=0.5) * scale
+                s2 = np.random.uniform(low=-0.5, high=0.5) * scale
+                gal = gal.shift(s1, s2)
             b = galsim.BoundsI(
                 ix * ngrid,
                 (ix + 1) * ngrid - 1,
                 iy * ngrid,
                 (iy + 1) * ngrid - 1,
             )
-            sub_img = gal_image_list[irot][b]
+            sub_img = gal_image_list[_][b]
+            # shift to (ngrid//2, ngrid//2)
+            # since I set it as the default center of grids in the simulation
+            gal = gal.shift(0.5 * scale, 0.5 * scale)
             gal.drawImage(sub_img, add_to_image=True)
             del gal, b, sub_img
     gc.collect()
@@ -533,11 +539,11 @@ def _mc_gals(
     ngalx,
     ngaly,
     ngrid,
-    rot2,
+    rot_field,
     g1,
     g2,
-    nrot,
-    shifts,
+    nrot_per_gal,
+    do_shift,
     npoints=30,
 ):
     bigfft = galsim.GSParams(maximum_fft_size=10240)
@@ -547,8 +553,9 @@ def _mc_gals(
     logging.info("Making galaxies with Random Knots.")
     gal0 = None
 
+    # prepare the galsim exposures for the rotated subfileds
     gal_image_list = []
-    for _ in range(len(rot2)):
+    for _ in range(len(rot_field)):
         gal_image = galsim.ImageF(ngalx * ngrid, ngaly * ngrid, scale=scale)
         gal_image.setOrigin(0, 0)
         gal_image_list.append(gal_image)
@@ -556,12 +563,13 @@ def _mc_gals(
     for iy in range(ngaly):
         for ix in range(ngalx):
             ii = iy * ngalx + ix
-            irot = ii % nrot
+            irot = ii % nrot_per_gal
             if irot == 0:
+                # prepare the base galaxy
                 del gal0
-                ig = ii // nrot
+                ig = ii // nrot_per_gal
                 ss = cat_input[ig]
-                galp = generate_cosmos_gal(ss, truncr=-1.0)
+                galp = generate_cosmos_gal(ss, trunc_ratio=5.0)
                 # accounting for zeropoint difference between COSMOS HST and HSC
                 # HSC's i-band coadds zero point is 27
                 flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
@@ -570,7 +578,7 @@ def _mc_gals(
                 # same
                 rescale = np.random.uniform(0.95, 1.05)
                 galp = galp.expand(rescale)
-                # rotate by 'ang'
+                # rotate by a random angle
                 ang = (np.random.uniform(0.0, np.pi * 2.0)) * galsim.radians
                 galp = galp.rotate(ang)
                 gal0 = galsim.RandomKnots(
@@ -581,19 +589,19 @@ def _mc_gals(
                 )
                 del galp
             else:
+                # rotate the base galaxy
                 assert gal0 is not None
-                ang = np.pi / nrot * galsim.radians
+                ang = np.pi / nrot_per_gal * galsim.radians
                 gal0 = gal0.rotate(ang)
-            for irot, rr in enumerate(rot2):
-                # base rotation
-                gal_tmp = gal0.rotate(rr * galsim.radians)
-                # shear distortion
-                gal = gal_tmp.shear(g1=g1, g2=g2)
-                del gal_tmp
+            for _, rr in enumerate(rot_field):
+                # base rotation and shear distortion
+                gal = gal0.rotate(rr * galsim.radians).shear(g1=g1, g2=g2)
                 gal = galsim.Convolve([psf_obj, gal], gsparams=bigfft)
-                gal = gal.shift(0.5 * scale, 0.5 * scale)
-                if shifts is not None:
-                    gal = gal.shift(shifts[ii, 0], shifts[ii, 1])
+                if do_shift:
+                    # shift with a random offset
+                    s1 = np.random.uniform(low=-0.5, high=0.5) * scale
+                    s2 = np.random.uniform(low=-0.5, high=0.5) * scale
+                    gal = gal.shift(s1, s2)
                 # Draw the galaxy image
                 b = galsim.BoundsI(
                     ix * ngrid,
@@ -601,12 +609,22 @@ def _mc_gals(
                     iy * ngrid,
                     (iy + 1) * ngrid - 1,
                 )
-                sub_img = gal_image_list[irot][b]
+                sub_img = gal_image_list[_][b]
+                # shift since we define the stamp center as (ngrid, ngrid)
+                gal = gal.shift(0.5 * scale, 0.5 * scale)
                 gal.drawImage(sub_img, add_to_image=True)
                 del gal, b, sub_img
     gc.collect()
     outcome = [img.array for img in gal_image_list]
     return outcome
+
+
+def read_cosmos_catalog(catname=None):
+    # read the input COSMOS galaxy catalog
+    if catname is None:
+        catname = os.path.join(__data_dir__, "src_cosmos.fits")
+    cat_input = pyfits.getdata(catname)
+    return cat_input
 
 
 def make_isolate_sim(
@@ -618,12 +636,15 @@ def make_isolate_sim(
     catname=None,
     scale=0.168,
     magzero=27.0,
-    rot2=None,
+    rot_field=None,
     shear_value=0.02,
     ngrid=64,
-    nrot=nrot_default,
-    mag_cut=None,
-    do_shift=None,
+    nrot_per_gal=nrot_default,
+    max_mag=None,
+    min_mag=None,
+    max_hlr=None,
+    min_hlr=None,
+    do_shift=False,
     gal_type="mixed",
     npoints=30,
     sim_method="fft",
@@ -640,16 +661,19 @@ def make_isolate_sim(
         catname (str):          input catalog name
         scale (float):          pixel scale
         magzero (float):        magnitude zero point [27 for HSC]
-        rot2 (list):            additional rotation angle
+        rot_field (list):       additional rotation angle
         shear_value (float):    shear distortion amplitude
         ngrid (int):            stampe size
-        nrot (int):             number of rotations
-        mag_cut (float):        magnitude cut of the input catalog
+        nrot_per_gal (int):             number of rotations
+        max_mag (float):        maximum magnitude cut
+        min_mag (float):        minimum magnitude cut
+        max_hlr (float):        maximum half light radius cut [arcsec]
+        min_hlr (float):        minimum half light radius cut [arcsec]
         do_shift (bool):        whether do shfits
         gal_type (float):       galaxy morphology (mixed, sersic, or bulgedisk)
         npoints (int):          number of random points when
         sim_method (str):       galaxy tpye ("fft" or "mc")
-        buff (int):             buff size
+        buff (int):             buff size (zero padding near boundaries)
     """
     np.random.seed(seed)
 
@@ -662,11 +686,21 @@ def make_isolate_sim(
     ngaly = int(ny // ngrid)
     ngal = ngalx * ngaly
 
-    if catname is None:
-        catname = os.path.join(__data_dir__, "cat_used.fits")
-    cat_input = pyfits.getdata(catname)
-    if mag_cut is not None:
-        cat_input = cat_input[cat_input["mag_auto"] < mag_cut]
+    cat_input = read_cosmos_catalog()
+    # Initializing selector mask with all Trues
+    sel = np.ones(len(cat_input), dtype=bool)
+    # Filtering conditions
+    if max_mag is not None:
+        sel &= cat_input["mag_auto"] < max_mag
+    if min_mag is not None:
+        sel &= cat_input["mag_auto"] >= min_mag
+    if max_hlr is not None:
+        sel &= (cat_input["hlr"][:, 0:3] < max_hlr).all(axis=1)
+    if min_hlr is not None:
+        sel &= cat_input["hlr"][:, 0] >= min_hlr
+    # Applying selector mask
+    cat_input = cat_input[sel]
+
     if gal_type == "mixed":
         logging.info("Creating Mixed galaxy profiles")
     elif gal_type == "sersic":
@@ -680,30 +714,35 @@ def make_isolate_sim(
 
     ntrain = len(cat_input)
     if not ntrain > ngal:
-        raise ValueError("mag_cut is too small")
-    ngeff = max(ngal // nrot, 1)
+        raise ValueError(
+            "mag_cut is too small, and there is not enough number of galaxies"
+        )
+    # nrot_per_gal is the number of rotated galaxies in each subfield
+    ngeff = max(ngal // nrot_per_gal, 1)
     inds = np.random.randint(0, ntrain, ngeff)
     cat_input = cat_input[inds]
 
     # Get the shear information
     shear_list = np.array([-shear_value, shear_value, 0.0])
-    shear_const = shear_list[eval(gname.split("-")[-1])]
-    if gname.split("-")[0] == "g1":
+    dis_version = int(eval(gname.split("-")[-1]))
+    assert dis_version < 3 and dis_version >= 0
+    shear_const = shear_list[dis_version]
+    gver = gname.split("-")[0]
+    if gver == "g1":
         g1 = shear_const
         g2 = 0.0
-    elif gname.split("-")[0] == "g2":
+    elif gver == "g2":
         g1 = 0.0
+        g2 = shear_const
+    elif gver == "g1_g2":
+        g1 = shear_const
         g2 = shear_const
     else:
         raise ValueError("cannot decide g1 or g2")
     logging.info("Processing for %s, and shear is %s." % (gname, shear_const))
 
-    if do_shift:
-        shifts = np.random.uniform(low=-0.5, high=0.5, size=(ngal, 2)) * scale
-    else:
-        shifts = None
-    if rot2 is None:
-        rot2 = [0.0]
+    if rot_field is None:
+        rot_field = [0.0]
     if sim_method == "fft":
         outcome = _fft_gals(
             seed,
@@ -714,11 +753,11 @@ def make_isolate_sim(
             ngalx,
             ngaly,
             ngrid,
-            rot2,
+            rot_field,
             g1,
             g2,
-            nrot,
-            shifts,
+            nrot_per_gal,
+            do_shift,
         )
     elif sim_method == "mc":
         outcome = _mc_gals(
@@ -730,15 +769,17 @@ def make_isolate_sim(
             ngalx,
             ngaly,
             ngrid,
-            rot2,
+            rot_field,
             g1,
             g2,
-            nrot,
-            shifts,
+            nrot_per_gal,
+            do_shift,
             npoints,
         )
     else:
         raise ValueError("sim_method should cotain 'basic' or 'random'!!")
+    # padding zeros to the edges of the image to avoid the stamp for
+    # measurement hits the boundary
     buff = int(buff)
     outcome = [
         np.pad(
