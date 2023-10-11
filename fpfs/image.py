@@ -468,6 +468,7 @@ class measure_source(measure_base):
         gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
         mm = self._itransform_chi(gal_deconv)  # FPFS shapelets
         mp = self._itransform_psi(gal_deconv)  # FPFS detection
+        # jax.debug.print("debug: {}", mm)
         return jnp.hstack([mm, mp])
 
     def get_results(self, out):

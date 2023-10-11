@@ -49,7 +49,7 @@ def simulate_gal_psf(scale, ind0, rcut):
         .array
     )
     psf_data = psf_data[32 - rcut : 32 + rcut, 32 - rcut : 32 + rcut]
-    gname = "g1-0000"
+    gname = "g1-0"
     gal_data = fpfs.simutil.make_isolate_sim(
         gal_type="mixed",
         sim_method="fft",
@@ -60,6 +60,7 @@ def simulate_gal_psf(scale, ind0, rcut):
         nx=256,
         scale=scale,
         do_shift=False,
+        buff=0,
     )[0]
 
     # force detection at center
@@ -74,9 +75,7 @@ def do_test(scale, ind0, rcut):
     thres = 1e-5
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
     # test shear estimation
-    fpfs_task = fpfs.image.measure_source(
-        psf_data, pix_scale=scale, sigma_arcsec=0.7
-    )
+    fpfs_task = fpfs.image.measure_source(psf_data, pix_scale=scale, sigma_arcsec=0.6)
     # linear observables
     mms = fpfs_task.measure(gal_data, coords)
     mms = fpfs_task.get_results(mms)

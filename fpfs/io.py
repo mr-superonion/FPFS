@@ -28,7 +28,7 @@ def save_catalog(filename, arr, **kwargs):
     kwargs["date"] = (today,)
     if kwargs["dtype"] == "shape":
         # gzip compression is used for shape catalogs
-        fitsio.write(filename, arr, header=kwargs, compress="GZIP_2", qlevel=None)
+        fitsio.write(filename, arr, header=kwargs)
     elif kwargs["dtype"] == "position":
         # position catalogs. array of intergers, no compression
         fitsio.write(filename, arr, header=kwargs)
