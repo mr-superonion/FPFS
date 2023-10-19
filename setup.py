@@ -35,7 +35,6 @@ setup(
         "galsim",
         "astropy",
         "matplotlib",
-        "fitsio",
     ],
     packages=find_packages(),
     scripts=scripts,

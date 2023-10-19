@@ -1,10 +1,16 @@
-import fitsio
 from datetime import date
 from numpy.lib.recfunctions import structured_to_unstructured
 from . import __version__
 
 
 def save_catalog(filename, arr, **kwargs):
+    try:
+        import fitsio
+    except ImportError:
+        raise ImportError(
+            "Cannot import fitsio to save the catalog",
+            "please install fitsio.",
+        )
     """
     Save a numpy.ndarray to a fits file.
 
@@ -22,7 +28,6 @@ def save_catalog(filename, arr, **kwargs):
         arr = structured_to_unstructured(arr)
     assert "dtype" in kwargs.keys(), "dtype (shape or coords?) is not specific"
     today = date.today()
-    kwargs["compress"] = ("fitsio-gzip_2",)
     kwargs["image compress"] = ("fpfs",)
     kwargs["version"] = (__version__,)
     kwargs["date"] = (today,)
@@ -50,6 +55,13 @@ def save_image(filename, arr):
         filename (str):
             Path of the output fits file.
     """
+    try:
+        import fitsio
+    except ImportError:
+        raise ImportError(
+            "Cannot import fitsio to save the image",
+            "please install fitsio.",
+        )
     # gzip compression is used by default
     fitsio.write(filename, arr, compress="GZIP_2", qlevel=None)
     return
