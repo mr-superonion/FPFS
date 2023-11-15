@@ -41,7 +41,7 @@ def create_and_measure_F1G2(gamma1):
             del stamp
             del lens
     hdu1 = fits.PrimaryHDU(gamma1_measured)
-    hdu1.writeto(f'data/Fix_F1G2/gamma1_measured_flexion_F1G2_{gamma1}.fits')
+    hdu1.writeto(f'data/Fix_F1G2/gamma1_measured_flexion_F1G2_{gamma1:.3f}.fits')
     print("file created")
     return  0      
     
@@ -83,4 +83,4 @@ def create_and_measure_full(gamma1):
 from multiprocessing import Pool
 if __name__ == '__main__':
     with Pool(10) as p:
-        p.map(create_and_measure_F1G2,np.linspace(0.00,0.05,17))
+        p.map(create_and_measure_F1G2,np.linspace(0.0,0.02,21))
