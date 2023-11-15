@@ -17,8 +17,8 @@ def create_and_measure_F1G2(gamma1):
     # Fixing F1*G2 and F2*G1
     G1 = 0.0
     F2 = 0.0
-    F1 = np.linspace(0.001,0.01,5)
-    G2 = np.linspace(0.001,0.01,5)
+    F1 = np.linspace(0.001,0.01,10)
+    G2 = np.linspace(0.001,0.01,10)
     kappa = 0.0
     gamma1_measured = np.zeros((len(F1),len(G2)))
     gamma2 = 0.0
