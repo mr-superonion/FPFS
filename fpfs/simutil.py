@@ -186,6 +186,7 @@ def make_cosmo_sim(
     rot_field=0.0,
     shear_value=0.02,
     nrot=nrot_default,
+    rescale_min_max=None,
 ):
     """Makes cosmo-like blended galaxy image simulations.
 
@@ -202,6 +203,10 @@ def make_cosmo_sim(
         return_array (bool):    whether return galaxy array [default: False]
         magzero (float):        magnitude zero point
         rot_field (float):      additional rotational angle [in units of radians]
+        shear_value (float):    amplitude of the input shear
+        nrot (int):             number of rotation, optional
+        rescale_min_max (list|ndarray):
+            lower and upper bounds of galaxy size rescaling factor, optional
     """
 
     if catname is None:
@@ -246,7 +251,9 @@ def make_cosmo_sim(
     tarray = tarray + rot_field
     xarray = rarray * np.cos(tarray) + nx // 2  # x
     yarray = rarray * np.sin(tarray) + ny // 2  # y
-    rsarray = np.random.uniform(0.95, 1.05, ngeff)
+    if rescale_min_max is None:
+        rescale_min_max = [0.95, 1.05]
+    rsarray = np.random.uniform(rescale_min_max[0], rescale_min_max[1], ngeff)
     del rarray, tarray
 
     zbound = np.array([1e-5, 0.5477, 0.8874, 1.3119, 12.0])  # sim 3
@@ -283,12 +290,12 @@ def make_cosmo_sim(
             g2 = 0.0
 
         gal = generate_cosmos_gal(ss, trunc_ratio=-1.0, gsparams=bigfft)
+        # rescale the radius while keeping the surface brightness the same
+        gal = gal.expand(rsarray[ig])
         # determine and assign flux
         # HSC's i-band coadds zero point is 27
         flux = 10 ** ((magzero - ss["mag_auto"]) / 2.5)
         gal = gal.withFlux(flux)
-        # rescale the radius while keeping the surface brightness the same
-        gal = gal.expand(rsarray[ig])
         # rotate by 'ang'
         gal = gal.rotate(ang)
         # lensing shear
@@ -606,9 +613,19 @@ class CosmosCatalog(object):
         if min_mag is not None:
             sel &= src["mag_auto"] >= min_mag
         if max_hlr is not None:
-            sel &= (src["hlr"][:, 0:3] < max_hlr).all(axis=1)
+            if gal_type == "mixed":
+                sel &= (src["hlr"][:, 0:3] < max_hlr).all(axis=1)
+            elif gal_type == "sersic":
+                sel &= src["hlr"][:, 0] < max_hlr
+            elif gal_type == "bulgedisk":
+                sel &= (src["hlr"][:, 1:3] < max_hlr).all(axis=1)
         if min_hlr is not None:
-            sel &= src["hlr"][:, 0] >= min_hlr
+            if gal_type == "mixed":
+                sel &= (src["hlr"][:, 0:3] >= max_hlr).all(axis=1)
+            elif gal_type == "sersic":
+                sel &= src["hlr"][:, 0] >= min_hlr
+            elif gal_type == "bulgedisk":
+                sel &= (src["hlr"][:, 1:3] >= max_hlr).all(axis=1)
         # Applying selector mask
         src = src[sel]
 
