@@ -10,6 +10,10 @@ import galsim
 import numpy as np
 import astropy.io.fits as pyfits
 from configparser import ConfigParser, ExtendedInterpolation
+from descwl_shear_sims.stars import StarCatalog
+from descwl_shear_sims.sim import make_sim
+from descwl_shear_sims.psfs import make_fixed_psf
+from descwl_shear_sims.galaxies import WLDeblendGalaxyCatalog
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",
@@ -236,8 +240,8 @@ class ProcessSimulationTask(object):
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut", fallback=32)
-        self.psf_rcut = cparser.getint("FPFS", "psf_rcut", fallback=22)
-        self.psf_rcut = min(self.psf_rcut, self.rcut)
+        psf_rcut = cparser.getint("FPFS", "psf_rcut", fallback=22)
+        self.psf_rcut = min(psf_rcut, self.rcut)
         self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
         if self.nnord not in [4, 6]:
             raise ValueError(
@@ -263,6 +267,20 @@ class ProcessSimulationTask(object):
         # By default, we use uncorrelated noise
         # TODO: enable correlated noise here
         self.noise_pow = np.ones((ngrid, ngrid)) * self.nstd_f**2.0 * ngrid**2.0
+
+        self.rotate = cparser.getboolean("simulation", "rotate")
+        self.dither = cparser.getboolean("simulation", "dither")
+        # version of the PSF simulation: 0 -- fixed PSF; 1 -- variational PSF
+        self.coadd_dim = cparser.getint("simulation", "coadd_dim")
+        # buffer length to avoid galaxies hitting the boundary of the exposure
+        self.buff = cparser.getint("simulation", "buff")
+
+        self.stellar_density = cparser.getfloat(
+            "simulation",
+            "stellar_density",
+            fallback=0.0,
+        )
+        self.layout = cparser.get("simulation", "layout")
         return
 
     def get_image_fnames(self, ifield):
@@ -279,6 +297,52 @@ class ProcessSimulationTask(object):
         for rr in refs:
             assert os.path.isfile(rr), "file %s does not exist" % rr
         return refs
+
+    def prepare_systematics(self, fname):
+        """Prepare the systematic images"""
+        field_id = int(fname.split("image-")[-1].split("_")[0]) + 212
+        rng = np.random.RandomState(field_id)
+
+        star_catalog = StarCatalog(
+            rng=rng,
+            coadd_dim=self.coadd_dim,
+            buff=self.buff,
+            density=self.stellar_density,
+            layout=self.layout,
+        )
+        galaxy_catalog = WLDeblendGalaxyCatalog(
+            rng=rng,
+            coadd_dim=self.coadd_dim,
+            buff=self.buff,
+            layout=self.layout,
+        )
+        psf = make_fixed_psf(psf_type="moffat")  # .shear(e1=0.02, e2=-0.02)
+        star_image_array = (
+            make_sim(
+                rng=rng,
+                galaxy_catalog=galaxy_catalog,
+                star_catalog=star_catalog,
+                coadd_dim=self.coadd_dim,
+                psf=psf,
+                draw_gals=False,
+                draw_stars=True,
+                draw_bright=False,
+                dither=self.dither,
+                rotate=self.rotate,
+                bands=[self.band],
+                noise_factor=0.0,
+                cosmic_rays=False,
+                bad_columns=False,
+                star_bleeds=False,
+                draw_method="auto",
+                g1=0.0,
+                g2=0.0,
+            )["band_data"][self.band][0]
+            .getMaskedImage()
+            .getImage()
+            .getArray()
+        )
+        return star_image_array
 
     def prepare_noise_psf(self, fname):
         exposure = pyfits.getdata(fname)
@@ -309,6 +373,8 @@ class ProcessSimulationTask(object):
         gal_array = np.zeros((self.image_nx, self.image_nx))
         logging.info("processing %s band" % self.band)
         gal_array = pyfits.getdata(fname)
+        star_image_array = self.prepare_systematics(fname)
+        gal_array = gal_array + star_image_array
         if self.nstd_f > 1e-10:
             # noise
             seed = get_random_seed_from_fname(fname, self.band)
