@@ -268,43 +268,36 @@ class measure_source(measure_base):
         """Returns the coordinates of detected sources
 
         Args:
-            img_data (ndarray):         observed image
-            psf_data (ndarray):         PSF image [must be well-centered]
-            thres (float):              detection threshold
-            thres2 (float):             peak identification difference threshold
-            bound (int):                remove sources at boundary
+        img_data (ndarray):         observed image
+        psf_data (ndarray):         PSF image [must be well-centered]
+        thres (float):              detection threshold
+        thres2 (float):             peak identification difference threshold
+        bound (int):                remove sources at boundary
+
         Returns:
-            coords (ndarray):           peak values and the shear responses
+        coords (ndarray):           peak values and the shear responses
         """
-        if not isinstance(thres, (int, float)):
-            raise ValueError("thres must be float, but now got %s" % type(thres))
-        if not isinstance(thres2, (int, float)):
-            raise ValueError("thres2 must be float, but now got %s" % type(thres))
         if not thres > 0.0:
             raise ValueError("detection threshold should be positive")
         if not thres2 <= 0.0:
             raise ValueError("difference threshold should be non-positive")
-        psf_data = jnp.array(psf_data, dtype="<f8")
+        psf_data = jnp.array(psf_data, np.float32)
         assert (
             img_data.shape == psf_data.shape
         ), "image and PSF should have the same\
                 shape. Please do padding before using this function."
-        img_conv = imgutil.convolve2gausspsf(
-            img_data,
-            psf_data,
-            self.sigmaf,
-            self.klim,
-        )
-        img_conv_det = imgutil.convolve2gausspsf(
-            img_data,
-            psf_data,
-            self.sigmaf_det,
-            self.klim,
-        )
         if bound is None:
             bound = self.ngrid // 2 + 5
-        dd = imgutil.find_peaks(img_conv, img_conv_det, thres, thres2, bound).T
-        return dd
+        return imgutil.peak_detect(
+            img_data=img_data,
+            psf_data=psf_data,
+            sigmaf=self.sigmaf,
+            sigmaf_det=self.sigmaf_det,
+            klim=self.klim,
+            thres=thres,
+            thres2=thres2,
+            bound=bound,
+        )
 
     def prepare_chi(self, chi):
         """Prepares the basis to estimate shapelet modes
@@ -387,9 +380,8 @@ class measure_source(measure_base):
         """
 
         # Here we divide by self.pix_scale**2. since pixel values are flux in
-        # pixel (in unit of nano Jy for HSC). After dividing pix_scale**2., in
-        # units of (nano Jy/ arcsec^2), dk^2 has unit (1/ arcsec^2)
-        # Correspondingly, covariances are divided by self.pix_scale**4.
+        # After dividing pix_scale**2., dk^2 has unit (1/ arcsec^2).
+        # Covariances are divided by self.pix_scale**4.
         out = (
             jnp.sum(
                 data[None, self._indy, self._indx] * self.chi,

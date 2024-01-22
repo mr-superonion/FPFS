@@ -699,7 +699,7 @@ def make_isolate_sim(
         rot_field (list):       additional rotation angle
         shear_value (float):    shear distortion amplitude
         ngrid (int):            stampe size
-        nrot_per_gal (int):             number of rotations
+        nrot_per_gal (int):     number of rotations
         max_mag (float):        maximum magnitude cut
         min_mag (float):        minimum magnitude cut
         max_hlr (float):        maximum half light radius cut [arcsec]
