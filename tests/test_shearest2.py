@@ -80,8 +80,8 @@ def do_test(scale, ind0, rcut):
     mms = task.get_results(mms)
     # non-linear observables
     ells = fpfs.catalog.m2e(mms, const=20)
-    resp = np.average(ells["R1E"])
-    shear = np.average(ells["e1"]) / resp
+    resp = np.average(ells["fpfs_R1E"])
+    shear = np.average(ells["fpfs_e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)
 
     # test detection
@@ -96,13 +96,15 @@ def do_test(scale, ind0, rcut):
         bound=4,
     )
     coords2 = task.get_results_detection(coords2)
-    assert np.all(coords2["y"] == coords[:, 0])
-    assert np.all(coords2["x"] == coords[:, 1])
-    np.testing.assert_array_almost_equal(coords2["m00"], mms["m00"])
-    np.testing.assert_array_almost_equal(coords2["m20"], mms["m20"])
+    assert np.all(coords2["fpfs_y"] == coords[:, 0])
+    assert np.all(coords2["fpfs_x"] == coords[:, 1])
+    np.testing.assert_array_almost_equal(coords2["fpfs_m00"], mms["fpfs_m00"])
+    np.testing.assert_array_almost_equal(coords2["fpfs_m20"], mms["fpfs_m20"])
     if detect_return_peak_modes:
         for _ in range(detect_nrot):
-            np.testing.assert_array_almost_equal(coords2["v%d" % _], mms["v%d" % _])
+            np.testing.assert_array_almost_equal(
+                coords2["fpfs_v%d" % _], mms["fpfs_v%d" % _]
+            )
     return
 
 

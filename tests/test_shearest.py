@@ -52,9 +52,9 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
         mms = rfn.stack_arrays(results, usemask=False)
         ells = fpfs.catalog.m2e(mms, const=10)
         del mms, results
-        resp = np.average(ells["R1E"])
-        shear = np.average(ells["e1"]) / resp
-        shear_err = np.std(ells["e1"]) / np.abs(resp) / np.sqrt(num_gals)
+        resp = np.average(ells["fpfs_R1E"])
+        shear = np.average(ells["fpfs_e1"]) / resp
+        shear_err = np.std(ells["fpfs_e1"]) / np.abs(resp) / np.sqrt(num_gals)
         y.append(shear)
         y_err.append(shear_err)
     return np.array(y), np.array(y_err)

@@ -144,7 +144,7 @@ class measure_base(object):
         bnames = snames + dnames
         bfunc = jnp.vstack([bfunc, jnp.vstack(psi)])
         self.bfunc = bfunc[:, self._indy, self._indx]
-        self.bnames = [(_nn, "<f8") for _nn in bnames]
+        self.bnames = [("fpfs_%s" % _nn, "<f8") for _nn in bnames]
         return
 
 
@@ -447,9 +447,14 @@ class measure_source(measure_base):
         return outcome
 
     def get_results_detection(self, data):
-        tps = [("y", "i4"), ("x", "i4"), ("m00", "<f8"), ("m20", "<f8")]
+        tps = [
+            ("fpfs_y", "i4"),
+            ("fpfs_x", "i4"),
+            ("fpfs_m00", "<f8"),
+            ("fpfs_m20", "<f8"),
+        ]
         if self.detect_return_peak_modes:
-            tps = tps + [("v%d" % _, "<f8") for _ in range(self.detect_nrot)]
+            tps = tps + [("fpfs_v%d" % _, "<f8") for _ in range(self.detect_nrot)]
         coords = np.rec.fromarrays(
             data.T,
             dtype=tps,

@@ -345,30 +345,30 @@ def m2e(mm, const=1.0, nn=None):
 
     # ellipticity, q-ellipticity, sizes, e^2, eq
     types = [
-        ("e1", "<f8"),
-        ("e2", "<f8"),
-        ("R1E", "<f8"),
-        ("R2E", "<f8"),
+        ("fpfs_e1", "<f8"),
+        ("fpfs_e2", "<f8"),
+        ("fpfs_R1E", "<f8"),
+        ("fpfs_R2E", "<f8"),
     ]
     # make the output ndarray
     out = np.array(np.zeros(mm.size), dtype=types)
 
     # FPFS shape weight's inverse
-    _w = mm["m00"] + const
+    _w = mm["fpfs_m00"] + const
     # FPFS ellipticity
-    e1 = mm["m22c"] / _w
-    e2 = mm["m22s"] / _w
+    e1 = mm["fpfs_m22c"] / _w
+    e2 = mm["fpfs_m22s"] / _w
     # FPFS spin-0 observables
-    s0 = mm["m00"] / _w
-    s4 = mm["m40"] / _w
+    s0 = mm["fpfs_m00"] / _w
+    s4 = mm["fpfs_m40"] / _w
     # intrinsic ellipticity
     e1e1 = e1 * e1
     e2e2 = e2 * e2
 
     # spin-2 properties
-    out["e1"] = e1  # ellipticity
-    out["e2"] = e2
+    out["fpfs_e1"] = e1  # ellipticity
+    out["fpfs_e2"] = e2
     # response for ellipticity
-    out["R1E"] = (s0 - s4 + 2.0 * e1e1) / np.sqrt(2.0)
-    out["R2E"] = (s0 - s4 + 2.0 * e2e2) / np.sqrt(2.0)
+    out["fpfs_R1E"] = (s0 - s4 + 2.0 * e1e1) / np.sqrt(2.0)
+    out["fpfs_R2E"] = (s0 - s4 + 2.0 * e2e2) / np.sqrt(2.0)
     return out
