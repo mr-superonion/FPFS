@@ -1,3 +1,4 @@
+import jax
 import fpfs
 import galsim
 import numpy as np
@@ -40,7 +41,9 @@ def simulate_gal_psf(scale, ind0, rcut):
 def do_test(scale, ind0, rcut):
     thres = 1e-5
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
-    detect_nrot = 16
+    detect_nrot = 8
+    detect_return_peak_modes = True
+
     # test shear estimation
     task = fpfs.image.measure_source(
         psf_data,
@@ -48,16 +51,39 @@ def do_test(scale, ind0, rcut):
         sigma_arcsec=0.55,
         sigma_detect=0.53,
         detect_nrot=detect_nrot,
-        detect_return_peak_modes=True,
+        detect_return_peak_modes=detect_return_peak_modes,
     )
     # linear observables
     mms = task.measure(gal_data, coords)
+
+    # new version
+    cat_obj = fpfs.catalog.FpfsCatalog(
+        m00_min=0.0,
+        r2_min=0.0,
+        v_min=0.0,
+        sigma_m00=0.4,
+        sigma_r2=0.8,
+        sigma_v=0.2,
+    )
+    outcome = jnp.sum(
+        jax.lax.map(jax.jit(cat_obj.measure_g1_noise_correct), mms), axis=0
+    )
+    shear1 = outcome[0] / outcome[1]
+    assert np.all(np.abs(shear1 + 0.02) < thres)
+    outcome = jnp.sum(
+        jax.lax.map(jax.jit(cat_obj.measure_g2_noise_correct), mms), axis=0
+    )
+    shear2 = outcome[0] / outcome[1]
+    assert np.all(np.abs(shear2) < 5e-5)
+
+    # older version
     mms = task.get_results(mms)
     # non-linear observables
     ells = fpfs.catalog.m2e(mms, const=20)
     resp = np.average(ells["R1E"])
     shear = np.average(ells["e1"]) / resp
     assert np.all(np.abs(shear + 0.02) < thres)
+
     # test detection
     p1 = 32 - rcut
     p2 = 64 * 2 - rcut
@@ -74,8 +100,9 @@ def do_test(scale, ind0, rcut):
     assert np.all(coords2["x"] == coords[:, 1])
     np.testing.assert_array_almost_equal(coords2["m00"], mms["m00"])
     np.testing.assert_array_almost_equal(coords2["m20"], mms["m20"])
-    for _ in range(detect_nrot):
-        np.testing.assert_array_almost_equal(coords2["v%d" % _], mms["v%d" % _])
+    if detect_return_peak_modes:
+        for _ in range(detect_nrot):
+            np.testing.assert_array_almost_equal(coords2["v%d" % _], mms["v%d" % _])
     return
 
 
