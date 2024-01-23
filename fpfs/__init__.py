@@ -1,13 +1,12 @@
 # flake8: noqa
+import os
 from .__version__ import __version__
+from .__data_dir__ import __data_dir__
 from . import io
 from . import image
 from . import catalog
 from . import simulation
 from . import pltutil
-from . import default
-from . import pltutil
-from .default import __data_dir__
 
 # We need accuracy is below 1e-6
 from jax import config

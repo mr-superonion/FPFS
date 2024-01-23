@@ -19,7 +19,7 @@ import galsim
 import logging
 import numpy as np
 import astropy.io.fits as pyfits
-from ..default import __data_dir__
+from ..__data_dir__ import __data_dir__
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",

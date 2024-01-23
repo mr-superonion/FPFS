@@ -3,40 +3,6 @@ import galsim
 import numpy as np
 import jax.numpy as jnp
 
-col_names_2 = (
-    "m00",
-    "m20",
-    "m22c",
-    "m22s",
-    "m40",
-    "m42c",
-    "m42s",
-    "v0",
-    "v1",
-    "v2",
-    "v3",
-    "v4",
-    "v5",
-    "v6",
-    "v7",
-    "v0r1",
-    "v1r1",
-    "v2r1",
-    "v3r1",
-    "v4r1",
-    "v5r1",
-    "v6r1",
-    "v7r1",
-    "v0r2",
-    "v1r2",
-    "v2r2",
-    "v3r2",
-    "v4r2",
-    "v5r2",
-    "v6r2",
-    "v7r2",
-)
-
 
 def simulate_gal_psf(scale, ind0, rcut):
     psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(
@@ -74,12 +40,19 @@ def simulate_gal_psf(scale, ind0, rcut):
 def do_test(scale, ind0, rcut):
     thres = 1e-5
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
+    detect_nrot = 16
     # test shear estimation
-    task = fpfs.image.measure_source(psf_data, pix_scale=scale, sigma_arcsec=0.6)
+    task = fpfs.image.measure_source(
+        psf_data,
+        pix_scale=scale,
+        sigma_arcsec=0.55,
+        sigma_detect=0.53,
+        detect_nrot=detect_nrot,
+        detect_return_peak_modes=True,
+    )
     # linear observables
     mms = task.measure(gal_data, coords)
     mms = task.get_results(mms)
-    assert mms.dtype.names == col_names_2
     # non-linear observables
     ells = fpfs.catalog.m2e(mms, const=20)
     resp = np.average(ells["R1E"])
@@ -98,9 +71,11 @@ def do_test(scale, ind0, rcut):
     )
     coords2 = task.get_results_detection(coords2)
     assert np.all(coords2["y"] == coords[:, 0])
-
+    assert np.all(coords2["x"] == coords[:, 1])
     np.testing.assert_array_almost_equal(coords2["m00"], mms["m00"])
     np.testing.assert_array_almost_equal(coords2["m20"], mms["m20"])
+    for _ in range(detect_nrot):
+        np.testing.assert_array_almost_equal(coords2["v%d" % _], mms["v%d" % _])
     return
 
 

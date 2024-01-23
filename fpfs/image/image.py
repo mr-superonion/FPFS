@@ -169,6 +169,7 @@ class measure_noise_cov(measure_base):
         sigma_arcsec,
         sigma_detect=None,
         nnord=4,
+        detect_nrot=8,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -176,6 +177,7 @@ class measure_noise_cov(measure_base):
             nnord=nnord,
             pix_scale=pix_scale,
             sigma_detect=sigma_detect,
+            detect_nrot=detect_nrot,
         )
         self.prepare_fpfs_bases()
         return
@@ -216,8 +218,6 @@ class measure_source(measure_base):
                             [default: 4]
     """
 
-    _DefaultName = "measure_source"
-
     def __init__(
         self,
         psf_data,
@@ -225,6 +225,8 @@ class measure_source(measure_base):
         sigma_arcsec,
         sigma_detect=None,
         nnord=4,
+        detect_nrot=8,
+        detect_return_peak_modes=False,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -232,8 +234,10 @@ class measure_source(measure_base):
             nnord=nnord,
             pix_scale=pix_scale,
             sigma_detect=sigma_detect,
+            detect_nrot=detect_nrot,
         )
         self.prepare_fpfs_bases()
+        self.detect_return_peak_modes = detect_return_peak_modes
         return
 
     def detect_sources(
@@ -302,13 +306,14 @@ class measure_source(measure_base):
             self.klim,
             return_grid=True,
         )
-        for i in range(0, 8, 2):
-            x = jnp.cos(jnp.pi / 4.0 * i)
-            y = jnp.sin(jnp.pi / 4.0 * i)
+        imgf_use = jnp.fft.rfft2(img_data) / psf_fourier
+        for irot in range(self.detect_nrot):
+            x = np.cos(2.0 * np.pi / self.detect_nrot * irot)
+            y = np.sin(2.0 * np.pi / self.detect_nrot * irot)
             bb = (1.0 - jnp.exp(1j * (kxgrids * x + kygrids * y))) * gauss_kernel
-            img_f = jnp.fft.rfft2(img_data) * bb / psf_fourier
-            img_r = jnp.fft.irfft2(img_f, (ny, nx))
+            img_r = jnp.fft.irfft2(imgf_use * bb, (ny, nx))
             sel = sel & (img_r > thres2)
+        del gauss_kernel
 
         # Gaussian kernel for shapelets
         gauss_kernel = util.gauss_kernel_rfft(
@@ -319,7 +324,7 @@ class measure_source(measure_base):
             return_grid=False,
         )
         # convolved images
-        img_fourier = jnp.fft.rfft2(img_data) / psf_fourier * gauss_kernel
+        img_fourier = imgf_use * gauss_kernel
         img_conv = jnp.fft.irfft2(img_fourier, (ny, nx))
         sel = sel & (img_conv > thres)
         del psf_fourier, gauss_kernel
@@ -334,15 +339,42 @@ class measure_source(measure_base):
         w2 = pow(-1.0, nn // 2) * lfunc[nn // 2] * (1j) ** nn
         img_conv2 = jnp.fft.irfft2(img_fourier * w2, (ny, nx))
         sel = sel & (((img_conv + img_conv2) > 0.0) & ((img_conv - img_conv2) > 0.0))
+        meas = jnp.hstack(
+            [
+                img_conv[sel][:, None] / self.pix_scale**2.0,
+                img_conv2[sel][:, None] / self.pix_scale**2.0,
+            ]
+        )
+        if self.detect_return_peak_modes:
+            gauss_kernel = util.gauss_kernel_rfft(
+                ny,
+                nx,
+                self.sigmaf_det,
+                self.klim,
+                return_grid=False,
+            )
+            for irot in range(self.detect_nrot):
+                x = np.cos(2.0 * np.pi / self.detect_nrot * irot)
+                y = np.sin(2.0 * np.pi / self.detect_nrot * irot)
+                bb = (1.0 - jnp.exp(1j * (kxgrids * x + kygrids * y))) * gauss_kernel
+                img_r = jnp.fft.irfft2(imgf_use * bb, (ny, nx))
+                meas = jnp.hstack(
+                    [
+                        meas,
+                        img_r[sel][:, None] / self.pix_scale**2.0,
+                    ]
+                )
+        del imgf_use
 
         det = jnp.int_(jnp.argwhere(sel))
         det = jnp.hstack(
             [
                 det,
-                img_conv[sel][:, None] / self.pix_scale**2.0,
-                img_conv2[sel][:, None] / self.pix_scale**2.0,
+                meas,
             ]
         )
+        del img_conv, img_conv2, w2
+
         msk = (
             (det[:, 0] > bound)
             & (det[:, 0] < ny - bound)
@@ -414,6 +446,8 @@ class measure_source(measure_base):
 
     def get_results_detection(self, data):
         tps = [("y", "i4"), ("x", "i4"), ("m00", "<f8"), ("m20", "<f8")]
+        if self.detect_return_peak_modes:
+            tps = tps + [("v%d" % _, "<f8") for _ in range(self.detect_nrot)]
         coords = np.rec.fromarrays(
             data.T,
             dtype=tps,
