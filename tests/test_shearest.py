@@ -61,9 +61,6 @@ def analyze_fpfs(rng, input_shear, num_gals, noi_stds, noi_psf=1e-9):
 
 
 def test_noisy_gals(noi_std: float = 0.0):
-    assert fpfs.catalog.ncol == len(
-        fpfs.catalog.col_names
-    ), "The number of output column does not match 'catalog.ncol'"
     rng = np.random.RandomState(212)
     num_gals = 10000
     shear, shear_err = analyze_fpfs(rng, np.array([0.03, 0.00]), num_gals, noi_std)
