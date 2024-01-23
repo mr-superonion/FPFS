@@ -389,7 +389,7 @@ class measure_source(measure_base):
 
         Args:
         exposure (ndarray):         galaxy image
-        psf_fourier (ndarray):      PSF's Fourier transform
+        coords (ndarray):           coordinate array
 
         Returns:
         out (ndarray):              FPFS moments
@@ -410,9 +410,11 @@ class measure_source(measure_base):
         Returns:
         mm (ndarray):       FPFS moments
         """
+        y = cc[0].astype(int)
+        x = cc[1].astype(int)
         stamp = jax.lax.dynamic_slice(
             image,
-            (cc[0] - self.ngrid // 2, cc[1] - self.ngrid // 2),
+            (y - self.ngrid // 2, x - self.ngrid // 2),
             (self.ngrid, self.ngrid),
         )
         return self.measure_stamp(stamp)

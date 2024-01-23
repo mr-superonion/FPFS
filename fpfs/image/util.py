@@ -127,3 +127,28 @@ def get_fourier_pow_rfft(input_data):
 
     out = (jnp.abs(jnp.fft.rfft2(input_data)) ** 2.0).astype(jnp.float64)
     return out
+
+
+def truncate_square(arr, rcut):
+    if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
+        raise ValueError("Input array must be a 2D square array")
+
+    ngrid = arr.shape[0]
+    arr[: ngrid // 2 - rcut, :] = 0
+    arr[ngrid // 2 + rcut :, :] = 0
+    arr[:, : ngrid // 2 - rcut] = 0
+    arr[:, ngrid // 2 + rcut :] = 0
+    return
+
+
+def truncate_circle(arr, rcut):
+    if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
+        raise ValueError("Input array must be a 2D square array")
+    ngrid = arr.shape[0]
+    y, x = jnp.ogrid[0:ngrid, 0:ngrid]
+    center_x, center_y = ngrid // 2, ngrid // 2
+    # Compute the squared distance to the center
+    distance_squared = (x - center_x) ** 2 + (y - center_y) ** 2
+    # Mask values outside the circle
+    arr[distance_squared > rcut**2] = 0.0
+    return

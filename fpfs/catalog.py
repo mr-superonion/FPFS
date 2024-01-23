@@ -17,6 +17,9 @@ import numpy as np
 import jax.numpy as jnp
 from copy import deepcopy
 
+import fitsio
+import numpy.lib.recfunctions as rfn
+
 
 # This file tells the default structure of the data
 indexes = {
@@ -56,6 +59,17 @@ indexes = {
 ncol = 31
 
 di = deepcopy(indexes)
+
+
+def read_catalog(fname):
+    x = fitsio.read(fname)
+    if x.dtype.names is not None:
+        x = rfn.structured_to_unstructured(
+            x,
+            dtype=np.float64,
+            copy=True,
+        )
+    return jnp.array(x)
 
 
 def _ssfunc2(t):
