@@ -14,7 +14,20 @@
 # python lib
 
 import numpy as np
+import jax.numpy as jnp
+
 from . import util
+
+
+def get_det_col_names(detect_nrot):
+    name_d = []
+    for irot in range(detect_nrot):
+        name_d.append("v%d" % irot)
+    for irot in range(detect_nrot):
+        name_d.append("v%dr1" % irot)
+    for irot in range(detect_nrot):
+        name_d.append("v%dr2" % irot)
+    return name_d
 
 
 def detlets2d(ngrid, detect_nrot, sigma, klim):
@@ -51,12 +64,45 @@ def detlets2d(ngrid, detect_nrot, sigma, klim):
         psi[0, irot] = gauss_ker - gauss_ker * foub
         psi[1, irot] = q1_ker - (q1_ker + x * d1_ker - y * d2_ker) * foub
         psi[2, irot] = q2_ker - (q2_ker + y * d1_ker + x * d2_ker) * foub
-
-    name_d = []
-    for irot in range(detect_nrot):
-        name_d.append("v%d" % irot)
-    for irot in range(detect_nrot):
-        name_d.append("v%dr1" % irot)
-    for irot in range(detect_nrot):
-        name_d.append("v%dr2" % irot)
+    psi = jnp.vstack(psi)
+    name_d = get_det_col_names(detect_nrot)
     return psi, name_d
+
+
+def detect_thres(imgf_use, thres, ny, nx, sigmaf, klim):
+    # Gaussian kernel for shapelets
+    gauss_kernel, (kygrids, kxgrids) = util.gauss_kernel_rfft(
+        ny,
+        nx,
+        sigmaf,
+        klim,
+        return_grid=True,
+    )
+    # convolved images
+    img_conv = jnp.fft.irfft2(imgf_use * gauss_kernel, (ny, nx))
+    img_conv2 = jnp.fft.irfft2(
+        imgf_use
+        * gauss_kernel
+        * (1.0 - (kxgrids**2.0 + kygrids**2.0) / sigmaf**2.0),
+        (ny, nx),
+    )
+    sel = jnp.logical_and((img_conv > thres), ((img_conv + img_conv2) > 0.0))
+    return sel
+
+
+def detect_max(imgf_use, thres2, detect_nrot, ny, nx, sigmaf_det, klim):
+    gauss_kernel, (kygrids, kxgrids) = util.gauss_kernel_rfft(
+        ny,
+        nx,
+        sigmaf_det,
+        klim,
+        return_grid=True,
+    )
+    sel = jnp.ones((ny, nx), dtype=bool)
+    for irot in range(detect_nrot):
+        x = jnp.cos(2.0 * jnp.pi / detect_nrot * irot)
+        y = jnp.sin(2.0 * jnp.pi / detect_nrot * irot)
+        bb = (1.0 - jnp.exp(1j * (kxgrids * x + kygrids * y))) * gauss_kernel
+        img_r = jnp.fft.irfft2(imgf_use * bb, (ny, nx))
+        sel = jnp.logical_and(sel, (img_r > thres2))
+    return sel

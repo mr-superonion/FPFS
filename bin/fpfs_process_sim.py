@@ -42,12 +42,12 @@ class Worker(object):
         print("The output directory for shear catalogs is %s. " % self.catdir)
 
         # order of shear estimator
-        self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
-        if self.nnord not in [4, 6]:
+        self.nord = cparser.getint("FPFS", "nord", fallback=4)
+        if self.nord not in [4, 6]:
             raise ValueError(
-                "Only support for nnord= 4 or nnord=6, but your input\
-                    is nnord=%d"
-                % self.nnord
+                "Only support for nord= 4 or nord=6, but your input\
+                    is nord=%d"
+                % self.nord
             )
 
         # setup survey parameters
@@ -127,7 +127,7 @@ class Worker(object):
             noise_task = fpfs.image.measure_noise_cov(
                 psf_data2,
                 sigma_arcsec=self.sigma_as,
-                nnord=self.nnord,
+                nord=self.nord,
                 pix_scale=self.scale,
                 sigma_detect=self.sigma_det,
             )
@@ -141,7 +141,7 @@ class Worker(object):
         meas_task = fpfs.image.measure_source(
             psf_data2,
             sigma_arcsec=self.sigma_as,
-            nnord=self.nnord,
+            nord=self.nord,
             pix_scale=self.scale,
             sigma_detect=self.sigma_det,
         )
@@ -149,7 +149,7 @@ class Worker(object):
         idm00 = fpfs.catalog.indexes["m00"]
         idv0 = fpfs.catalog.indexes["v0"]
         # Temp fix for 4th order estimator
-        if self.nnord == 6:
+        if self.nord == 6:
             idv0 += 1
         thres = 8.0 * std_modes[idm00] * self.scale**2.0
         thres2 = -2.0 * std_modes[idv0] * self.scale**2.0
@@ -195,9 +195,9 @@ class Worker(object):
             coords = np.rec.fromarrays(
                 coords.T, dtype=[("fpfs_y", "i4"), ("fpfs_x", "i4")]
             )
-            fpfs.io.save_catalog(out_fname, out, dtype="shape", nnord=str(self.nnord))
+            fpfs.io.save_catalog(out_fname, out, dtype="shape", nord=str(self.nord))
             fpfs.io.save_catalog(
-                det_fname, coords, dtype="position", nnord=str(self.nnord)
+                det_fname, coords, dtype="position", nord=str(self.nord)
             )
             del out, coords, gal_data, out_fname
             gc.collect()

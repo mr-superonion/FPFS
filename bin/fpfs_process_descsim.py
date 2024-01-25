@@ -111,12 +111,12 @@ class Worker(object):
         self.sigma_as = cparser.getfloat("FPFS", "sigma_as")
         self.sigma_det = cparser.getfloat("FPFS", "sigma_det")
         self.rcut = cparser.getint("FPFS", "rcut")
-        self.nnord = cparser.getint("FPFS", "nnord", fallback=4)
-        if self.nnord not in [4, 6]:
+        self.nord = cparser.getint("FPFS", "nord", fallback=4)
+        if self.nord not in [4, 6]:
             raise ValueError(
-                "Only support for nnord= 4 or nnord=6, but your input\
-                    is nnord=%d"
-                % self.nnord
+                "Only support for nord= 4 or nord=6, but your input\
+                    is nord=%d"
+                % self.nord
             )
 
         # setup survey parameters
@@ -142,7 +142,7 @@ class Worker(object):
                 psf_array2,
                 sigma_arcsec=self.sigma_as,
                 sigma_detect=self.sigma_det,
-                nnord=self.nnord,
+                nord=self.nord,
                 pix_scale=self.scale,
             )
             cov_elem = np.array(noise_task.measure(self.noise_pow))
@@ -175,7 +175,7 @@ class Worker(object):
             psf_array2,
             sigma_arcsec=self.sigma_as,
             sigma_detect=self.sigma_det,
-            nnord=self.nnord,
+            nord=self.nord,
             pix_scale=self.scale,
         )
         print(
@@ -186,7 +186,7 @@ class Worker(object):
         idm00 = fpfs.catalog.indexes["m00"]
         idv0 = fpfs.catalog.indexes["v0"]
         # Temp fix for 4th order estimator
-        if self.nnord == 6:
+        if self.nord == 6:
             idv0 += 1
         if std_modes[idm00] > 1e-10:
             thres = 9.5 * std_modes[idm00] * self.scale**2.0
@@ -234,8 +234,8 @@ class Worker(object):
         elapsed_time = end_time - start_time
         # Print the elapsed time
         print(f"Elapsed time: {elapsed_time} seconds")
-        fpfs.io.save_catalog(det_fname, det, dtype="position", nnord=str(self.nnord))
-        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nnord=str(self.nnord))
+        fpfs.io.save_catalog(det_fname, det, dtype="position", nord=str(self.nord))
+        fpfs.io.save_catalog(out_fname, cat, dtype="shape", nord=str(self.nord))
         return
 
 

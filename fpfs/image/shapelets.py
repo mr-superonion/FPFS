@@ -14,8 +14,59 @@
 # python lib
 
 import math
+import jax.numpy as jnp
 import numpy as np
 from . import util
+
+
+def get_shapelets_col_names(nord):
+    # M_{nm}
+    # nm = n*(nord+1)+m
+    if nord == 4:
+        # This setup is for shear response only
+        # Only uses M00, M20, M22 (real and img) and M40, M42 (real and img)
+        name_s = [
+            "m00",
+            "m20",
+            "m22c",
+            "m22s",
+            "m40",
+            "m42c",
+            "m42s",
+            # "m44c", "m44s",
+        ]
+        ind_s = [
+            [0, False],
+            [10, False],
+            [12, False],
+            [12, True],
+            [20, False],
+            [22, False],
+            [22, True],
+            # [24, False],
+            # [24, True],
+        ]
+    elif nord == 6:
+        # This setup is able to derive kappa response and shear response
+        # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
+        name_s = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s", "m60"]
+        ind_s = [
+            [0, False],
+            [14, False],
+            [16, False],
+            [16, True],
+            [28, False],
+            [30, False],
+            [30, True],
+            [42, False],
+        ]
+    else:
+        raise ValueError(
+            "only support for nord= 4 or nord=6, but your input\
+                is nord=%d"
+            % nord
+        )
+    return name_s, ind_s
 
 
 def shapelets2d(ngrid, nord, sigma, klim):
@@ -42,8 +93,8 @@ def shapelets2d(ngrid, nord, sigma, klim):
     ny, nx = gaufunc.shape
 
     rmask = rfunc != 0.0
-    xtfunc = np.zeros((ny, nx), dtype=np.float64)
-    ytfunc = np.zeros((ny, nx), dtype=np.float64)
+    xtfunc = np.zeros((ny, nx))
+    ytfunc = np.zeros((ny, nx))
     np.divide(xfunc, rfunc, where=rmask, out=xtfunc)  # cos(phi)
     np.divide(yfunc, rfunc, where=rmask, out=ytfunc)  # sin(phi)
     eulfunc = xtfunc + 1j * ytfunc  # e^{jphi}
@@ -93,51 +144,15 @@ def shapelets2d_real(ngrid, nord, sigma, klim):
     chi_2 (ndarray): 2d shapelet basis w/ shape [n,ngrid,ngrid]
     name_s (list):   A list of shaplet names
     """
-    # M_{nm}
-    # nm = n*(nnord+1)+m
-    if nord == 4:
-        # This setup is for shear response only
-        # Only uses M00, M20, M22 (real and img) and M40, M42
-        indm = np.array([0, 10, 12, 20, 22])[:, None, None]
-        name_s = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s"]
-        ind_s = [
-            [0, False],
-            [1, False],
-            [2, False],
-            [2, True],
-            [3, False],
-            [4, False],
-            [4, True],
-        ]
-    elif nord == 6:
-        # This setup is able to derive kappa response and shear response
-        # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
-        indm = np.array([0, 14, 16, 28, 30, 42])[:, None, None]
-        name_s = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s", "m60"]
-        ind_s = [
-            [0, False],
-            [1, False],
-            [2, False],
-            [2, True],
-            [3, False],
-            [4, False],
-            [4, True],
-            [5, False],
-        ]
-    else:
-        raise ValueError(
-            "only support for nnord= 4 or nnord=6, but your input\
-                is nnord=%d"
-            % nord
-        )
+    name_s, ind_s = get_shapelets_col_names(nord)
     # generate the complex shaplet functions
-    chi = shapelets2d(ngrid, nord, sigma, klim)[indm]
+    chi = shapelets2d(ngrid, nord, sigma, klim)
     # transform to real shapelet functions
-    chi_2 = np.zeros((len(name_s), ngrid, ngrid), dtype=np.float64)
+    chi_2 = np.zeros((len(name_s), ngrid, ngrid))
     for i, ind in enumerate(ind_s):
         if ind[1]:
-            chi_2[i] = np.float64(chi[ind[0]].imag)
+            chi_2[i] = chi[ind[0]].imag
         else:
-            chi_2[i] = np.float64(chi[ind[0]].real)
+            chi_2[i] = chi[ind[0]].real
     del chi
-    return chi_2, name_s
+    return jnp.array(chi_2), name_s

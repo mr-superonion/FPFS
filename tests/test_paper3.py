@@ -37,7 +37,7 @@ def test_noise_cov():
         pix_scale=scale,
         sigma_arcsec=0.45,
         sigma_detect=0.45,
-        nnord=4,
+        nord=4,
     )
 
     # Test whether the impt version is consistent with paper3

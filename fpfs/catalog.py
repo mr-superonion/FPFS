@@ -15,50 +15,11 @@
 import jax
 import numpy as np
 import jax.numpy as jnp
-from copy import deepcopy
 
 import fitsio
 import numpy.lib.recfunctions as rfn
 
-
-# This file tells the default structure of the data
-indexes = {
-    "m00": 0,
-    "m20": 1,
-    "m22c": 2,
-    "m22s": 3,
-    "m40": 4,
-    "m42c": 5,
-    "m42s": 6,
-    "v0": 7,
-    "v1": 8,
-    "v2": 9,
-    "v3": 10,
-    "v4": 11,
-    "v5": 12,
-    "v6": 13,
-    "v7": 14,
-    "v0_g1": 15,
-    "v1_g1": 16,
-    "v2_g1": 17,
-    "v3_g1": 18,
-    "v4_g1": 19,
-    "v5_g1": 20,
-    "v6_g1": 21,
-    "v7_g1": 22,
-    "v0_g2": 23,
-    "v1_g2": 24,
-    "v2_g2": 25,
-    "v3_g2": 26,
-    "v4_g2": 27,
-    "v5_g2": 28,
-    "v6_g2": 29,
-    "v7_g2": 30,
-}
-
-ncol = 31
-
-di = deepcopy(indexes)
+from .image.image import fpfs_base
 
 
 def read_catalog(fname):
@@ -91,7 +52,7 @@ def ssfunc2(x, mu, sigma):
     return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _ssfunc2, 1.0])
 
 
-class FpfsCatalog(object):
+class FpfsCatalog(fpfs_base):
     def __init__(
         self,
         funcnm="ss2",
@@ -111,19 +72,27 @@ class FpfsCatalog(object):
         m00_min=None,
         C0=None,
         C2=None,
+        nord=4,
+        detect_nrot=8,
     ):
+        super().__init__(
+            nord=nord,
+            detect_nrot=detect_nrot,
+        )
         if cov_mat is None:
-            cov_mat = jnp.zeros((ncol, ncol))
+            cov_mat = jnp.zeros((self.ncol, self.ncol))
         self.cov_mat = cov_mat
         std_modes = np.sqrt(np.diagonal(cov_mat))
-        std_m00 = std_modes[di["m00"]]
+        std_m00 = std_modes[self.di["m00"]]
         std_m20 = np.sqrt(
-            cov_mat[di["m00"], di["m00"]]
-            + cov_mat[di["m20"], di["m20"]]
-            + cov_mat[di["m00"], di["m20"]]
-            + cov_mat[di["m20"], di["m00"]]
+            cov_mat[self.di["m00"], self.di["m00"]]
+            + cov_mat[self.di["m20"], self.di["m20"]]
+            + cov_mat[self.di["m00"], self.di["m20"]]
+            + cov_mat[self.di["m20"], self.di["m00"]]
         )
-        std_v = jnp.average(jnp.array([std_modes[di["v%d" % _]] for _ in range(8)]))
+        std_v = jnp.average(
+            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(detect_nrot)])
+        )
 
         # selection and detection function
         self.wfunc = ssfunc2
@@ -169,18 +138,19 @@ class FpfsCatalog(object):
     def _dg1(self, x):
         """Returns shear response array [first component] of shapelet pytree"""
         # shear response for shapelet modes
-        dm00 = -jnp.sqrt(2.0) * x[di["m22c"]]
-        dm20 = -jnp.sqrt(6.0) * x[di["m42c"]]
-        dm22c = (x[di["m00"]] - x[di["m40"]]) / jnp.sqrt(2.0)
-        # TODO: Include spin-4 term. Will add it when we have M44
-        dm22s = 0.0
-        # TODO: Incldue the shear response of M40 in the future. This is not
-        # required in the FPFS shear estimation (v1~v3), so I set it to zero
-        # here (But if you are interested in playing with shear response of
-        # this term, please contact me.)
+        dm00 = -jnp.sqrt(2.0) * x[self.di["m22c"]]
+        dm20 = -jnp.sqrt(6.0) * x[self.di["m42c"]]
+        dm22c = (
+            (x[self.di["m00"]] - x[self.di["m40"]])
+            / jnp.sqrt(2.0)
+            # - jnp.sqrt(3.0) * x[self.di["m44c"]]
+        )
+        dm22s = 0.0  # - jnp.sqrt(3.0) * x[self.di["m44s"]]
         dm40 = 0.0
         dm42c = 0.0
         dm42s = 0.0
+        # dm44c = 0.0
+        # dm44s = 0.0
         out = jnp.stack(
             [
                 dm00,
@@ -190,33 +160,29 @@ class FpfsCatalog(object):
                 dm40,
                 dm42c,
                 dm42s,
-                x[di["v0_g1"]],
-                x[di["v1_g1"]],
-                x[di["v2_g1"]],
-                x[di["v3_g1"]],
-                x[di["v4_g1"]],
-                x[di["v5_g1"]],
-                x[di["v6_g1"]],
-                x[di["v7_g1"]],
+                # dm44c,
+                # dm44s,
             ]
-            + [0] * 16
+            + [x[self.di["v%dr1" % _]] for _ in range(self.detect_nrot)]
+            + [0] * self.detect_nrot * 2
         )
         return out
 
     def _dg2(self, x):
         """Returns shear response array [second component] of shapelet pytree"""
-        dm00 = -jnp.sqrt(2.0) * x[di["m22s"]]
-        dm20 = -jnp.sqrt(6.0) * x[di["m42s"]]
-        # TODO: Include spin-4 term. Will add it when we have M44
-        dm22c = 0.0
-        dm22s = (x[di["m00"]] - x[di["m40"]]) / jnp.sqrt(2.0)
-        # TODO: Incldue the shear response of M40 in the future. This is not
-        # required in the FPFS shear estimation (v1~v3), so I set it to zero
-        # here (But if you are interested in playing with shear response of
-        # this term, please contact me.)
+        dm00 = -jnp.sqrt(2.0) * x[self.di["m22s"]]
+        dm20 = -jnp.sqrt(6.0) * x[self.di["m42s"]]
+        dm22c = 0.0  # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+        dm22s = (
+            (x[self.di["m00"]] - x[self.di["m40"]])
+            / jnp.sqrt(2.0)
+            # + jnp.sqrt(3.0) * x[self.di["m44c"]]
+        )
         dm40 = 0.0
         dm42c = 0.0
         dm42s = 0.0
+        # dm44c = 0.0
+        # dm44s = 0.0
         out = jnp.stack(
             [
                 dm00,
@@ -226,45 +192,38 @@ class FpfsCatalog(object):
                 dm40,
                 dm42c,
                 dm42s,
-                x[di["v0_g2"]],
-                x[di["v1_g2"]],
-                x[di["v2_g2"]],
-                x[di["v3_g2"]],
-                x[di["v4_g2"]],
-                x[di["v5_g2"]],
-                x[di["v6_g2"]],
-                x[di["v7_g2"]],
+                # dm44c,
+                # dm44s,
             ]
-            + [0] * 16
+            + [x[self.di["v%dr2" % _]] for _ in range(self.detect_nrot)]
+            + [0] * self.detect_nrot * 2
         )
         return out
 
     def _wsel(self, x):
         # selection on flux
-        w0l = self.wfunc(x[di["m00"]], self.m00_min, self.sigma_m00)
-        # w0u = self.ufunc(300.0 - x[di["m00"]], 0.0, self.sigma_m00)
+        w0l = self.wfunc(x[self.di["m00"]], self.m00_min, self.sigma_m00)
 
         # selection on size (lower limit)
         # (M00 + M20) / M00 > r2_min
-        r2l = x[di["m00"]] * (1.0 - self.r2_min) + x[di["m20"]]
+        r2l = x[self.di["m00"]] * (1.0 - self.r2_min) + x[self.di["m20"]]
         w2l = self.wfunc(r2l, self.sigma_r2, self.sigma_r2)
 
         # selection on size (upper limit)
         # (M00 + M20) / M00 < r2_max
         # M00 (1 - r2_max) + M20 < 0
         # M00 (r2_max - 1) - M20 > 0
-        r2u = x[di["m00"]] * (self.r2_max - 1.0) - x[di["m20"]]
+        r2u = x[self.di["m00"]] * (self.r2_max - 1.0) - x[self.di["m20"]]
         w2u = self.wfunc(r2u, self.sigma_r2, self.sigma_r2)
         wsel = w0l * w2l * w2u
         return wsel
 
     def _wdet(self, x):
-        npeak = 8
         # detection
         wdet = 1.0
-        for i in range(0, npeak):
+        for i in range(self.detect_nrot):
             wdet = wdet * self.wfunc(
-                x[di["v%d" % i]],
+                x[self.di["v%d" % i]],
                 self.v_min,
                 self.sigma_v,
             )
@@ -272,18 +231,18 @@ class FpfsCatalog(object):
 
     def _e1(self, x):
         # ellipticity1
-        denom = (x[di["m00"]] + self.C0) ** self.alpha * (
-            x[di["m00"]] + x[di["m20"]] + self.C2
+        denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
+            x[self.di["m00"]] + x[self.di["m20"]] + self.C2
         ) ** self.beta
-        e1 = x[di["m22c"]] / denom
+        e1 = x[self.di["m22c"]] / denom
         return e1
 
     def _e2(self, x):
         # ellipticity2
-        denom = (x[di["m00"]] + self.C0) ** self.alpha * (
-            x[di["m00"]] + x[di["m20"]] + self.C2
+        denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
+            x[self.di["m00"]] + x[self.di["m20"]] + self.C2
         ) ** self.beta
-        e2 = x[di["m22s"]] / denom
+        e2 = x[self.di["m22s"]] / denom
         return e2
 
     def _we1(self, x):

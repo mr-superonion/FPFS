@@ -1,7 +1,9 @@
 import jax
 import jax.numpy as jnp
+from functools import partial
 
 
+@jax.jit
 def get_klim(psf_array, sigma, thres=1e-20):
     """Gets klim, the region outside klim is supressed by the shaplet Gaussian
     kernel in FPFS shear estimation method; therefore we set values in this
@@ -45,6 +47,7 @@ def get_klim(psf_array, sigma, thres=1e-20):
     return klim
 
 
+@partial(jax.jit, static_argnames=["ny", "nx", "klim", "return_grid"])
 def gauss_kernel_fft(ny, nx, sigma, klim, return_grid=False):
     """Generates a Gaussian kernel on grids for np.fft.fft transform
     (we always shift k=0 to (ngird//2, ngird//2)). The kernel is truncated at
@@ -74,6 +77,7 @@ def gauss_kernel_fft(ny, nx, sigma, klim, return_grid=False):
         return out, (ygrid, xgrid)
 
 
+@partial(jax.jit, static_argnames=["ny", "nx", "klim", "return_grid"])
 def gauss_kernel_rfft(ny, nx, sigma, klim, return_grid=False):
     """Generates a Gaussian kernel on grids for np.fft.rfft transform
     The kernel is truncated at radius klim.
@@ -93,7 +97,7 @@ def gauss_kernel_rfft(ny, nx, sigma, klim, return_grid=False):
     y = jnp.fft.fftfreq(ny, 1 / jnp.pi / 2.0)
     ygrid, xgrid = jnp.meshgrid(y, x, indexing="ij")
     r2 = xgrid**2.0 + ygrid**2.0
-    mask = (r2 <= klim**2).astype(jnp.float64)
+    mask = (r2 <= klim**2).astype(int)
     out = jnp.exp(-r2 / 2.0 / sigma**2.0) * mask
     if not return_grid:
         return out
@@ -101,6 +105,7 @@ def gauss_kernel_rfft(ny, nx, sigma, klim, return_grid=False):
         return out, (ygrid, xgrid)
 
 
+@jax.jit
 def get_fourier_pow_fft(input_data):
     """Gets Fourier power function
 
@@ -115,6 +120,7 @@ def get_fourier_pow_fft(input_data):
     return out
 
 
+@jax.jit
 def get_fourier_pow_rfft(input_data):
     """Gets Fourier power function
 

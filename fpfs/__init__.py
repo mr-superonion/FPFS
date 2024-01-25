@@ -18,6 +18,5 @@ __all__ = [
     "catalog",
     "simulation",
     "pltutil",
-    "default",
     "io",
 ]
