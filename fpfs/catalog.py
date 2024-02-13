@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import fitsio
 import numpy.lib.recfunctions as rfn
 
-from .image.image import fpfs_base
+from .image.image import fpfs_base, det_ratio
 
 
 def read_catalog(fname):
@@ -43,7 +43,7 @@ def ssfunc2(x, mu, sigma):
     Args:
     x (ndarray):    input data vector
     mu (float):     center of the cut
-    sigma (float):  width of the selection function
+    sigma (float):  half width of the selection function
 
     Returns:
     out (ndarray):  the weight funciton
@@ -68,7 +68,6 @@ class FpfsCatalog(fpfs_base):
         sigma_m00=None,
         sigma_r2=None,
         sigma_v=None,
-        v_min=None,
         m00_min=None,
         C0=None,
         C2=None,
@@ -111,10 +110,6 @@ class FpfsCatalog(fpfs_base):
             self.sigma_v = sigma_v
 
         # thresholds
-        if v_min is None:
-            self.v_min = ratio * std_v * 0.5
-        else:
-            self.v_min = v_min
         if m00_min is None:
             self.m00_min = snr_min * std_m00
         else:
@@ -223,8 +218,8 @@ class FpfsCatalog(fpfs_base):
         wdet = 1.0
         for i in range(self.detect_nrot):
             wdet = wdet * self.wfunc(
-                x[self.di["v%d" % i]],
-                self.v_min,
+                x[self.di["v%d" % i]] + det_ratio * x[self.di["m00"]],
+                self.sigma_v,
                 self.sigma_v,
             )
         return wdet

@@ -17,10 +17,12 @@ import jax
 import logging
 import numpy as np
 import jax.numpy as jnp
+from functools import partial
 from . import util
 from .shapelets import shapelets2d_real, get_shapelets_col_names
 from .detection import detlets2d, get_det_col_names
 
+det_ratio = 0.02
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",
@@ -122,6 +124,7 @@ class measure_base(fpfs_base):
         self.prepare_fpfs_bases()
         return
 
+    @partial(jax.jit, static_argnames=["self"])
     def deconvolve(self, data, prder=1.0, frder=1.0):
         """Deconvolves input data with the PSF or PSF power
 
@@ -163,7 +166,7 @@ class measure_base(fpfs_base):
         bnames = snames + dnames
         bfunc = jnp.vstack([chi, psi])
         self.bfunc = jnp.array(bfunc[:, self._indy, self._indx])
-        self.bnames = [("fpfs_%s" % _nn, "<f8") for _nn in bnames]
+        self.byps = [("fpfs_%s" % _nn, "<f8") for _nn in bnames]
         return
 
 
@@ -264,7 +267,6 @@ class measure_source(measure_base):
         psf_data,
         cov_elem,
         thres,
-        thres2,
         bound=None,
     ):
         """Returns the coordinates of detected sources
@@ -274,7 +276,6 @@ class measure_source(measure_base):
         psf_data (ndarray):         PSF image [must be well-centered]
         cov_elem (ndarray):         covariance matrix of the measurement error
         thres (float):              n-sigma detection threshold
-        thres2 (float):             n-sigma peak difference threshold
         bound (int):                remove sources at boundary
 
         Returns:
@@ -283,8 +284,6 @@ class measure_source(measure_base):
         logging.info("Running Detection")
         if not thres >= 5.0:
             raise ValueError("detection threshold should be positive")
-        if not thres2 <= 0.0:
-            raise ValueError("difference threshold should be non-positive")
         if bound is None:
             bound = self.ngrid // 2 + 5
         out = self.peak_detect(
@@ -292,21 +291,19 @@ class measure_source(measure_base):
             psf_data=psf_data,
             cov_elem=cov_elem,
             thres=thres,
-            thres2=thres2,
             bound=bound,
         )
         logging.info("Finish Detection")
         logging.info("Detect sources %d" % len(out))
         return out
 
-    def peak_detect(self, img_data, psf_data, cov_elem, thres, thres2, bound=20.0):
+    def peak_detect(self, img_data, psf_data, cov_elem, thres, bound):
         """This function convolves an image to transform the PSF to a Gaussian
 
         Args:
         img_data (ndarray):     image data
         psf_data (ndarray):     psf data
         thres (float):          n-sigma threshold of Gaussian flux
-        thres2 (float):         n-sigma threshold of peak detection
         bound (float):          minimum distance to the image boundary
 
         Returns:
@@ -315,9 +312,7 @@ class measure_source(measure_base):
 
         std_modes = jnp.sqrt(jnp.diagonal(cov_elem))
         idm00 = self.di["m00"]
-        idv0 = self.di["v0"]
         thres_tmp = thres * std_modes[idm00] * self.pix_scale**2.0
-        thres2_tmp = thres2 * std_modes[idv0] * self.pix_scale**2.0
 
         ny, nx = img_data.shape
         # Fourier transform
@@ -344,10 +339,10 @@ class measure_source(measure_base):
             imf * (2.0 - (kxgrids**2.0 + kygrids**2.0) / self.sigmaf**2.0),
             (ny, nx),
         )
+        del imf, kernel, kxgrids, kygrids
         sel = get_pixel_detect_mask(
             jnp.logical_and(img_conv > thres_tmp, img_conv2 > 0.0),
             img_conv,
-            thres2_tmp,
         )
         det = jnp.int_(jnp.argwhere(sel))
 
@@ -428,7 +423,7 @@ class measure_source(measure_base):
         if coords is None:
             coords = jnp.array(exposure.shape) // 2
         func = lambda xi: self.measure_coord(xi, jnp.array(exposure))
-        return jax.lax.map(jax.jit(func), jnp.atleast_2d(coords.T).T)
+        return jax.lax.map(func, jnp.atleast_2d(coords.T).T)
 
     def measure_coord(self, cc, image):
         """This function measures the FPFS moments from a coordinate
@@ -471,7 +466,7 @@ class measure_source(measure_base):
         return outcome
 
     def get_results(self, data):
-        outcome = np.rec.fromarrays(data.T, dtype=self.bnames)
+        outcome = np.rec.fromarrays(data.T, dtype=np.dtype(self.byps))
         return outcome
 
     def get_results_detection(self, data):
@@ -487,15 +482,15 @@ class measure_source(measure_base):
             tps = tps + [("fpfs_v%d" % _, "<f8") for _ in range(self.detect_nrot)]
         coords = np.rec.fromarrays(
             data.T,
-            dtype=tps,
+            dtype=np.dtype(tps),
         )
         return coords
 
 
 @jax.jit
-def get_pixel_detect_mask(sel, img, thres2):
+def get_pixel_detect_mask(sel, img):
     for ax in [-1, -2]:
         for shift in [-1, 1]:
             filtered = img - jnp.roll(img, shift=shift, axis=ax)
-            sel = jnp.logical_and(sel, (filtered > thres2))
+            sel = jnp.logical_and(sel, (filtered + det_ratio * img > 0.0))
     return sel
