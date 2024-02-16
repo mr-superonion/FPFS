@@ -653,7 +653,7 @@ class CosmosCatalog(object):
     def make_catalog(self, rng, n):
         if self.ntrain < n:
             raise ValueError(
-                "mag_cut is too small, and there is not enough number of galaxies"
+                "There is not enough number of galaxies available"
             )
         # nrot_per_gal is the number of rotated galaxies in each subfield
         inds = rng.np.integers(low=0, high=self.ntrain, size=n)
