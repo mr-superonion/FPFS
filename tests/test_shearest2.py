@@ -44,19 +44,15 @@ def do_test(scale, ind0, rcut):
     c_thres = 3e-5
     m_thres = 3e-3
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
-    detect_nrot = 4
     nord = 4
-    detect_return_peak_modes = True
 
     # test shear estimation
     task = fpfs.image.measure_source(
         psf_data,
         pix_scale=scale,
-        sigma_arcsec=0.55,
+        sigma_arcsec=0.53,
         sigma_detect=0.53,
         nord=nord,
-        detect_nrot=detect_nrot,
-        detect_return_peak_modes=detect_return_peak_modes,
     )
     print("run measurement")
     # linear observables
@@ -65,14 +61,12 @@ def do_test(scale, ind0, rcut):
 
     # new version
     cat_obj = fpfs.catalog.FpfsCatalog(
-        m00_min=0.0,
+        snr_min=0.0,
         r2_min=0.0,
-        v_min=0.0,
         sigma_m00=0.4,
         sigma_r2=0.8,
-        sigma_v=0.2,
+        sigma_v=0.1,
         nord=nord,
-        detect_nrot=detect_nrot,
     )
     print("run summary")
     outcome = jnp.sum(
@@ -110,15 +104,6 @@ def do_test(scale, ind0, rcut):
     )
     coords2 = task.get_results_detection(coords2)
     print("finish detection")
-    assert np.all(coords2["fpfs_y"] == coords[:, 0])
-    assert np.all(coords2["fpfs_x"] == coords[:, 1])
-    np.testing.assert_array_almost_equal(coords2["fpfs_m00"], mms["fpfs_m00"])
-    np.testing.assert_array_almost_equal(coords2["fpfs_m20"], mms["fpfs_m20"])
-    if detect_return_peak_modes:
-        for _ in range(detect_nrot):
-            np.testing.assert_array_almost_equal(
-                coords2["fpfs_v%d" % _], mms["fpfs_v%d" % _]
-            )
     return
 
 

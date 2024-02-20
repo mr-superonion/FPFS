@@ -59,11 +59,12 @@ class FpfsCatalog(fpfs_base):
         ratio=1.81,
         snr_min=12,
         r2_min=0.05,
-        r2_max=2.0,
+        r2_max=1.5,
         c0=2.55,
         c2=25.6,
         alpha=0.27,
         beta=0.83,
+        thres2=0.0,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
@@ -72,13 +73,12 @@ class FpfsCatalog(fpfs_base):
         C0=None,
         C2=None,
         nord=4,
-        detect_nrot=8,
     ):
         super().__init__(
             nord=nord,
-            detect_nrot=detect_nrot,
         )
         if cov_mat is None:
+            # cov_mat = jnp.eye(self.ncol)
             cov_mat = jnp.zeros((self.ncol, self.ncol))
         self.cov_mat = cov_mat
         std_modes = np.sqrt(np.diagonal(cov_mat))
@@ -90,8 +90,10 @@ class FpfsCatalog(fpfs_base):
             + cov_mat[self.di["m20"], self.di["m00"]]
         )
         std_v = jnp.average(
-            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(detect_nrot)])
+            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
         )
+        self.std_v = std_v
+        self.thres2 = thres2
 
         # selection and detection function
         self.wfunc = ssfunc2
@@ -110,10 +112,7 @@ class FpfsCatalog(fpfs_base):
             self.sigma_v = sigma_v
 
         # thresholds
-        if m00_min is None:
-            self.m00_min = snr_min * std_m00
-        else:
-            self.m00_min = m00_min
+        self.m00_min = snr_min * std_m00
         self.r2_min = r2_min
         self.r2_max = r2_max
 
@@ -158,8 +157,8 @@ class FpfsCatalog(fpfs_base):
                 # dm44c,
                 # dm44s,
             ]
-            + [x[self.di["v%dr1" % _]] for _ in range(self.detect_nrot)]
-            + [0] * self.detect_nrot * 2
+            + [x[self.di["v%dr1" % _]] for _ in range(8)]
+            + [0] * 8 * 2
         )
         return out
 
@@ -190,8 +189,8 @@ class FpfsCatalog(fpfs_base):
                 # dm44c,
                 # dm44s,
             ]
-            + [x[self.di["v%dr2" % _]] for _ in range(self.detect_nrot)]
-            + [0] * self.detect_nrot * 2
+            + [x[self.di["v%dr2" % _]] for _ in range(8)]
+            + [0] * 8 * 2
         )
         return out
 
@@ -210,15 +209,23 @@ class FpfsCatalog(fpfs_base):
         # M00 (r2_max - 1) - M20 > 0
         r2u = x[self.di["m00"]] * (self.r2_max - 1.0) - x[self.di["m20"]]
         w2u = self.wfunc(r2u, self.sigma_r2, self.sigma_r2)
-        wsel = w0l * w2l * w2u
+
+        # wlap
+        # (M00 - M20) / M00 > 0.3
+        # lap = x[self.di["m00"]] * (1.0 - 0.1) - x[self.di["m20"]]
+        # wlap = self.wfunc(lap, self.sigma_r2, self.sigma_r2)
+        wlap = 1.0
+        wsel = w0l * w2l * w2u * wlap
         return wsel
 
     def _wdet(self, x):
         # detection
         wdet = 1.0
-        for i in range(self.detect_nrot):
+        for i in range(8):
             wdet = wdet * self.wfunc(
-                x[self.di["v%d" % i]] + det_ratio * x[self.di["m00"]],
+                x[self.di["v%d" % i]]
+                + det_ratio * x[self.di["m00"]]
+                + self.std_v * self.thres2,
                 self.sigma_v,
                 self.sigma_v,
             )
@@ -285,16 +292,17 @@ def m2e(mm, const=1.0, nn=None):
     """Estimates FPFS ellipticities from fpfs moments
 
     Args:
-        mm (ndarray):
-            FPFS moments
-        const (float):
-            the weight constant [default:1]
-        nn (ndarray):
-            noise covaraince elements [default: None]
+    mm (ndarray):
+        FPFS moments
+    const (float):
+        the weight constant [default:1]
+    nn (ndarray):
+        noise covaraince elements [default: None]
+
     Returns:
-        out (ndarray):
-            an array of [FPFS ellipticities, FPFS ellipticity response, FPFS
-            flux, size and FPFS selection response]
+    out (ndarray):
+        an array of [FPFS ellipticities, FPFS ellipticity response, FPFS
+        flux, size and FPFS selection response]
     """
 
     # ellipticity, q-ellipticity, sizes, e^2, eq

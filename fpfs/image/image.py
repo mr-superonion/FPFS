@@ -32,11 +32,10 @@ logging.basicConfig(
 
 
 class fpfs_base(object):
-    def __init__(self, nord, detect_nrot):
+    def __init__(self, nord):
         self.nord = nord
-        self.detect_nrot = detect_nrot
         name_s, ind_s = get_shapelets_col_names(nord)
-        name_d = get_det_col_names(detect_nrot)
+        name_d = get_det_col_names()
         name_s = name_s + name_d
         self.di = {}
         for index, element in enumerate(name_s):
@@ -67,11 +66,9 @@ class measure_base(fpfs_base):
         sigma_arcsec,
         sigma_detect=None,
         nord=4,
-        detect_nrot=8,
     ):
         super().__init__(
             nord=nord,
-            detect_nrot=detect_nrot,
         )
         if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
             raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
@@ -159,7 +156,6 @@ class measure_base(fpfs_base):
         )
         psi, dnames = detlets2d(
             self.ngrid,
-            self.detect_nrot,
             self.sigmaf_det,
             self.klim,
         )
@@ -191,7 +187,6 @@ class measure_noise_cov(measure_base):
         sigma_arcsec,
         sigma_detect=None,
         nord=4,
-        detect_nrot=8,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -199,7 +194,6 @@ class measure_noise_cov(measure_base):
             nord=nord,
             pix_scale=pix_scale,
             sigma_detect=sigma_detect,
-            detect_nrot=detect_nrot,
         )
         self.prepare_fpfs_bases()
         return
@@ -247,8 +241,6 @@ class measure_source(measure_base):
         sigma_arcsec,
         sigma_detect=None,
         nord=4,
-        detect_nrot=8,
-        detect_return_peak_modes=False,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -256,9 +248,7 @@ class measure_source(measure_base):
             nord=nord,
             pix_scale=pix_scale,
             sigma_detect=sigma_detect,
-            detect_nrot=detect_nrot,
         )
-        self.detect_return_peak_modes = detect_return_peak_modes
         return
 
     def detect_sources(
@@ -267,6 +257,7 @@ class measure_source(measure_base):
         psf_data,
         cov_elem,
         thres,
+        thres2=0.0,
         bound=None,
     ):
         """Returns the coordinates of detected sources
@@ -282,7 +273,7 @@ class measure_source(measure_base):
         coords (ndarray):           peak values and the shear responses
         """
         logging.info("Running Detection")
-        if not thres >= 5.0:
+        if not thres >= 0.0:
             raise ValueError("detection threshold should be positive")
         if bound is None:
             bound = self.ngrid // 2 + 5
@@ -291,13 +282,14 @@ class measure_source(measure_base):
             psf_data=psf_data,
             cov_elem=cov_elem,
             thres=thres,
+            thres2=thres2,
             bound=bound,
         )
         logging.info("Finish Detection")
         logging.info("Detect sources %d" % len(out))
         return out
 
-    def peak_detect(self, img_data, psf_data, cov_elem, thres, bound):
+    def peak_detect(self, img_data, psf_data, cov_elem, thres, thres2, bound):
         """This function convolves an image to transform the PSF to a Gaussian
 
         Args:
@@ -313,6 +305,10 @@ class measure_source(measure_base):
         std_modes = jnp.sqrt(jnp.diagonal(cov_elem))
         idm00 = self.di["m00"]
         thres_tmp = thres * std_modes[idm00] * self.pix_scale**2.0
+        std_v = jnp.average(
+            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
+        )
+        pcut = std_v * self.pix_scale**2.0 * thres2
 
         ny, nx = img_data.shape
         # Fourier transform
@@ -343,63 +339,9 @@ class measure_source(measure_base):
         sel = get_pixel_detect_mask(
             jnp.logical_and(img_conv > thres_tmp, img_conv2 > 0.0),
             img_conv,
+            pcut,
         )
         det = jnp.int_(jnp.argwhere(sel))
-
-        # sel = jnp.ones_like(img_data, dtype=bool)
-        # for irot in range(self.detect_nrot):
-        #     x = jnp.cos(2.0 * jnp.pi / self.detect_nrot * irot)
-        #     y = jnp.sin(2.0 * jnp.pi / self.detect_nrot * irot)
-        #     bb = (1.0 - jnp.exp(1j * (kxgrids * x + kygrids * y)))
-        #     img_r = jnp.fft.irfft2(imgf_use * bb, (ny, nx))
-        #     sel = jnp.logical_and(sel, (img_r > thres2_tmp))
-        # # Gaussian kernel for shapelets
-        # gauss_kernel = util.gauss_kernel_rfft(
-        #     ny,
-        #     nx,
-        #     self.sigmaf,
-        #     self.klim,
-        #     return_grid=False,
-        # )
-        # # convolved images
-        # img_conv = jnp.fft.irfft2(imgf_use * gauss_kernel, (ny, nx))
-
-        # # Set up Laguerre polynomials
-        # img_conv2 = jnp.fft.irfft2(
-        #     imgf_use * gauss_kernel * (
-        #    1.0 - (kxgrids**2.0 + kygrids**2.0) / self.sigmaf**2.0),
-        #     (ny, nx)
-        # )
-        # sel = sel & (((img_conv + img_conv2) > 0.0) & ((img_conv - img_conv2) > 0.0))
-
-        # if self.detect_return_peak_modes:
-        #     det = jnp.hstack(
-        #         [
-        #             det,
-        #             img_conv[sel][:, None] / self.pix_scale**2.0,
-        #             img_conv2[sel][:, None] / self.pix_scale**2.0,
-        #         ]
-        #     )
-        #     gauss_kernel = util.gauss_kernel_rfft(
-        #         ny,
-        #         nx,
-        #         self.sigmaf_det,
-        #         self.klim,
-        #         return_grid=False,
-        #     )
-        #     for irot in range(self.detect_nrot):
-        #         x = jnp.cos(2.0 * jnp.pi / self.detect_nrot * irot)
-        #         y = jnp.sin(2.0 * jnp.pi / self.detect_nrot * irot)
-        #         bb = (1.0 - jnp.exp(1j * (kxgrids * x + kygrids * y))) * gauss_kernel
-        #         img_r = jnp.fft.irfft2(imgf_use * bb, (ny, nx))
-        #         det = jnp.hstack(
-        #             [
-        #                 det,
-        #                 img_r[sel][:, None] / self.pix_scale**2.0,
-        #             ]
-        #         )
-        #         del img_r, bb
-        #     del gauss_kernel
 
         msk = (
             (det[:, 0] > bound)
@@ -408,7 +350,19 @@ class measure_source(measure_base):
             & (det[:, 1] < nx - bound)
         )
         det = det[msk]
-        return det
+
+        func = lambda cc: self.determine_peak(cc, img_conv)
+        return jax.lax.map(func, jnp.atleast_2d(det))
+
+    def determine_peak(self, cc, image):
+        out = (
+            (image[cc[0], cc[1]] - image[cc[0] + 1, cc[1]] >= 0.0)
+            & (image[cc[0], cc[1]] - image[cc[0], cc[1] + 1] >= 0.0)
+            & (image[cc[0], cc[1]] - image[cc[0] - 1, cc[1]] >= 0.0)
+            & (image[cc[0], cc[1]] - image[cc[0], cc[1] - 1] >= 0.0)
+        )
+        out = jnp.append(cc, out)
+        return out
 
     def measure(self, exposure, coords=None):
         """This function measures the FPFS moments
@@ -423,7 +377,7 @@ class measure_source(measure_base):
         if coords is None:
             coords = jnp.array(exposure.shape) // 2
         func = lambda xi: self.measure_coord(xi, jnp.array(exposure))
-        return jax.lax.map(func, jnp.atleast_2d(coords.T).T)
+        return jax.lax.map(func, jnp.atleast_2d(coords))
 
     def measure_coord(self, cc, image):
         """This function measures the FPFS moments from a coordinate
@@ -473,13 +427,8 @@ class measure_source(measure_base):
         tps = [
             ("fpfs_y", "i4"),
             ("fpfs_x", "i4"),
+            ("is_peak", "?"),
         ]
-        if self.detect_return_peak_modes:
-            tps = tps + [
-                ("fpfs_m00", "<f8"),
-                ("fpfs_m20", "<f8"),
-            ]
-            tps = tps + [("fpfs_v%d" % _, "<f8") for _ in range(self.detect_nrot)]
         coords = np.rec.fromarrays(
             data.T,
             dtype=np.dtype(tps),
@@ -488,9 +437,9 @@ class measure_source(measure_base):
 
 
 @jax.jit
-def get_pixel_detect_mask(sel, img):
+def get_pixel_detect_mask(sel, img, pcut):
     for ax in [-1, -2]:
         for shift in [-1, 1]:
             filtered = img - jnp.roll(img, shift=shift, axis=ax)
-            sel = jnp.logical_and(sel, (filtered + det_ratio * img > 0.0))
+            sel = jnp.logical_and(sel, (filtered + det_ratio * img + pcut > 0.0))
     return sel
