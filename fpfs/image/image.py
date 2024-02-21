@@ -44,6 +44,7 @@ class fpfs_base(object):
         self.ndet = len(name_d)
         self.name_shapelets = name_s
         self.name_detect = name_d
+        # jax.debug.print("debug: {}", self.name_shapelets)
         return
 
     def _dg1(self, x):
@@ -63,7 +64,15 @@ class fpfs_base(object):
                 case "m40":
                     out.append(0.0)
                 case "m42c":
-                    out.append(0.0)
+                    if self.nord >= 6:
+                        out.append(
+                            jnp.sqrt(6.0)
+                            / 2.0
+                            * (x[self.di["m20"]] - x[self.di["m60"]])
+                        )
+                        #
+                    else:
+                        out.append(0.0)
                 case "m42s":
                     out.append(0.0)
                 case _:
@@ -92,7 +101,15 @@ class fpfs_base(object):
                 case "m42c":
                     out.append(0.0)
                 case "m42s":
-                    out.append(0.0)
+                    if self.nord >= 6:
+                        out.append(
+                            jnp.sqrt(6.0)
+                            / 2.0
+                            * (x[self.di["m20"]] - x[self.di["m60"]])
+                        )
+                        #
+                    else:
+                        out.append(0.0)
                 case _:
                     out.append(0.0)
         for nn in self.name_detect[:8]:
