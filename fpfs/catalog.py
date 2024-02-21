@@ -55,7 +55,6 @@ def ssfunc2(x, mu, sigma):
 class FpfsCatalog(fpfs_base):
     def __init__(
         self,
-        funcnm="ss2",
         ratio=1.81,
         snr_min=12,
         r2_min=0.05,
