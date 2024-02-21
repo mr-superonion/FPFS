@@ -59,7 +59,7 @@ class FpfsCatalog(fpfs_base):
         ratio=1.81,
         snr_min=12,
         r2_min=0.05,
-        r2_max=1.5,
+        r2_max=2.0,
         c0=2.55,
         c2=25.6,
         alpha=0.27,
