@@ -69,9 +69,6 @@ class FpfsCatalog(fpfs_base):
         sigma_m00=None,
         sigma_r2=None,
         sigma_v=None,
-        m00_min=None,
-        C0=None,
-        C2=None,
         nord=4,
     ):
         super().__init__(
@@ -117,14 +114,8 @@ class FpfsCatalog(fpfs_base):
         self.r2_max = r2_max
 
         # shape parameters
-        if C0 is None:
-            self.C0 = c0 * std_m00
-        else:
-            self.C0 = C0
-        if C2 is None:
-            self.C2 = c2 * std_m20
-        else:
-            self.C2 = C2
+        self.C0 = c0 * std_m00
+        self.C2 = c2 * std_m20
         self.alpha = alpha
         self.beta = beta
         return
@@ -231,20 +222,20 @@ class FpfsCatalog(fpfs_base):
             )
         return wdet
 
-    def _e1(self, x):
-        # ellipticity1
+    def _denom(self, x):
         denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
             x[self.di["m00"]] + x[self.di["m20"]] + self.C2
         ) ** self.beta
-        e1 = x[self.di["m22c"]] / denom
+        return denom
+
+    def _e1(self, x):
+        # ellipticity1
+        e1 = x[self.di["m22c"]] / self._denom(x)
         return e1
 
     def _e2(self, x):
         # ellipticity2
-        denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
-            x[self.di["m00"]] + x[self.di["m20"]] + self.C2
-        ) ** self.beta
-        e2 = x[self.di["m22s"]] / denom
+        e2 = x[self.di["m22s"]] / self._denom(x)
         return e2
 
     def _we1(self, x):
