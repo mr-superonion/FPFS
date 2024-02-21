@@ -52,7 +52,7 @@ def ssfunc2(x, mu, sigma):
     return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _ssfunc2, 1.0])
 
 
-class FpfsCatalog(fpfs_base):
+class catalog_base(fpfs_base):
     def __init__(
         self,
         ratio=1.81,
@@ -119,71 +119,6 @@ class FpfsCatalog(fpfs_base):
         self.beta = beta
         return
 
-    def _dg1(self, x):
-        """Returns shear response array [first component] of shapelet pytree"""
-        # shear response for shapelet modes
-        dm00 = -jnp.sqrt(2.0) * x[self.di["m22c"]]
-        dm20 = -jnp.sqrt(6.0) * x[self.di["m42c"]]
-        dm22c = (
-            (x[self.di["m00"]] - x[self.di["m40"]])
-            / jnp.sqrt(2.0)
-            # - jnp.sqrt(3.0) * x[self.di["m44c"]]
-        )
-        dm22s = 0.0  # - jnp.sqrt(3.0) * x[self.di["m44s"]]
-        dm40 = 0.0
-        dm42c = 0.0
-        dm42s = 0.0
-        # dm44c = 0.0
-        # dm44s = 0.0
-        out = jnp.stack(
-            [
-                dm00,
-                dm20,
-                dm22c,
-                dm22s,
-                dm40,
-                dm42c,
-                dm42s,
-                # dm44c,
-                # dm44s,
-            ]
-            + [x[self.di["v%dr1" % _]] for _ in range(8)]
-            + [0] * 8 * 2
-        )
-        return out
-
-    def _dg2(self, x):
-        """Returns shear response array [second component] of shapelet pytree"""
-        dm00 = -jnp.sqrt(2.0) * x[self.di["m22s"]]
-        dm20 = -jnp.sqrt(6.0) * x[self.di["m42s"]]
-        dm22c = 0.0  # - jnp.sqrt(3.0) * x[self.di["m44s"]]
-        dm22s = (
-            (x[self.di["m00"]] - x[self.di["m40"]])
-            / jnp.sqrt(2.0)
-            # + jnp.sqrt(3.0) * x[self.di["m44c"]]
-        )
-        dm40 = 0.0
-        dm42c = 0.0
-        dm42s = 0.0
-        # dm44c = 0.0
-        # dm44s = 0.0
-        out = jnp.stack(
-            [
-                dm00,
-                dm20,
-                dm22c,
-                dm22s,
-                dm40,
-                dm42c,
-                dm42s,
-                # dm44c,
-                # dm44s,
-            ]
-            + [x[self.di["v%dr2" % _]] for _ in range(8)]
-            + [0] * 8 * 2
-        )
-        return out
-
     def _wsel(self, x):
         # selection on flux
         w0l = self.wfunc(x[self.di["m00"]], self.m00_min, self.sigma_m00)
@@ -228,14 +163,10 @@ class FpfsCatalog(fpfs_base):
         return denom
 
     def _e1(self, x):
-        # ellipticity1
-        e1 = x[self.di["m22c"]] / self._denom(x)
-        return e1
+        return 0.0
 
     def _e2(self, x):
-        # ellipticity2
-        e2 = x[self.di["m22s"]] / self._denom(x)
-        return e2
+        return 0.0
 
     def _we1(self, x):
         return self._wsel(x) * self._wdet(x) * self._e1(x)
@@ -276,6 +207,118 @@ class FpfsCatalog(fpfs_base):
 
     def measure_g2_noise_correct(self, x):
         return self.measure_g2(x) - self._noisebias2(x)
+
+
+class fpfs_catalog(catalog_base):
+    def __init__(
+        self,
+        ratio=1.81,
+        snr_min=12,
+        r2_min=0.05,
+        r2_max=2.0,
+        c0=2.55,
+        c2=25.6,
+        alpha=0.27,
+        beta=0.83,
+        thres2=0.0,
+        cov_mat=None,
+        sigma_m00=None,
+        sigma_r2=None,
+        sigma_v=None,
+    ):
+        nord = 4
+        super().__init__(
+            ratio=ratio,
+            snr_min=snr_min,
+            r2_min=r2_min,
+            r2_max=r2_max,
+            c0=c0,
+            c2=c2,
+            alpha=alpha,
+            beta=beta,
+            thres2=thres2,
+            cov_mat=cov_mat,
+            sigma_m00=sigma_m00,
+            sigma_r2=sigma_r2,
+            sigma_v=sigma_v,
+            nord=nord,
+        )
+        return
+
+    def _e1(self, x):
+        # ellipticity1
+        e1 = x[self.di["m22c"]] / self._denom(x)
+        return e1
+
+    def _e2(self, x):
+        # ellipticity2
+        e2 = x[self.di["m22s"]] / self._denom(x)
+        return e2
+
+    # def _dg1(self, x):
+    #     """Returns shear response array [first component] of shapelet pytree"""
+    #     # shear response for shapelet modes
+    #     dm00 = -jnp.sqrt(2.0) * x[self.di["m22c"]]
+    #     dm20 = -jnp.sqrt(6.0) * x[self.di["m42c"]]
+    #     dm22c = (
+    #         (x[self.di["m00"]] - x[self.di["m40"]])
+    #         / jnp.sqrt(2.0)
+    #         # - jnp.sqrt(3.0) * x[self.di["m44c"]]
+    #     )
+    #     dm22s = 0.0  # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+    #     dm40 = 0.0
+    #     dm42c = 0.0
+    #     dm42s = 0.0
+    #     # dm44c = 0.0
+    #     # dm44s = 0.0
+    #     out = jnp.stack(
+    #         [
+    #             dm00,
+    #             dm20,
+    #             dm22c,
+    #             dm22s,
+    #             dm40,
+    #             dm42c,
+    #             dm42s,
+    #             # dm44c,
+    #             # dm44s,
+    #         ]
+    #         + [x[self.di["v%dr1" % _]] for _ in range(8)]
+    #         + [0] * 8 * 2
+    #     )
+    #     return out
+
+    # def _dg2(self, x):
+    #     """Returns shear response array [second component] of shapelet pytree"""
+    #     dm00 = -jnp.sqrt(2.0) * x[self.di["m22s"]]
+    #     dm20 = -jnp.sqrt(6.0) * x[self.di["m42s"]]
+    #     dm22c = 0.0  # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+    #     dm22s = (
+    #         (x[self.di["m00"]] - x[self.di["m40"]])
+    #         / jnp.sqrt(2.0)
+    #         # + jnp.sqrt(3.0) * x[self.di["m44c"]]
+    #     )
+    #     dm40 = 0.0
+    #     dm42c = 0.0
+    #     dm42s = 0.0
+    #     # dm44c = 0.0
+    #     # dm44s = 0.0
+    #     out = jnp.stack(
+    #         [
+    #             dm00,
+    #             dm20,
+    #             dm22c,
+    #             dm22s,
+    #             dm40,
+    #             dm42c,
+    #             dm42s,
+    #             # dm44c,
+    #             # dm44s,
+    #         ]
+    #         + [x[self.di["v%dr2" % _]] for _ in range(8)]
+    #         + [0] * 8 * 2
+    #     )
+    #     return out
 
 
 def m2e(mm, const=1.0, nn=None):

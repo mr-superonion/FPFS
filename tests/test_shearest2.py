@@ -60,13 +60,12 @@ def do_test(scale, ind0, rcut):
     print("finish measurement")
 
     # new version
-    cat_obj = fpfs.catalog.FpfsCatalog(
+    cat_obj = fpfs.catalog.fpfs_catalog(
         snr_min=0.0,
         r2_min=0.0,
         sigma_m00=0.4,
         sigma_r2=0.8,
         sigma_v=0.1,
-        nord=nord,
     )
     print("run summary")
     outcome = jnp.sum(

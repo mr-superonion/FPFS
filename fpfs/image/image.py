@@ -34,14 +34,71 @@ logging.basicConfig(
 class fpfs_base(object):
     def __init__(self, nord):
         self.nord = nord
-        name_s, ind_s = get_shapelets_col_names(nord)
+        name_s, _ = get_shapelets_col_names(nord)
         name_d = get_det_col_names()
-        name_s = name_s + name_d
+        name_a = name_s + name_d
         self.di = {}
-        for index, element in enumerate(name_s):
+        for index, element in enumerate(name_a):
             self.di[element] = index
-        self.ncol = len(name_s)
+        self.ncol = len(name_a)
+        self.ndet = len(name_d)
+        self.name_shapelets = name_s
+        self.name_detect = name_d
         return
+
+    def _dg1(self, x):
+        out = []
+        for nn in self.name_shapelets:
+            match nn:
+                case "m00":
+                    out.append(-jnp.sqrt(2.0) * x[self.di["m22c"]])
+                case "m20":
+                    out.append(-jnp.sqrt(6.0) * x[self.di["m42c"]])
+                case "m22c":
+                    out.append((x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0))
+                    # - jnp.sqrt(3.0) * x[self.di["m44c"]]
+                case "m22s":
+                    out.append(0.0)
+                    # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+                case "m40":
+                    out.append(0.0)
+                case "m42c":
+                    out.append(0.0)
+                case "m42s":
+                    out.append(0.0)
+                case _:
+                    out.append(0.0)
+        for nn in self.name_detect[:8]:
+            out.append(x[self.di[nn + "r1"]])
+        out = out + [0] * 16
+        return jnp.array(out)
+
+    def _dg2(self, x):
+        out = []
+        for nn in self.name_shapelets:
+            match nn:
+                case "m00":
+                    out.append(-jnp.sqrt(2.0) * x[self.di["m22s"]])
+                case "m20":
+                    out.append(-jnp.sqrt(6.0) * x[self.di["m42s"]])
+                case "m22c":
+                    out.append(0.0)
+                    # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+                case "m22s":
+                    out.append((x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0))
+                    # + jnp.sqrt(3.0) * x[self.di["m44c"]]
+                case "m40":
+                    out.append(0.0)
+                case "m42c":
+                    out.append(0.0)
+                case "m42s":
+                    out.append(0.0)
+                case _:
+                    out.append(0.0)
+        for nn in self.name_detect[:8]:
+            out.append(x[self.di[nn + "r2"]])
+        out = out + [0] * 16
+        return jnp.array(out)
 
 
 class measure_base(fpfs_base):
