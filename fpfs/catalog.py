@@ -156,6 +156,9 @@ class catalog_base(fpfs_base):
             )
         return wdet
 
+    def weight(self, x):
+        return self._wdet(x) * self._wsel(x)
+
     def _denom(self, x):
         denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
             x[self.di["m00"]] + x[self.di["m20"]] + self.C2
