@@ -498,11 +498,20 @@ class measure_source(measure_base):
         return outcome
 
     def get_results_detection(self, data):
-        tps = [
-            ("fpfs_y", "i4"),
-            ("fpfs_x", "i4"),
-            ("is_peak", "?"),
-        ]
+        if data.shape[1] == 3:
+            tps = [
+                ("fpfs_y", "i4"),
+                ("fpfs_x", "i4"),
+                ("is_peak", "?"),
+            ]
+        elif data.shape[1] == 2:
+            tps = [
+                ("fpfs_y", "i4"),
+                ("fpfs_x", "i4"),
+            ]
+        else:
+            raise RuntimeError("detection has wrong number of columns")
+
         coords = np.rec.fromarrays(
             data.T,
             dtype=np.dtype(tps),

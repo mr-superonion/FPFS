@@ -80,6 +80,20 @@ def do_test(scale, ind0, rcut):
     shear2 = outcome[0] / outcome[1]
     assert np.all(np.abs(shear2) < c_thres)
 
+    outcome = jnp.sum(
+        jax.lax.map(jax.jit(cat_obj.measure_g1_no_detect), mms),
+        axis=0,
+    )
+    print("finish summary")
+    shear1 = outcome[0] / outcome[1]
+    assert np.all(np.abs(shear1 + 0.02) / 0.02 < m_thres)
+    outcome = jnp.sum(
+        jax.lax.map(jax.jit(cat_obj.measure_g2_no_detect), mms),
+        axis=0,
+    )
+    shear2 = outcome[0] / outcome[1]
+    assert np.all(np.abs(shear2) < c_thres)
+
     # older version
     mms = task.get_results(mms)
     # non-linear observables

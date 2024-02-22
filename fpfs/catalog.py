@@ -156,9 +156,6 @@ class catalog_base(fpfs_base):
             )
         return wdet
 
-    def weight(self, x):
-        return self._wdet(x) * self._wsel(x)
-
     def _denom(self, x):
         denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
             x[self.di["m00"]] + x[self.di["m20"]] + self.C2
@@ -172,10 +169,16 @@ class catalog_base(fpfs_base):
         return 0.0
 
     def _we1(self, x):
-        return self._wsel(x) * self._wdet(x) * self._e1(x)
+        return self._wsel(x) * self._e1(x) * self._wdet(x)
 
     def _we2(self, x):
-        return self._wsel(x) * self._wdet(x) * self._e2(x)
+        return self._wsel(x) * self._e2(x) * self._wdet(x)
+
+    def _we1_no_detect(self, x):
+        return self._wsel(x) * self._e1(x)
+
+    def _we2_no_detect(self, x):
+        return self._wsel(x) * self._e2(x)
 
     def measure_g1(self, x):
         e1, linear_func = jax.linearize(
@@ -189,6 +192,24 @@ class catalog_base(fpfs_base):
     def measure_g2(self, x):
         e2, linear_func = jax.linearize(
             self._we2,
+            x,
+        )
+        dmm_dg2 = self._dg2(x)
+        de2_dg2 = linear_func(dmm_dg2)
+        return jnp.hstack([e2, de2_dg2])
+
+    def measure_g1_no_detect(self, x):
+        e1, linear_func = jax.linearize(
+            self._we1_no_detect,
+            x,
+        )
+        dmm_dg1 = self._dg1(x)
+        de1_dg1 = linear_func(dmm_dg1)
+        return jnp.hstack([e1, de1_dg1])
+
+    def measure_g2_no_detect(self, x):
+        e2, linear_func = jax.linearize(
+            self._we2_no_detect,
             x,
         )
         dmm_dg2 = self._dg2(x)
