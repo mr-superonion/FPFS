@@ -22,8 +22,6 @@ from . import util
 from .shapelets import shapelets2d_real, get_shapelets_col_names
 from .detection import detlets2d, get_det_col_names
 
-det_ratio = 0.02
-
 logging.basicConfig(
     format="%(asctime)s %(message)s",
     datefmt="%Y/%m/%d %H:%M:%S --- ",
@@ -330,8 +328,9 @@ class measure_source(measure_base):
         img_data,
         psf_data,
         cov_elem,
-        thres,
-        thres2=0.0,
+        fthres,
+        pthres=0.0,
+        det_ratio=0.02,
         bound=None,
     ):
         """Returns the coordinates of detected sources
@@ -340,36 +339,50 @@ class measure_source(measure_base):
         img_data (ndarray):         observed image
         psf_data (ndarray):         PSF image [must be well-centered]
         cov_elem (ndarray):         covariance matrix of the measurement error
-        thres (float):              n-sigma detection threshold
+        fthres (float):             n-sigma detection threshold (flux)
+        pthres (float):             n-sigma detection threshold (peak)
+        det_ratio (float):          ratio between difference and flux
         bound (int):                remove sources at boundary
 
         Returns:
         coords (ndarray):           peak values and the shear responses
         """
         logging.info("Running Detection")
-        if not thres >= 0.0:
-            raise ValueError("detection threshold should be positive")
+        if not pthres >= 0.0:
+            raise ValueError("Detection threshold should be positive")
         if bound is None:
             bound = self.ngrid // 2 + 5
         out = self.peak_detect(
             img_data=img_data,
             psf_data=psf_data,
             cov_elem=cov_elem,
-            thres=thres,
-            thres2=thres2,
+            fthres=fthres,
+            pthres=pthres,
+            det_ratio=det_ratio,
             bound=bound,
         )
         logging.info("Finish Detection")
         logging.info("Detect sources %d" % len(out))
         return out
 
-    def peak_detect(self, img_data, psf_data, cov_elem, thres, thres2, bound):
+    def peak_detect(
+        self,
+        img_data,
+        psf_data,
+        cov_elem,
+        fthres,
+        pthres,
+        det_ratio,
+        bound,
+    ):
         """This function convolves an image to transform the PSF to a Gaussian
 
         Args:
         img_data (ndarray):     image data
         psf_data (ndarray):     psf data
-        thres (float):          n-sigma threshold of Gaussian flux
+        fthres (float):         n-sigma threshold of Gaussian flux
+        pthres (float):         n-sigma detection threshold (difference)
+        det_ratio (float):      ratio between difference and flux
         bound (float):          minimum distance to the image boundary
 
         Returns:
@@ -378,11 +391,12 @@ class measure_source(measure_base):
 
         std_modes = jnp.sqrt(jnp.diagonal(cov_elem))
         idm00 = self.di["m00"]
-        thres_tmp = thres * std_modes[idm00] * self.pix_scale**2.0
+        t_tmp = fthres * std_modes[idm00] * self.pix_scale**2.0
         std_v = jnp.average(
             jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
         )
-        pcut = std_v * self.pix_scale**2.0 * thres2
+        pcut = std_v * self.pix_scale**2.0 * pthres * 1.4
+        pratio = det_ratio * 1.4
 
         ny, nx = img_data.shape
         # Fourier transform
@@ -400,7 +414,9 @@ class measure_source(measure_base):
         imf = (
             jnp.fft.rfft2(img_data)
             / jnp.fft.rfft2(
-                jnp.fft.ifftshift(jnp.pad(psf_data, (npady, npadx), mode="constant"))
+                jnp.fft.ifftshift(
+                    jnp.pad(psf_data, (npady, npadx), mode="constant"),
+                )
             )
             * kernel
         )
@@ -411,9 +427,10 @@ class measure_source(measure_base):
         )
         del imf, kernel, kxgrids, kygrids
         sel = get_pixel_detect_mask(
-            jnp.logical_and(img_conv > thres_tmp, img_conv2 > 0.0),
+            jnp.logical_and(img_conv > t_tmp, img_conv2 > 0.0),
             img_conv,
             pcut,
+            pratio,
         )
         det = jnp.int_(jnp.argwhere(sel))
 
@@ -520,9 +537,9 @@ class measure_source(measure_base):
 
 
 @jax.jit
-def get_pixel_detect_mask(sel, img, pcut):
+def get_pixel_detect_mask(sel, img, pcut, pratio):
     for ax in [-1, -2]:
         for shift in [-1, 1]:
             filtered = img - jnp.roll(img, shift=shift, axis=ax)
-            sel = jnp.logical_and(sel, (filtered + det_ratio * img + pcut > 0.0))
+            sel = jnp.logical_and(sel, (filtered + pcut + pratio * img > 0.0))
     return sel

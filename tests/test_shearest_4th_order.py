@@ -65,7 +65,8 @@ def do_test(scale, ind0, rcut):
         r2_min=0.0,
         sigma_m00=0.4,
         sigma_r2=0.8,
-        sigma_v=0.02,
+        pthres=0.00,
+        det_ratio=0.002,
     )
     print("run summary")
     outcome = jnp.sum(
@@ -84,7 +85,7 @@ def do_test(scale, ind0, rcut):
 
 def test_hsc():
     print("Testing HSC-like image")
-    # do_test(0.168, 12, 16)
+    do_test(0.168, 12, 16)
     do_test(0.168, 45, 32)
     return
 

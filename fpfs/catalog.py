@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import fitsio
 import numpy.lib.recfunctions as rfn
 
-from .image.image import fpfs_base, det_ratio
+from .image.image import fpfs_base
 
 
 def read_catalog(fname):
@@ -33,10 +33,6 @@ def read_catalog(fname):
     return jnp.array(x)
 
 
-def _ssfunc2(t):
-    return 6 * t**5.0 - 15 * t**4.0 + 10 * t**3.0
-
-
 def ssfunc2(x, mu, sigma):
     """Returns the C2 smooth step weight funciton
 
@@ -48,8 +44,28 @@ def ssfunc2(x, mu, sigma):
     Returns:
     out (ndarray):  the weight funciton
     """
+
+    def _ssfunc2(t):
+        return 6 * t**5.0 - 15 * t**4.0 + 10 * t**3.0
+
     t = (x - mu) / sigma / 2.0 + 0.5
     return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _ssfunc2, 1.0])
+
+
+def sigmoid(x, mu, sigma):
+    """Returns the sigmoid step weight funciton
+
+    Args:
+    x (ndarray):    input data vector
+    mu (float):     center shift
+    sigma (float):  half width of the selection function
+
+    Returns:
+    out (ndarray):  the weight funciton
+    """
+    t = x / sigma - mu
+    # mu is not divided by sigma so that f(0) is independent of sigma
+    return jax.nn.sigmoid(t)
 
 
 class catalog_base(fpfs_base):
@@ -63,11 +79,11 @@ class catalog_base(fpfs_base):
         c2=25.6,
         alpha=0.27,
         beta=0.83,
-        thres2=0.0,
+        pthres=0.0,
+        det_ratio=0.02,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
-        sigma_v=None,
         nord=4,
     ):
         super().__init__(
@@ -89,10 +105,7 @@ class catalog_base(fpfs_base):
             jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
         )
         self.std_v = std_v
-        self.thres2 = thres2
 
-        # selection and detection function
-        self.wfunc = ssfunc2
         # control steepness
         if sigma_m00 is None:
             self.sigma_m00 = ratio * std_m00
@@ -102,12 +115,9 @@ class catalog_base(fpfs_base):
             self.sigma_r2 = ratio * std_m20
         else:
             self.sigma_r2 = sigma_r2
-        if sigma_v is None:
-            self.sigma_v = ratio * std_v
-        else:
-            self.sigma_v = sigma_v
+        self.sigma_v = ratio * std_v
 
-        # thresholds
+        # selection thresholds
         self.m00_min = snr_min * std_m00
         self.r2_min = r2_min
         self.r2_max = r2_max
@@ -117,44 +127,49 @@ class catalog_base(fpfs_base):
         self.C2 = c2 * std_m20
         self.alpha = alpha
         self.beta = beta
+
+        # detection threshold
+        self.psig2 = pthres * self.std_v
+        self.det_ratio = det_ratio
         return
 
     def _wsel(self, x):
         # selection on flux
-        w0l = self.wfunc(x[self.di["m00"]], self.m00_min, self.sigma_m00)
+        w0l = ssfunc2(x[self.di["m00"]], self.m00_min, self.sigma_m00)
 
         # selection on size (lower limit)
         # (M00 + M20) / M00 > r2_min
         r2l = x[self.di["m00"]] * (1.0 - self.r2_min) + x[self.di["m20"]]
-        w2l = self.wfunc(r2l, self.sigma_r2, self.sigma_r2)
+        w2l = ssfunc2(r2l, self.sigma_r2, self.sigma_r2)
 
         # selection on size (upper limit)
         # (M00 + M20) / M00 < r2_max
         # M00 (1 - r2_max) + M20 < 0
         # M00 (r2_max - 1) - M20 > 0
         r2u = x[self.di["m00"]] * (self.r2_max - 1.0) - x[self.di["m20"]]
-        w2u = self.wfunc(r2u, self.sigma_r2, self.sigma_r2)
+        w2u = ssfunc2(r2u, self.sigma_r2, self.sigma_r2)
 
         # wlap
         # (M00 - M20) / M00 > 0.3
         # lap = x[self.di["m00"]] * (1.0 - 0.1) - x[self.di["m20"]]
-        # wlap = self.wfunc(lap, self.sigma_r2, self.sigma_r2)
-        wlap = 1.0
-        wsel = w0l * w2l * w2u * wlap
+        # wlap = ssfunc2(lap, self.sigma_r2, self.sigma_r2)
+        wsel = w0l * w2l * w2u
         return wsel
 
-    def _wdet(self, x):
+    def _wscore(self, x):
         # detection
-        wdet = 1.0
+        out = 1.0
         for i in range(8):
-            wdet = wdet * self.wfunc(
-                x[self.di["v%d" % i]]
-                + det_ratio * x[self.di["m00"]]
-                + self.std_v * self.thres2,
-                self.sigma_v,
-                self.sigma_v,
+            out = out * sigmoid(
+                x[self.di["v%d" % i]],
+                0.0,
+                self.det_ratio * x[self.di["m00"]] + self.psig2,
             )
-        return wdet
+        return out
+
+    def _wdet(self, x):
+        # sigmoid(-1.4) = 0.197
+        return ssfunc2(self._wscore(x), 0.23, 0.03)
 
     def _denom(self, x):
         denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
@@ -258,11 +273,11 @@ class fpfs_catalog(catalog_base):
         c2=25.6,
         alpha=0.27,
         beta=0.83,
-        thres2=0.0,
+        pthres=0.0,
+        det_ratio=0.02,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
-        sigma_v=None,
     ):
         nord = 4
         super().__init__(
@@ -274,11 +289,11 @@ class fpfs_catalog(catalog_base):
             c2=c2,
             alpha=alpha,
             beta=beta,
-            thres2=thres2,
+            pthres=pthres,
+            det_ratio=det_ratio,
             cov_mat=cov_mat,
             sigma_m00=sigma_m00,
             sigma_r2=sigma_r2,
-            sigma_v=sigma_v,
             nord=nord,
         )
         return
@@ -305,11 +320,11 @@ class fpfs4_catalog(catalog_base):
         c2=25.6,
         alpha=0.27,
         beta=0.83,
-        thres2=0.0,
+        pthres=0.0,
+        det_ratio=0.02,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
-        sigma_v=None,
     ):
         nord = 6
         super().__init__(
@@ -321,11 +336,11 @@ class fpfs4_catalog(catalog_base):
             c2=c2,
             alpha=alpha,
             beta=beta,
-            thres2=thres2,
+            pthres=pthres,
+            det_ratio=det_ratio,
             cov_mat=cov_mat,
             sigma_m00=sigma_m00,
             sigma_r2=sigma_r2,
-            sigma_v=sigma_v,
             nord=nord,
         )
         return
