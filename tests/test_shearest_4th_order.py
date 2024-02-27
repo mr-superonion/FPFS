@@ -65,8 +65,9 @@ def do_test(scale, ind0, rcut):
         r2_min=0.0,
         sigma_m00=0.4,
         sigma_r2=0.8,
+        sigma_v=0.002,
         pthres=0.00,
-        det_ratio=0.002,
+        pratio=0.00,
     )
     print("run summary")
     outcome = jnp.sum(

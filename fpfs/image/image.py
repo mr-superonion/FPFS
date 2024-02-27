@@ -22,6 +22,7 @@ from . import util
 from .shapelets import shapelets2d_real, get_shapelets_col_names
 from .detection import detlets2d, get_det_col_names
 
+
 logging.basicConfig(
     format="%(asctime)s %(message)s",
     datefmt="%Y/%m/%d %H:%M:%S --- ",
@@ -323,14 +324,14 @@ class measure_source(measure_base):
         )
         return
 
-    def detect_sources(
+    def detect_source(
         self,
         img_data,
         psf_data,
         cov_elem,
         fthres,
         pthres=0.0,
-        det_ratio=0.02,
+        pratio=0.02,
         bound=None,
     ):
         """Returns the coordinates of detected sources
@@ -341,7 +342,7 @@ class measure_source(measure_base):
         cov_elem (ndarray):         covariance matrix of the measurement error
         fthres (float):             n-sigma detection threshold (flux)
         pthres (float):             n-sigma detection threshold (peak)
-        det_ratio (float):          ratio between difference and flux
+        pratio (float):          ratio between difference and flux
         bound (int):                remove sources at boundary
 
         Returns:
@@ -349,7 +350,7 @@ class measure_source(measure_base):
         """
         logging.info("Running Detection")
         if not pthres >= 0.0:
-            raise ValueError("Detection threshold should be positive")
+            raise ValueError("Peak detection threshold should be positive")
         if bound is None:
             bound = self.ngrid // 2 + 5
         out = self.peak_detect(
@@ -358,7 +359,7 @@ class measure_source(measure_base):
             cov_elem=cov_elem,
             fthres=fthres,
             pthres=pthres,
-            det_ratio=det_ratio,
+            pratio=pratio,
             bound=bound,
         )
         logging.info("Finish Detection")
@@ -372,7 +373,7 @@ class measure_source(measure_base):
         cov_elem,
         fthres,
         pthres,
-        det_ratio,
+        pratio,
         bound,
     ):
         """This function convolves an image to transform the PSF to a Gaussian
@@ -382,7 +383,7 @@ class measure_source(measure_base):
         psf_data (ndarray):     psf data
         fthres (float):         n-sigma threshold of Gaussian flux
         pthres (float):         n-sigma detection threshold (difference)
-        det_ratio (float):      ratio between difference and flux
+        pratio (float):         ratio between difference and flux
         bound (float):          minimum distance to the image boundary
 
         Returns:
@@ -395,8 +396,7 @@ class measure_source(measure_base):
         std_v = jnp.average(
             jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
         )
-        pcut = std_v * self.pix_scale**2.0 * pthres * 1.4
-        pratio = det_ratio * 1.4
+        pcut = std_v * self.pix_scale**2.0 * pthres
 
         ny, nx = img_data.shape
         # Fourier transform
@@ -541,5 +541,8 @@ def get_pixel_detect_mask(sel, img, pcut, pratio):
     for ax in [-1, -2]:
         for shift in [-1, 1]:
             filtered = img - jnp.roll(img, shift=shift, axis=ax)
-            sel = jnp.logical_and(sel, (filtered + pcut + pratio * img > 0.0))
+            sel = jnp.logical_and(
+                sel,
+                (filtered + (pcut + pratio * img) > 0.0),
+            )
     return sel

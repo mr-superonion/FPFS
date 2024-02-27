@@ -33,6 +33,25 @@ def read_catalog(fname):
     return jnp.array(x)
 
 
+def ssfunc1(x, mu, sigma):
+    """Returns the C2 smooth step weight funciton
+
+    Args:
+    x (ndarray):    input data vector
+    mu (float):     center of the cut
+    sigma (float):  half width of the selection function
+
+    Returns:
+    out (ndarray):  the weight funciton
+    """
+
+    def _func(t):
+        return -2.0 * t**3.0 + 3 * t**2.0
+
+    t = (x - mu) / sigma / 2.0 + 0.5
+    return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _func, 1.0])
+
+
 def ssfunc2(x, mu, sigma):
     """Returns the C2 smooth step weight funciton
 
@@ -45,11 +64,49 @@ def ssfunc2(x, mu, sigma):
     out (ndarray):  the weight funciton
     """
 
-    def _ssfunc2(t):
+    def _func(t):
         return 6 * t**5.0 - 15 * t**4.0 + 10 * t**3.0
 
     t = (x - mu) / sigma / 2.0 + 0.5
-    return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _ssfunc2, 1.0])
+    return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _func, 1.0])
+
+
+def ssfunc3(x, mu, sigma):
+    """Returns the C2 smooth step weight funciton
+
+    Args:
+    x (ndarray):    input data vector
+    mu (float):     center of the cut
+    sigma (float):  half width of the selection function
+
+    Returns:
+    out (ndarray):  the weight funciton
+    """
+
+    def _func(t):
+        return -20 * t**7.0 + 70 * t**6.0 - 84 * t**5.0 + 35 * t**4.0
+
+    t = (x - mu) / sigma / 2.0 + 0.5
+    return jnp.piecewise(t, [t < 0, (t >= 0) & (t <= 1), t > 1], [0.0, _func, 1.0])
+
+
+def sbfunc1(x, mu, sigma):
+    """Returns the C2 smooth bump weight funciton
+
+    Args:
+    x (ndarray):    input data vector
+    mu (float):     center of the cut
+    sigma (float):  half width of the selection function
+
+    Returns:
+    out (ndarray):  the weight funciton
+    """
+
+    def _func(t):
+        return (1 - t**2.0) ** 2.0
+
+    t = (x - mu) / sigma
+    return jnp.piecewise(t, [t < -1, (t >= -1) & (t <= 1), t > 1], [0.0, _func, 0.0])
 
 
 def sigmoid(x, mu, sigma):
@@ -80,10 +137,11 @@ class catalog_base(fpfs_base):
         alpha=0.27,
         beta=0.83,
         pthres=0.0,
-        det_ratio=0.02,
+        pratio=0.02,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
+        sigma_v=None,
         nord=4,
     ):
         super().__init__(
@@ -104,7 +162,6 @@ class catalog_base(fpfs_base):
         std_v = jnp.average(
             jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
         )
-        self.std_v = std_v
 
         # control steepness
         if sigma_m00 is None:
@@ -115,7 +172,10 @@ class catalog_base(fpfs_base):
             self.sigma_r2 = ratio * std_m20
         else:
             self.sigma_r2 = sigma_r2
-        self.sigma_v = ratio * std_v
+        if sigma_v is None:
+            self.sigma_v = ratio * std_v
+        else:
+            self.sigma_v = sigma_v
 
         # selection thresholds
         self.m00_min = snr_min * std_m00
@@ -129,8 +189,8 @@ class catalog_base(fpfs_base):
         self.beta = beta
 
         # detection threshold
-        self.psig2 = pthres * self.std_v
-        self.det_ratio = det_ratio
+        self.pcut = pthres * std_v
+        self.pratio = pratio
         return
 
     def _wsel(self, x):
@@ -146,30 +206,28 @@ class catalog_base(fpfs_base):
         # (M00 + M20) / M00 < r2_max
         # M00 (1 - r2_max) + M20 < 0
         # M00 (r2_max - 1) - M20 > 0
-        r2u = x[self.di["m00"]] * (self.r2_max - 1.0) - x[self.di["m20"]]
-        w2u = ssfunc2(r2u, self.sigma_r2, self.sigma_r2)
+        # r2u = x[self.di["m00"]] * (self.r2_max - 1.0) - x[self.di["m20"]]
+        # w2u = ssfunc2(r2u, self.sigma_r2, self.sigma_r2)
 
-        # wlap
-        # (M00 - M20) / M00 > 0.3
-        # lap = x[self.di["m00"]] * (1.0 - 0.1) - x[self.di["m20"]]
-        # wlap = ssfunc2(lap, self.sigma_r2, self.sigma_r2)
-        wsel = w0l * w2l * w2u
+        # # wlap
+        # # (M00 - M20) / M00 > 0.3
+        # lap = x[self.di["m00"]] * (1.0 - 0.3) - x[self.di["m20"]]
+        # wlap =  ssfunc2(lap, self.sigma_r2, self.sigma_r2)
+
+        wsel = w0l * w2l  # * w2u
         return wsel
 
-    def _wscore(self, x):
+    def _wdet(self, x):
         # detection
         out = 1.0
         for i in range(8):
-            out = out * sigmoid(
+            out = out * ssfunc2(
                 x[self.di["v%d" % i]],
-                0.0,
-                self.det_ratio * x[self.di["m00"]] + self.psig2,
+                self.sigma_v - self.pratio * x[self.di["m00"]] - self.pcut,
+                self.sigma_v,
             )
-        return out
 
-    def _wdet(self, x):
-        # sigmoid(-1.4) = 0.197
-        return ssfunc2(self._wscore(x), 0.23, 0.03)
+        return out
 
     def _denom(self, x):
         denom = (x[self.di["m00"]] + self.C0) ** self.alpha * (
@@ -274,10 +332,11 @@ class fpfs_catalog(catalog_base):
         alpha=0.27,
         beta=0.83,
         pthres=0.0,
-        det_ratio=0.02,
+        pratio=0.02,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
+        sigma_v=None,
     ):
         nord = 4
         super().__init__(
@@ -290,10 +349,11 @@ class fpfs_catalog(catalog_base):
             alpha=alpha,
             beta=beta,
             pthres=pthres,
-            det_ratio=det_ratio,
+            pratio=pratio,
             cov_mat=cov_mat,
             sigma_m00=sigma_m00,
             sigma_r2=sigma_r2,
+            sigma_v=sigma_v,
             nord=nord,
         )
         return
@@ -321,10 +381,11 @@ class fpfs4_catalog(catalog_base):
         alpha=0.27,
         beta=0.83,
         pthres=0.0,
-        det_ratio=0.02,
+        pratio=0.02,
         cov_mat=None,
         sigma_m00=None,
         sigma_r2=None,
+        sigma_v=None,
     ):
         nord = 6
         super().__init__(
@@ -337,10 +398,11 @@ class fpfs4_catalog(catalog_base):
             alpha=alpha,
             beta=beta,
             pthres=pthres,
-            det_ratio=det_ratio,
+            pratio=pratio,
             cov_mat=cov_mat,
             sigma_m00=sigma_m00,
             sigma_r2=sigma_r2,
+            sigma_v=sigma_v,
             nord=nord,
         )
         return
