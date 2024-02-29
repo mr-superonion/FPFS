@@ -61,7 +61,6 @@ def do_test(scale, ind0, rcut):
     print("run measurement")
     # linear observables
     mms = task.measure(gal_data, coords)
-    print(mms.shape)
     print("finish measurement")
 
     # new version
@@ -112,9 +111,8 @@ def do_test(scale, ind0, rcut):
 
 def test_hsc():
     print("Testing HSC-like image")
-    for i in range(12, 40, 5):
-        do_test(0.168, i, 16)
-    # do_test(0.168, 41, 32)
+    # do_test(0.168, i, 16)
+    do_test(0.168, 42, 32)
     return
 
 

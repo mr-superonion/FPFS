@@ -223,7 +223,7 @@ class catalog_base(fpfs_base):
         # detection
         out = 1.0
         for i in range(self.det_nrot):
-            out = out * sigmoid(
+            out = out * ssfunc2(
                 x[self.di["v%d" % i]],
                 self.sigma_v - self.pratio * x[self.di["m00"]] - self.pcut,
                 self.sigma_v,
