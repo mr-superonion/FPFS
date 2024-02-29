@@ -51,7 +51,6 @@ def do_test(scale, ind0, rcut):
         psf_data,
         pix_scale=scale,
         sigma_arcsec=0.53,
-        sigma_detect=0.53,
         nord=nord,
     )
     print("run measurement")

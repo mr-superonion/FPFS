@@ -31,10 +31,10 @@ logging.basicConfig(
 
 
 class fpfs_base(object):
-    def __init__(self, nord):
+    def __init__(self, nord, det_nrot):
         self.nord = nord
         name_s, _ = get_shapelets_col_names(nord)
-        name_d = get_det_col_names()
+        name_d = get_det_col_names(det_nrot)
         name_a = name_s + name_d
         self.di = {}
         for index, element in enumerate(name_a):
@@ -43,6 +43,7 @@ class fpfs_base(object):
         self.ndet = len(name_d)
         self.name_shapelets = name_s
         self.name_detect = name_d
+        self.det_nrot = det_nrot
         # jax.debug.print("debug: {}", self.name_shapelets)
         return
 
@@ -55,11 +56,12 @@ class fpfs_base(object):
                 case "m20":
                     out.append(-jnp.sqrt(6.0) * x[self.di["m42c"]])
                 case "m22c":
-                    out.append((x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0))
-                    # - jnp.sqrt(3.0) * x[self.di["m44c"]]
+                    out.append(
+                        (x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0)
+                        - jnp.sqrt(3.0) * x[self.di["m44c"]]
+                    )
                 case "m22s":
-                    out.append(0.0)
-                    # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+                    out.append(-jnp.sqrt(3.0) * x[self.di["m44s"]])
                 case "m40":
                     out.append(0.0)
                 case "m42c":
@@ -76,9 +78,9 @@ class fpfs_base(object):
                     out.append(0.0)
                 case _:
                     out.append(0.0)
-        for nn in self.name_detect[:8]:
+        for nn in self.name_detect[: self.det_nrot]:
             out.append(x[self.di[nn + "r1"]])
-        out = out + [0] * 16
+        out = out + [0] * self.det_nrot * 2
         return jnp.array(out)
 
     def _dg2(self, x):
@@ -90,11 +92,14 @@ class fpfs_base(object):
                 case "m20":
                     out.append(-jnp.sqrt(6.0) * x[self.di["m42s"]])
                 case "m22c":
-                    out.append(0.0)
-                    # - jnp.sqrt(3.0) * x[self.di["m44s"]]
+                    out.append(-jnp.sqrt(3.0) * x[self.di["m44s"]])
+                    #
                 case "m22s":
-                    out.append((x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0))
-                    # + jnp.sqrt(3.0) * x[self.di["m44c"]]
+                    out.append(
+                        (x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0)
+                        + jnp.sqrt(3.0) * x[self.di["m44c"]]
+                    )
+                    #
                 case "m40":
                     out.append(0.0)
                 case "m42c":
@@ -111,9 +116,9 @@ class fpfs_base(object):
                         out.append(0.0)
                 case _:
                     out.append(0.0)
-        for nn in self.name_detect[:8]:
+        for nn in self.name_detect[: self.det_nrot]:
             out.append(x[self.di[nn + "r2"]])
-        out = out + [0] * 16
+        out = out + [0] * self.det_nrot * 2
         return jnp.array(out)
 
 
@@ -125,8 +130,7 @@ class measure_base(fpfs_base):
     psf_data (ndarray):     an average PSF image used to initialize the task
     pix_scale (float):      pixel scale in arcsec
     sigma_arcsec (float):   Shapelet kernel size
-    sigma_detect (float):   detection kernel size
-    nord (int):            the highest order of Shapelets radial
+    nord (int):             the highest order of Shapelets radial
                             components [default: 4]
     """
 
@@ -137,19 +141,16 @@ class measure_base(fpfs_base):
         psf_data,
         pix_scale,
         sigma_arcsec,
-        sigma_detect=None,
         nord=4,
+        det_nrot=8,
     ):
         super().__init__(
             nord=nord,
+            det_nrot=det_nrot,
         )
         if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
             raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
         self.ngrid = psf_data.shape[0]
-        if sigma_detect is None:
-            sigma_detect = sigma_arcsec
-        # NOTE: force them to be the same
-        sigma_detect = sigma_arcsec
 
         # Preparing PSF
         self.psf_fourier = jnp.fft.fftshift(jnp.fft.fft2(psf_data))
@@ -161,22 +162,16 @@ class measure_base(fpfs_base):
 
         # the following two assumes pixel_scale = 1
         self.sigmaf = float(self.pix_scale / sigma_arcsec)
-        self.sigmaf_det = float(self.pix_scale / sigma_detect)
         sigma_pixf = self.sigmaf / self._dk
-        sigma_pixf_det = self.sigmaf_det / self._dk
         logging.info("Order of the shear estimator: nord=%d" % self.nord)
         logging.info(
             "Shapelet kernel in configuration space: sigma= %.4f arcsec"
             % (sigma_arcsec)
         )
-        logging.info(
-            "Detection kernel in configuration space: sigma= %.4f arcsec"
-            % (sigma_detect)
-        )
         # effective nyquest wave number
         self.klim_pix = util.get_klim(
             psf_array=self.psf_pow,
-            sigma=(sigma_pixf + sigma_pixf_det) / 2.0 / jnp.sqrt(2.0),
+            sigma=sigma_pixf / jnp.sqrt(2.0),
             thres=1e-20,
         )  # in pixel units
         self.klim_pix = min(self.klim_pix, self.ngrid // 2 - 1)
@@ -222,15 +217,16 @@ class measure_base(fpfs_base):
     def prepare_fpfs_bases(self):
         """This fucntion prepare the FPFS bases (shapelets and detectlets)"""
         chi, snames = shapelets2d_real(
-            self.ngrid,
-            self.nord,
-            self.sigmaf,
-            self.klim,
+            ngrid=self.ngrid,
+            nord=self.nord,
+            sigma=self.sigmaf,
+            klim=self.klim,
         )
         psi, dnames = detlets2d(
-            self.ngrid,
-            self.sigmaf_det,
-            self.klim,
+            ngrid=self.ngrid,
+            sigma=self.sigmaf,
+            klim=self.klim,
+            det_nrot=self.det_nrot,
         )
         bnames = snames + dnames
         bfunc = jnp.vstack([chi, psi])
@@ -246,7 +242,6 @@ class measure_noise_cov(measure_base):
     psf_data (ndarray):     an average PSF image used to initialize the task
     pix_scale (float):      pixel scale in arcsec
     sigma_arcsec (float):   Shapelet kernel size
-    sigma_detect (float):   detection kernel size
     nord (int):             the highest order of Shapelets radial
                             components [default: 4]
     """
@@ -258,17 +253,16 @@ class measure_noise_cov(measure_base):
         psf_data,
         pix_scale,
         sigma_arcsec,
-        sigma_detect=None,
         nord=4,
+        det_nrot=8,
     ):
         super().__init__(
             psf_data=psf_data,
             sigma_arcsec=sigma_arcsec,
             nord=nord,
             pix_scale=pix_scale,
-            sigma_detect=sigma_detect,
+            det_nrot=det_nrot,
         )
-        self.prepare_fpfs_bases()
         return
 
     def measure(self, noise_pf):
@@ -302,7 +296,6 @@ class measure_source(measure_base):
     psf_data (ndarray):     an average PSF image used to initialize the task
     pix_scale (float):      pixel scale in arcsec
     sigma_arcsec (float):   Shapelet kernel size
-    sigma_detect (float):   detection kernel size
     nord (int):             the highest order of Shapelets radial components
                             [default: 4]
     """
@@ -312,15 +305,15 @@ class measure_source(measure_base):
         psf_data,
         pix_scale,
         sigma_arcsec,
-        sigma_detect=None,
         nord=4,
+        det_nrot=8,
     ):
         super().__init__(
             psf_data=psf_data,
             sigma_arcsec=sigma_arcsec,
             nord=nord,
             pix_scale=pix_scale,
-            sigma_detect=sigma_detect,
+            det_nrot=det_nrot,
         )
         return
 
@@ -394,7 +387,7 @@ class measure_source(measure_base):
         idm00 = self.di["m00"]
         t_tmp = fthres * std_modes[idm00] * self.pix_scale**2.0
         std_v = jnp.average(
-            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
+            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(self.det_nrot)])
         )
         pcut = std_v * self.pix_scale**2.0 * pthres
 

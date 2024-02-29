@@ -143,9 +143,11 @@ class catalog_base(fpfs_base):
         sigma_r2=None,
         sigma_v=None,
         nord=4,
+        det_nrot=8,
     ):
         super().__init__(
             nord=nord,
+            det_nrot=det_nrot,
         )
         if cov_mat is None:
             # cov_mat = jnp.eye(self.ncol)
@@ -160,7 +162,7 @@ class catalog_base(fpfs_base):
             + cov_mat[self.di["m20"], self.di["m00"]]
         )
         std_v = jnp.average(
-            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(8)])
+            jnp.array([std_modes[self.di["v%d" % _]] for _ in range(det_nrot)])
         )
 
         # control steepness
@@ -220,8 +222,8 @@ class catalog_base(fpfs_base):
     def _wdet(self, x):
         # detection
         out = 1.0
-        for i in range(8):
-            out = out * ssfunc2(
+        for i in range(self.det_nrot):
+            out = out * sigmoid(
                 x[self.di["v%d" % i]],
                 self.sigma_v - self.pratio * x[self.di["m00"]] - self.pcut,
                 self.sigma_v,
@@ -337,6 +339,7 @@ class fpfs_catalog(catalog_base):
         sigma_m00=None,
         sigma_r2=None,
         sigma_v=None,
+        det_nrot=8,
     ):
         nord = 4
         super().__init__(
@@ -355,6 +358,7 @@ class fpfs_catalog(catalog_base):
             sigma_r2=sigma_r2,
             sigma_v=sigma_v,
             nord=nord,
+            det_nrot=det_nrot,
         )
         return
 

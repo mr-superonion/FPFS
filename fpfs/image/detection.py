@@ -19,19 +19,18 @@ import jax.numpy as jnp
 from . import util
 
 
-def get_det_col_names():
-    detect_nrot = 8
+def get_det_col_names(det_nrot):
     name_d = []
-    for irot in range(detect_nrot):
+    for irot in range(det_nrot):
         name_d.append("v%d" % irot)
-    for irot in range(detect_nrot):
+    for irot in range(det_nrot):
         name_d.append("v%dr1" % irot)
-    for irot in range(detect_nrot):
+    for irot in range(det_nrot):
         name_d.append("v%dr2" % irot)
     return name_d
 
 
-def detlets2d(ngrid, sigma, klim):
+def detlets2d(ngrid, sigma, klim, det_nrot):
     """Generates shapelets function in Fourier space, chi00 are normalized to 1.
     This function only supports square stamps: ny=nx=ngrid.
 
@@ -41,7 +40,7 @@ def detlets2d(ngrid, sigma, klim):
     klim (float):   upper limit of |k|
 
     Returns:
-    psi (ndarray):  2d detlets basis in shape of [8,3,ngrid,ngrid]
+    psi (ndarray):  2d detlets basis in shape of [det_nrot,3,ngrid,ngrid]
     """
     # Gaussian Kernel
     gauss_ker, (k2grid, k1grid) = util.gauss_kernel_fft(
@@ -57,53 +56,14 @@ def detlets2d(ngrid, sigma, klim):
     d2_ker = (-1j * k2grid) * gauss_ker
     # initial output psi function
     ny, nx = gauss_ker.shape
-    psi = np.zeros((3, 8, ny, nx), dtype=np.complex64)
-    for irot in range(8):
-        x = np.cos(2.0 * np.pi / 8 * irot)
-        y = np.sin(2.0 * np.pi / 8 * irot)
+    psi = np.zeros((3, det_nrot, ny, nx), dtype=np.complex64)
+    for irot in range(det_nrot):
+        x = np.cos(2.0 * np.pi / det_nrot * irot)
+        y = np.sin(2.0 * np.pi / det_nrot * irot)
         foub = np.exp(1j * (k1grid * x + k2grid * y))
         psi[0, irot] = gauss_ker - gauss_ker * foub
         psi[1, irot] = q1_ker - (q1_ker + x * d1_ker - y * d2_ker) * foub
         psi[2, irot] = q2_ker - (q2_ker + y * d1_ker + x * d2_ker) * foub
     psi = jnp.vstack(psi)
-    name_d = get_det_col_names()
+    name_d = get_det_col_names(det_nrot)
     return psi, name_d
-
-
-def detect_thres(imgf_use, thres, ny, nx, sigmaf, klim):
-    # Gaussian kernel for shapelets
-    gauss_kernel, (kygrids, kxgrids) = util.gauss_kernel_rfft(
-        ny,
-        nx,
-        sigmaf,
-        klim,
-        return_grid=True,
-    )
-    # convolved images
-    img_conv = jnp.fft.irfft2(imgf_use * gauss_kernel, (ny, nx))
-    img_conv2 = jnp.fft.irfft2(
-        imgf_use
-        * gauss_kernel
-        * (1.0 - (kxgrids**2.0 + kygrids**2.0) / sigmaf**2.0),
-        (ny, nx),
-    )
-    sel = jnp.logical_and((img_conv > thres), ((img_conv + img_conv2) > 0.0))
-    return sel
-
-
-def detect_max(imgf_use, thres2, ny, nx, sigmaf_det, klim):
-    gauss_kernel, (kygrids, kxgrids) = util.gauss_kernel_rfft(
-        ny,
-        nx,
-        sigmaf_det,
-        klim,
-        return_grid=True,
-    )
-    sel = jnp.ones((ny, nx), dtype=bool)
-    for irot in range(8):
-        x = jnp.cos(2.0 * jnp.pi / 8 * irot)
-        y = jnp.sin(2.0 * jnp.pi / 8 * irot)
-        bb = (1.0 - jnp.exp(1j * (kxgrids * x + kygrids * y))) * gauss_kernel
-        img_r = jnp.fft.irfft2(imgf_use * bb, (ny, nx))
-        sel = jnp.logical_and(sel, (img_r > thres2))
-    return sel

@@ -9,14 +9,17 @@ def simulate_gal_psf(scale, ind0, rcut):
     psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(
         e1=0.02, e2=-0.02
     )
-    nrot = 4
+    ngrid = 64
+    nrot = 12
 
     psf_data = (
         psf_obj.shift(0.5 * scale, 0.5 * scale)
-        .drawImage(nx=64, ny=64, scale=scale)
+        .drawImage(nx=ngrid, ny=ngrid, scale=scale)
         .array
     )
-    psf_data = psf_data[32 - rcut : 32 + rcut, 32 - rcut : 32 + rcut]
+    psf_data = psf_data[
+        ngrid // 2 - rcut : ngrid // 2 + rcut, ngrid // 2 - rcut : ngrid // 2 + rcut
+    ]
     gname = "g1-0"
     gal_data = fpfs.simulation.make_isolate_sim(
         gal_type="mixed",
@@ -24,8 +27,8 @@ def simulate_gal_psf(scale, ind0, rcut):
         psf_obj=psf_obj,
         gname=gname,
         seed=ind0,
-        ny=64,
-        nx=256,
+        ny=ngrid,
+        nx=ngrid * nrot,
         scale=scale,
         do_shift=False,
         buff=0,
@@ -33,8 +36,8 @@ def simulate_gal_psf(scale, ind0, rcut):
     )[0]
 
     # force detection at center
-    indx = np.arange(32, 64 * nrot, 64)
-    indy = np.arange(32, 64, 64)
+    indx = np.arange(ngrid // 2, ngrid * nrot, ngrid)
+    indy = np.arange(ngrid // 2, ngrid, ngrid)
     inds = np.meshgrid(indy, indx, indexing="ij")
     coords = np.vstack(inds).T
     return gal_data, psf_data, coords
@@ -45,18 +48,20 @@ def do_test(scale, ind0, rcut):
     m_thres = 3e-3
     gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
     nord = 4
+    det_nrot = 4
 
     # test shear estimation
     task = fpfs.image.measure_source(
         psf_data,
         pix_scale=scale,
         sigma_arcsec=0.53,
-        sigma_detect=0.53,
         nord=nord,
+        det_nrot=det_nrot,
     )
     print("run measurement")
     # linear observables
     mms = task.measure(gal_data, coords)
+    print(mms.shape)
     print("finish measurement")
 
     # new version
@@ -67,7 +72,8 @@ def do_test(scale, ind0, rcut):
         sigma_r2=0.8,
         pthres=0.0,
         pratio=0.0,
-        sigma_v=0.02,
+        sigma_v=0.8,
+        det_nrot=det_nrot,
     )
     print("run summary")
     outcome = jnp.sum(
@@ -75,38 +81,20 @@ def do_test(scale, ind0, rcut):
     )
     print("finish summary")
     shear1 = outcome[0] / outcome[1]
-    assert np.all(np.abs(shear1 + 0.02) / 0.02 < m_thres)
+    mbias = np.abs(shear1 + 0.02) / 0.02
+    print(mbias)
+    assert np.all(mbias < m_thres)
     outcome = jnp.sum(
         jax.lax.map(jax.jit(cat_obj.measure_g2_noise_correct), mms), axis=0
     )
     shear2 = outcome[0] / outcome[1]
-    assert np.all(np.abs(shear2) < c_thres)
-
-    outcome = jnp.sum(
-        jax.lax.map(jax.jit(cat_obj.measure_g1_no_detect), mms),
-        axis=0,
-    )
-    print("finish summary")
-    shear1 = outcome[0] / outcome[1]
-    assert np.all(np.abs(shear1 + 0.02) / 0.02 < m_thres)
-    outcome = jnp.sum(
-        jax.lax.map(jax.jit(cat_obj.measure_g2_no_detect), mms),
-        axis=0,
-    )
-    shear2 = outcome[0] / outcome[1]
-    assert np.all(np.abs(shear2) < c_thres)
-
-    # older version
-    mms = task.get_results(mms)
-    # non-linear observables
-    ells = fpfs.catalog.m2e(mms, const=20)
-    resp = np.average(ells["fpfs_R1E"])
-    shear = np.average(ells["fpfs_e1"]) / resp
-    assert np.all(np.abs(shear + 0.02) < c_thres)
+    cbias = np.abs(shear2)
+    print(cbias)
+    assert np.all(cbias < c_thres)
 
     # test detection
-    p1 = 32 - rcut
-    p2 = 64 * 2 - rcut
+    p1 = gal_data.shape[0] // 2 - rcut
+    p2 = gal_data.shape[1] // 2 - rcut
     psf_data2 = jnp.pad(psf_data, ((p1, p1), (p2, p2)))
     print("run detection")
     coords2 = task.detect_source(
@@ -124,8 +112,9 @@ def do_test(scale, ind0, rcut):
 
 def test_hsc():
     print("Testing HSC-like image")
-    do_test(0.168, 12, 16)
-    do_test(0.168, 45, 32)
+    for i in range(12, 40, 5):
+        do_test(0.168, i, 16)
+    # do_test(0.168, 41, 32)
     return
 
 

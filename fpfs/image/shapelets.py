@@ -33,7 +33,8 @@ def get_shapelets_col_names(nord):
             "m40",
             "m42c",
             "m42s",
-            # "m44c", "m44s",
+            "m44c",
+            "m44s",
         ]
         ind_s = [
             [0, False],
@@ -43,13 +44,24 @@ def get_shapelets_col_names(nord):
             [20, False],
             [22, False],
             [22, True],
-            # [24, False],
-            # [24, True],
+            [24, False],
+            [24, True],
         ]
     elif nord == 6:
         # This setup is able to derive kappa response and shear response
         # Only uses M00, M20, M22 (real and img), M40, M42(real and img), M60
-        name_s = ["m00", "m20", "m22c", "m22s", "m40", "m42c", "m42s", "m60"]
+        name_s = [
+            "m00",
+            "m20",
+            "m22c",
+            "m22s",
+            "m40",
+            "m42c",
+            "m42s",
+            "m44c",
+            "m44s",
+            "m60",
+        ]
         ind_s = [
             [0, False],
             [14, False],
@@ -58,6 +70,8 @@ def get_shapelets_col_names(nord):
             [28, False],
             [30, False],
             [30, True],
+            [32, False],
+            [32, True],
             [42, False],
         ]
     else:

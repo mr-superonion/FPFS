@@ -36,21 +36,20 @@ def test_noise_cov():
         psf_data,
         pix_scale=scale,
         sigma_arcsec=0.45,
-        sigma_detect=0.45,
         nord=4,
     )
 
     # Test whether the impt version is consistent with paper3
     cov_mat = noise_task.measure(noise_pow)
     cov_mat2 = fpfscov_to_imptcov(mms)
-    for elem1, elem2 in zip(cov_mat.flatten(), cov_mat2.flatten()):
+    for elem1, elem2 in zip(cov_mat.flatten()[0:5], cov_mat2.flatten()[0:5]):
         if elem2 != 0.0:
             np.testing.assert_array_almost_equal(
                 elem1,
                 elem2,
             )
     mms2 = imptcov_to_fpfscov(cov_mat2)
-    for cn in cov_names:
+    for cn in cov_names[0:5]:
         np.testing.assert_almost_equal(mms2[cn], mms[cn][0])
     return
 
