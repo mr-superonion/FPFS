@@ -65,6 +65,8 @@ def do_test(scale, ind0, rcut):
         r2_min=0.0,
         sigma_m00=0.4,
         sigma_r2=0.8,
+        pthres=0.0,
+        pratio=0.0,
         sigma_v=0.02,
     )
     print("run summary")
@@ -76,6 +78,20 @@ def do_test(scale, ind0, rcut):
     assert np.all(np.abs(shear1 + 0.02) / 0.02 < m_thres)
     outcome = jnp.sum(
         jax.lax.map(jax.jit(cat_obj.measure_g2_noise_correct), mms), axis=0
+    )
+    shear2 = outcome[0] / outcome[1]
+    assert np.all(np.abs(shear2) < c_thres)
+
+    outcome = jnp.sum(
+        jax.lax.map(jax.jit(cat_obj.measure_g1_no_detect), mms),
+        axis=0,
+    )
+    print("finish summary")
+    shear1 = outcome[0] / outcome[1]
+    assert np.all(np.abs(shear1 + 0.02) / 0.02 < m_thres)
+    outcome = jnp.sum(
+        jax.lax.map(jax.jit(cat_obj.measure_g2_no_detect), mms),
+        axis=0,
     )
     shear2 = outcome[0] / outcome[1]
     assert np.all(np.abs(shear2) < c_thres)
@@ -93,12 +109,12 @@ def do_test(scale, ind0, rcut):
     p2 = 64 * 2 - rcut
     psf_data2 = jnp.pad(psf_data, ((p1, p1), (p2, p2)))
     print("run detection")
-    coords2 = task.detect_sources(
+    coords2 = task.detect_source(
         gal_data,
         psf_data2,
         cov_elem=np.eye(task.ncol),
-        thres=0.01,
-        thres2=0.00,
+        fthres=0.01,
+        pthres=0.00,
         bound=4,
     )
     coords2 = task.get_results_detection(coords2)
