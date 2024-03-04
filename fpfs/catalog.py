@@ -22,7 +22,7 @@ import numpy.lib.recfunctions as rfn
 from .image.image import fpfs_base, det_ratio
 
 
-def read_catalog(fname):
+def read_catalog(fname, nord):
     x = fitsio.read(fname)
     if x.dtype.names is not None:
         x = rfn.structured_to_unstructured(
@@ -30,6 +30,8 @@ def read_catalog(fname):
             dtype=np.float64,
             copy=True,
         )
+    if nord == 4 and x.shape[1] == 32:
+        x = jnp.delete(x, 7, axis=1)
     return jnp.array(x)
 
 
@@ -242,8 +244,8 @@ class fpfs_catalog(catalog_base):
         sigma_m00=None,
         sigma_r2=None,
         sigma_v=None,
+        nord=4,
     ):
-        nord = 4
         super().__init__(
             ratio=ratio,
             snr_min=snr_min,
