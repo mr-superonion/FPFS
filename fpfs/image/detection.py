@@ -19,7 +19,7 @@ import jax.numpy as jnp
 from . import util
 
 
-def get_det_col_names(det_nrot):
+def get_det_col_names(det_nrot: int) -> list[str]:
     name_d = []
     for irot in range(det_nrot):
         name_d.append("v%d" % irot)
@@ -30,20 +30,26 @@ def get_det_col_names(det_nrot):
     return name_d
 
 
-def detlets2d(ngrid, sigma, klim, det_nrot):
+def detlets2d(
+    ngrid: int,
+    sigma: float,
+    klim: float,
+    det_nrot: int,
+):
     """Generates shapelets function in Fourier space, chi00 are normalized to 1.
     This function only supports square stamps: ny=nx=ngrid.
 
     Args:
-    ngrid (int):    number of pixels in x and y direction
-    sigma (float):  radius of shapelets in Fourier space
-    klim (float):   upper limit of |k|
+    ngrid (int):        number of pixels in x and y direction
+    sigma (float):      radius of shapelets in Fourier space
+    klim (float):       upper limit of |k|
+    det_nrot (int):     number of rotation in the detection kernel
 
     Returns:
     psi (ndarray):  2d detlets basis in shape of [det_nrot,3,ngrid,ngrid]
     """
     # Gaussian Kernel
-    gauss_ker, (k2grid, k1grid) = util.gauss_kernel_fft(
+    gauss_ker, (k2grid, k1grid) = util.gauss_kernel_rfft(
         ngrid, ngrid, sigma, klim, return_grid=True
     )
     # for inverse Fourier transform

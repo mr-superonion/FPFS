@@ -6,7 +6,6 @@ from . import io
 from . import image
 from . import catalog
 from . import simulation
-from . import plot
 
 # We need accuracy is below 1e-6
 from jax import config
@@ -17,6 +16,5 @@ __all__ = [
     "image",
     "catalog",
     "simulation",
-    "plot",
     "io",
 ]

@@ -1,11 +1,10 @@
-import jax
 import fpfs
 import galsim
 import numpy as np
 import jax.numpy as jnp
 
 
-def simulate_gal_psf(scale, ind0, rcut):
+def simulate_gal_psf(scale, ind0, rcut, gcomp="g1"):
     psf_obj = galsim.Moffat(beta=3.5, fwhm=0.6, trunc=0.6 * 4.0).shear(
         e1=0.02, e2=-0.02
     )
@@ -20,7 +19,7 @@ def simulate_gal_psf(scale, ind0, rcut):
     psf_data = psf_data[
         ngrid // 2 - rcut : ngrid // 2 + rcut, ngrid // 2 - rcut : ngrid // 2 + rcut
     ]
-    gname = "g1-0"
+    gname = "%s-0" % gcomp
     gal_data = fpfs.simulation.make_isolate_sim(
         gal_type="mixed",
         sim_method="fft",
@@ -43,10 +42,9 @@ def simulate_gal_psf(scale, ind0, rcut):
     return gal_data, psf_data, coords
 
 
-def do_test(scale, ind0, rcut):
-    c_thres = 3e-5
-    m_thres = 3e-3
-    gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut)
+def do_test(scale, ind0, rcut, gcomp):
+    c_thres = 5e-5
+    gal_data, psf_data, coords = simulate_gal_psf(scale, ind0, rcut, gcomp)
     nord = 4
     det_nrot = 4
 
@@ -58,10 +56,16 @@ def do_test(scale, ind0, rcut):
         nord=nord,
         det_nrot=det_nrot,
     )
-    print("run measurement")
     # linear observables
     mms = task.measure(gal_data, coords)
-    print("finish measurement")
+    if gcomp == "g1":
+        g1 = -0.02
+        g2 = 0.0
+    elif gcomp == "g2":
+        g1 = 0.0
+        g2 = -0.02
+    else:
+        raise ValueError("gcomp should be g1 or g2")
 
     # new version
     cat_obj = fpfs.catalog.fpfs_catalog(
@@ -69,27 +73,34 @@ def do_test(scale, ind0, rcut):
         r2_min=0.0,
         sigma_m00=0.4,
         sigma_r2=0.8,
-        pthres=0.0,
-        pratio=0.0,
-        sigma_v=0.8,
+        sigma_v=0.002,
+        pthres=0.00,
+        pratio=0.00,
         det_nrot=det_nrot,
     )
-    print("run summary")
-    outcome = jnp.sum(
-        jax.lax.map(jax.jit(cat_obj.measure_g1_noise_correct), mms), axis=0
-    )
-    print("finish summary")
+    print("Renoise")
+    outcome = jnp.sum(cat_obj.measure_g1_renoise(mms), axis=0)
     shear1 = outcome[0] / outcome[1]
-    mbias = np.abs(shear1 + 0.02) / 0.02
-    print(mbias)
-    assert np.all(mbias < m_thres)
-    outcome = jnp.sum(
-        jax.lax.map(jax.jit(cat_obj.measure_g2_noise_correct), mms), axis=0
-    )
+    bias1 = np.abs(shear1 - g1)
+    print(bias1)
+    assert np.all(bias1 < c_thres)
+    outcome = jnp.sum(cat_obj.measure_g2_renoise(mms), axis=0)
     shear2 = outcome[0] / outcome[1]
-    cbias = np.abs(shear2)
-    print(cbias)
-    assert np.all(cbias < c_thres)
+    bias2 = np.abs(shear2 - g2)
+    print(bias2)
+    assert np.all(bias2 < c_thres)
+
+    print("Denoise")
+    outcome = jnp.sum(cat_obj.measure_g1_denoise(mms), axis=0)
+    shear1 = outcome[0] / outcome[1]
+    bias1 = np.abs(shear1 - g1)
+    print(bias1)
+    assert np.all(bias1 < c_thres)
+    outcome = jnp.sum(cat_obj.measure_g2_denoise(mms), axis=0)
+    shear2 = outcome[0] / outcome[1]
+    bias2 = np.abs(shear2 - g2)
+    print(bias2)
+    assert np.all(bias2 < c_thres)
 
     # test detection
     p1 = gal_data.shape[0] // 2 - rcut
@@ -111,8 +122,8 @@ def do_test(scale, ind0, rcut):
 
 def test_hsc():
     print("Testing HSC-like image")
-    # do_test(0.168, i, 16)
-    do_test(0.168, 42, 32)
+    do_test(0.168, 42, 32, "g1")
+    do_test(0.168, 42, 32, "g2")
     return
 
 

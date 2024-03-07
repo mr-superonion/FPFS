@@ -125,25 +125,55 @@ def sigmoid(x, mu, sigma):
     return jax.nn.sigmoid(t)
 
 
+def gaussian(x, mu, sigma):
+    """Returns the normalized Gaussian function value at x.
+
+    Args:
+    x (array):      Points at which to evaluate the Gaussian function.
+    mu (float):     Mean of the Gaussian distribution.
+    sigma (float):  Standard deviation of the Gaussian distribution.
+
+    Returns:
+    array:          The values of the Gaussian function at each point in x.
+    """
+    exponent = -0.5 * ((x - mu) / sigma) ** 2
+    return jnp.exp(exponent)
+
+
+def cosh_inv(x, mu, sigma):
+    """Returns the 1/cosh function value at x.
+
+    Args:
+    x (array):      Points at which to evaluate the Gaussian function.
+    mu (float):     Mean of the Gaussian distribution.
+    sigma (float):  Standard deviation of the Gaussian distribution.
+
+    Returns:
+    array:          The values of the 1/cosh function at each point in x.
+    """
+    t = x / sigma - mu
+    return 1.0 / jnp.cosh(t)
+
+
 class catalog_base(fpfs_base):
     def __init__(
         self,
-        ratio=1.81,
-        snr_min=12.0,
-        r2_min=0.05,
-        r2_max=2.0,
-        c0=2.55,
-        c2=25.6,
-        alpha=0.27,
-        beta=0.83,
-        pthres=0.0,
-        pratio=0.02,
+        ratio: float = 1.81,
+        snr_min: float = 12.0,
+        r2_min: float = 0.05,
+        r2_max: float = 2.0,
+        c0: float = 2.55,
+        c2: float = 25.6,
+        alpha: float = 0.27,
+        beta: float = 0.83,
+        pthres: float = 0.0,
+        pratio: float = 0.02,
         cov_mat=None,
-        sigma_m00=None,
-        sigma_r2=None,
-        sigma_v=None,
-        nord=4,
-        det_nrot=8,
+        sigma_m00: float | None = None,
+        sigma_r2: float | None = None,
+        sigma_v: float | None = None,
+        nord: int = 4,
+        det_nrot: int = 8,
     ):
         super().__init__(
             nord=nord,
@@ -203,6 +233,8 @@ class catalog_base(fpfs_base):
         # (M00 + M20) / M00 > r2_min
         r2l = x[self.di["m00"]] * (1.0 - self.r2_min) + x[self.di["m20"]]
         w2l = ssfunc2(r2l, self.sigma_r2, self.sigma_r2)
+        # r2_2 = (x[self.di["m00"]] + x[self.di["m20"]]) / (x[self.di["m00"]] + self.C0)
+        # w2l = w2l * jnp.exp(r2_2)
 
         # selection on size (upper limit)
         # (M00 + M20) / M00 < r2_max
@@ -215,8 +247,10 @@ class catalog_base(fpfs_base):
         # # (M00 - M20) / M00 > 0.3
         # lap = x[self.di["m00"]] * (1.0 - 0.3) - x[self.di["m20"]]
         # wlap =  ssfunc2(lap, self.sigma_r2, self.sigma_r2)
+        # e_sq = self._e1(x) ** 2.0 + self._e2(x) ** 2.0
+        # well = jnp.exp(-e_sq / 2.0 / 0.5 ** 2.0)
 
-        wsel = w0l * w2l  # * w2u
+        wsel = w0l * w2l
         return wsel
 
     def _wdet(self, x):
@@ -228,7 +262,6 @@ class catalog_base(fpfs_base):
                 self.sigma_v - self.pratio * x[self.di["m00"]] - self.pcut,
                 self.sigma_v,
             )
-
         return out
 
     def _denom(self, x):
@@ -249,13 +282,17 @@ class catalog_base(fpfs_base):
     def _we2(self, x):
         return self._wsel(x) * self._e2(x) * self._wdet(x)
 
-    def _we1_no_detect(self, x):
-        return self._wsel(x) * self._e1(x)
+    def _we1_sharp(self, x):
+        e1 = self._wsel(x) * self._e1(x)
+        w = self._wdet(x)
+        return ssfunc2(w, 0.12, 0.04) * e1
 
-    def _we2_no_detect(self, x):
-        return self._wsel(x) * self._e2(x)
+    def _we2_sharp(self, x):
+        e2 = self._wsel(x) * self._e2(x)
+        w = self._wdet(x)
+        return ssfunc2(w, 0.12, 0.04) * e2
 
-    def measure_g1(self, x):
+    def _measure_g1(self, x):
         e1, linear_func = jax.linearize(
             self._we1,
             x,
@@ -264,7 +301,7 @@ class catalog_base(fpfs_base):
         de1_dg1 = linear_func(dmm_dg1)
         return jnp.hstack([e1, de1_dg1])
 
-    def measure_g2(self, x):
+    def _measure_g2(self, x):
         e2, linear_func = jax.linearize(
             self._we2,
             x,
@@ -273,26 +310,26 @@ class catalog_base(fpfs_base):
         de2_dg2 = linear_func(dmm_dg2)
         return jnp.hstack([e2, de2_dg2])
 
-    def measure_g1_no_detect(self, x):
+    def _measure_g1_renoise(self, x, y=0.0):
         e1, linear_func = jax.linearize(
-            self._we1_no_detect,
+            self._we1_sharp,
             x,
         )
-        dmm_dg1 = self._dg1(x)
+        dmm_dg1 = self._dg1(x - y * 2.0)
         de1_dg1 = linear_func(dmm_dg1)
         return jnp.hstack([e1, de1_dg1])
 
-    def measure_g2_no_detect(self, x):
+    def _measure_g2_renoise(self, x, y=0.0):
         e2, linear_func = jax.linearize(
-            self._we2_no_detect,
+            self._we2_sharp,
             x,
         )
-        dmm_dg2 = self._dg2(x)
+        dmm_dg2 = self._dg2(x - y * 2.0)
         de2_dg2 = linear_func(dmm_dg2)
         return jnp.hstack([e2, de2_dg2])
 
-    def _noisebias1(self, x):
-        hessian = jax.jacfwd(jax.jacrev(self.measure_g1))(x)
+    def _noisebias(self, func, x):
+        hessian = jax.jacfwd(jax.jacrev(func))(x)
         out = (
             jnp.tensordot(
                 hessian,
@@ -303,43 +340,123 @@ class catalog_base(fpfs_base):
         )
         return out
 
-    def _noisebias2(self, x):
-        hessian = jax.jacfwd(jax.jacrev(self.measure_g2))(x)
-        out = (
-            jnp.tensordot(
-                hessian,
-                self.cov_mat,
-                axes=[[-2, -1], [-2, -1]],
+    def measure_g1_renoise(self, src, noise=None):
+        """This function meausres the first component of shear using
+        renoise method to revise noise bias.
+
+        Args:
+        src (ndarray):      source catalog
+        noise (ndarray):    noise catalog
+
+        Returns:
+        result (ndarray):   ellipticity and shear response (first component)
+        """
+        src = jnp.atleast_2d(src)
+        if noise is None:
+            func = jax.vmap(
+                self._measure_g1_renoise,
+                in_axes=0,
+                out_axes=0,
             )
-            / 2.0
-        )
-        return out
+            result = func(src)
+        else:
+            assert noise.shape == src.shape, "input shapes not matched"
+            func = jax.vmap(
+                self._measure_g1_renoise,
+                in_axes=(0, 0),
+                out_axes=0,
+            )
+            result = func(src, noise)
+        return result
 
-    def measure_g1_noise_correct(self, x):
-        return self.measure_g1(x) - self._noisebias1(x)
+    def measure_g2_renoise(self, src, noise=None):
+        """This function meausres the second component of shear using
+        renoise method to revise noise bias.
 
-    def measure_g2_noise_correct(self, x):
-        return self.measure_g2(x) - self._noisebias2(x)
+        Args:
+        src (ndarray):      source catalog
+        noise (ndarray):    noise catalog
+
+        Returns:
+        result (ndarray):   ellipticity and shear response (second component)
+        """
+        src = jnp.atleast_2d(src)
+        if noise is None:
+            func = jax.vmap(
+                self._measure_g2_renoise,
+                in_axes=0,
+                out_axes=0,
+            )
+            result = func(src)
+        else:
+            assert noise.shape == src.shape, "input shapes not matched"
+            func = jax.vmap(
+                self._measure_g2_renoise,
+                in_axes=(0, 0),
+                out_axes=0,
+            )
+            result = func(src, noise)
+        return result
+
+    def measure_g1_denoise(self, src, noise_rev=False):
+        """This function meausres the first component of shear using
+        denoise method to revise noise bias.
+
+        Args:
+        src (ndarray):      source catalog
+        noise_rev (bool):   whether to noise bias correction
+
+        Returns:
+        result (ndarray):   ellipticity and shear response (first component)
+        """
+        src = jnp.atleast_2d(src)
+        func = self._measure_g1
+        if not noise_rev:
+            func2 = lambda x: func(x) - self._noisebias(func, x)
+        else:
+            func2 = func
+        result = jax.lax.map(func2, src)
+        return result
+
+    def measure_g2_denoise(self, src, noise_rev=False):
+        """This function meausres the second component of shear using
+        denoise method to revise noise bias.
+
+        Args:
+        src (ndarray):      source catalog
+        noise_rev (bool):   whether to noise bias correction
+
+        Returns:
+        result (ndarray):   ellipticity and shear response (second component)
+        """
+        src = jnp.atleast_2d(src)
+        func = self._measure_g2
+        if not noise_rev:
+            func2 = lambda x: func(x) - self._noisebias(func, x)
+        else:
+            func2 = func
+        result = jax.lax.map(func2, src)
+        return result
 
 
 class fpfs_catalog(catalog_base):
     def __init__(
         self,
-        ratio=1.81,
-        snr_min=12.0,
-        r2_min=0.05,
-        r2_max=2.0,
-        c0=2.55,
-        c2=25.6,
-        alpha=0.27,
-        beta=0.83,
-        pthres=0.0,
-        pratio=0.02,
+        ratio: float = 1.81,
+        snr_min: float = 12.0,
+        r2_min: float = 0.05,
+        r2_max: float = 2.0,
+        c0: float = 2.55,
+        c2: float = 25.6,
+        alpha: float = 0.27,
+        beta: float = 0.83,
+        pthres: float = 0.0,
+        pratio: float = 0.02,
         cov_mat=None,
-        sigma_m00=None,
-        sigma_r2=None,
-        sigma_v=None,
-        det_nrot=8,
+        sigma_m00: float | None = None,
+        sigma_r2: float | None = None,
+        sigma_v: float | None = None,
+        det_nrot: int = 8,
     ):
         nord = 4
         super().__init__(

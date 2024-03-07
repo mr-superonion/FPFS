@@ -19,7 +19,7 @@ import numpy as np
 from . import util
 
 
-def get_shapelets_col_names(nord):
+def get_shapelets_col_names(nord: int) -> tuple[list, list]:
     # M_{nm}
     # nm = n*(nord+1)+m
     if nord == 4:
@@ -83,7 +83,7 @@ def get_shapelets_col_names(nord):
     return name_s, ind_s
 
 
-def shapelets2d(ngrid, nord, sigma, klim):
+def shapelets2d_func(ngrid: int, nord: int, sigma: float, klim: float):
     """Generates complex shapelets function in Fourier space, chi00 are
     normalized to 1
     [only support square stamps: ny=nx=ngrid]
@@ -99,7 +99,7 @@ def shapelets2d(ngrid, nord, sigma, klim):
     """
 
     mord = nord
-    gaufunc, (yfunc, xfunc) = util.gauss_kernel_fft(
+    gaufunc, (yfunc, xfunc) = util.gauss_kernel_rfft(
         ngrid, ngrid, sigma, klim, return_grid=True
     )
     rfunc = np.sqrt(xfunc**2.0 + yfunc**2.0)  # radius
@@ -143,7 +143,7 @@ def shapelets2d(ngrid, nord, sigma, klim):
     return chi
 
 
-def shapelets2d_real(ngrid, nord, sigma, klim):
+def shapelets2d(ngrid: int, nord: int, sigma: float, klim: float):
     """Generates real shapelets function in Fourier space, chi00 are
     normalized to 1
     [only support square stamps: ny=nx=ngrid]
@@ -160,9 +160,9 @@ def shapelets2d_real(ngrid, nord, sigma, klim):
     """
     name_s, ind_s = get_shapelets_col_names(nord)
     # generate the complex shaplet functions
-    chi = shapelets2d(ngrid, nord, sigma, klim)
+    chi = shapelets2d_func(ngrid, nord, sigma, klim)
     # transform to real shapelet functions
-    chi_2 = np.zeros((len(name_s), ngrid, ngrid))
+    chi_2 = np.zeros((len(name_s), ngrid, ngrid // 2 + 1))
     for i, ind in enumerate(ind_s):
         if ind[1]:
             chi_2[i] = chi[ind[0]].imag

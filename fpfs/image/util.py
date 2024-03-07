@@ -1,54 +1,33 @@
-import jax
+import math
 import jax.numpy as jnp
-from functools import partial
 
 
-@jax.jit
-def get_klim(psf_array, sigma, thres=1e-20):
+def get_klim(psf_pow, sigma: float, thres: float = 1e-20) -> float:
     """Gets klim, the region outside klim is supressed by the shaplet Gaussian
     kernel in FPFS shear estimation method; therefore we set values in this
     region to zeros
 
     Args:
-    psf_array (ndarray):    PSF's Fourier power or Fourier transform
-    sigma (float):          one sigma of Gaussian Fourier power
+    psf_pow (ndarray):      PSF's Fourier power (rfft)
+    sigma (float):          one sigma of Gaussian Fourier power (pixel scale=1)
     thres (float):          the threshold for a tuncation on Gaussian
                                 [default: 1e-20]
     Returns:
     klim (float):           the limit radius
     """
-    ngrid = psf_array.shape[0]
-
-    def cond_fun(dist):
-        v1 = abs(
-            jnp.exp(-(dist**2.0) / 2.0 / sigma**2.0)
-            / psf_array[ngrid // 2 + dist, ngrid // 2]
-        )
-        v2 = abs(
-            jnp.exp(-(dist**2.0) / 2.0 / sigma**2.0)
-            / psf_array[ngrid // 2, ngrid // 2 + dist]
-        )
-        return jax.lax.cond(
-            v1 < v2,
-            v1,
-            lambda x: x > thres,
-            v2,
-            lambda x: x > thres,
-        )
-
-    def body_fun(dist):
-        return dist + 1
-
-    klim = jax.lax.while_loop(
-        cond_fun=cond_fun,
-        body_fun=body_fun,
-        init_val=ngrid // 5,
-    )
-    return klim
+    ngrid = psf_pow.shape[0]
+    gaussian, (y, x) = gauss_kernel_rfft(ngrid, ngrid, sigma, jnp.pi, return_grid=True)
+    r = jnp.sqrt(x**2.0 + y**2.0)  # radius
+    mask = gaussian / psf_pow < thres
+    dk = 2.0 * math.pi / ngrid
+    klim_pix = round(float(jnp.min(r[mask]) / dk))
+    klim_pix = min(max(klim_pix, ngrid // 5), ngrid // 2 - 1)
+    return klim_pix
 
 
-@partial(jax.jit, static_argnames=["ny", "nx", "klim", "return_grid"])
-def gauss_kernel_fft(ny, nx, sigma, klim, return_grid=False):
+def gauss_kernel_fft(
+    ny: int, nx: int, sigma: float, klim: float, return_grid: bool = False
+):
     """Generates a Gaussian kernel on grids for np.fft.fft transform
     (we always shift k=0 to (ngird//2, ngird//2)). The kernel is truncated at
     radius klim.
@@ -56,7 +35,7 @@ def gauss_kernel_fft(ny, nx, sigma, klim, return_grid=False):
     Args:
     ny (int):    		    grid size in y-direction
     nx (int):    		    grid size in x-direction
-    sigma (float):		    scale of Gaussian in Fourier space
+    sigma (float):		    scale of Gaussian in Fourier space (pixel scale=1)
     klim (float):           upper limit of k
     return_grid (bool):     return grids [True] or not [Flase]
                                 [default: False]
@@ -77,15 +56,16 @@ def gauss_kernel_fft(ny, nx, sigma, klim, return_grid=False):
         return out, (ygrid, xgrid)
 
 
-@partial(jax.jit, static_argnames=["ny", "nx", "klim", "return_grid"])
-def gauss_kernel_rfft(ny, nx, sigma, klim, return_grid=False):
+def gauss_kernel_rfft(
+    ny: int, nx: int, sigma: float, klim: float, return_grid: bool = False
+):
     """Generates a Gaussian kernel on grids for np.fft.rfft transform
     The kernel is truncated at radius klim.
 
     Args:
     ny (int):    		    grid size in y-direction
     nx (int):    		    grid size in x-direction
-    sigma (float):		    scale of Gaussian in Fourier space
+    sigma (float):		    scale of Gaussian in Fourier space (pixel scale=1)
     klim (float):           upper limit of k
     return_grid (bool):     return grids or not
 
@@ -105,37 +85,13 @@ def gauss_kernel_rfft(ny, nx, sigma, klim, return_grid=False):
         return out, (ygrid, xgrid)
 
 
-@jax.jit
-def get_fourier_pow_fft(input_data):
-    """Gets Fourier power function
+def truncate_square(arr, rcut: int) -> None:
+    """Truncate the input array with square
 
     Args:
-    input_data (ndarray):  image array, centroid does not matter.
-
-    Returns:
-    out (ndarray):      Fourier Power
+    arr (ndarray):      image array
+    rcut (int):         radius of the square (width / 2)
     """
-    out = (jnp.abs(jnp.fft.fft2(input_data)) ** 2.0).astype(jnp.float64)
-    out = jnp.fft.fftshift(out)
-    return out
-
-
-@jax.jit
-def get_fourier_pow_rfft(input_data):
-    """Gets Fourier power function
-
-    Args:
-    input_data (ndarray):  image array. The centroid does not matter.
-
-    Returns:
-    galpow (ndarray):   Fourier Power
-    """
-
-    out = (jnp.abs(jnp.fft.rfft2(input_data)) ** 2.0).astype(jnp.float64)
-    return out
-
-
-def truncate_square(arr, rcut):
     if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
         raise ValueError("Input array must be a 2D square array")
 
@@ -147,7 +103,13 @@ def truncate_square(arr, rcut):
     return
 
 
-def truncate_circle(arr, rcut):
+def truncate_circle(arr, rcut: float) -> None:
+    """Truncate the input array with circle
+
+    Args:
+    arr (ndarray):      image array
+    rcut (float):       radius of the circle (width / 2)
+    """
     if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
         raise ValueError("Input array must be a 2D square array")
     ngrid = arr.shape[0]
@@ -158,3 +120,56 @@ def truncate_circle(arr, rcut):
     # Mask values outside the circle
     arr[distance_squared > rcut**2] = 0.0
     return
+
+
+def truncate_psf(arr, rcut: float):
+    """Truncate the input PSF array in Fourier space with circle
+
+    Args:
+    arr (ndarray):      image array
+    rcut (float):       radius of the circle (width / 2)
+
+    Returns:
+    out (ndarray):      truncated array
+    """
+    if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
+        raise ValueError("Input array must be a 2D square array")
+    ngrid = arr.shape[0]
+    center = ngrid // 2
+    # Create a meshgrid for x and y coordinates
+    y, x = jnp.ogrid[:ngrid, :ngrid]
+    # Calculate the distance from the center
+    distance_squared = (x - center) ** 2 + (y - center) ** 2.0
+    # Create a mask for pixels outside the radius rcut
+    mask = distance_squared > rcut**2.0
+    # Set pixels outside rcut to 1e5
+    out = jnp.where(mask, 1e5, arr)
+    return out
+
+
+def truncate_psf_rfft(arr, rcut: float, ngrid: int):
+    """Truncate the input PSF array in Fourier (rfft) space with circle
+
+    Args:
+    arr (ndarray):      image array
+    rcut (float):       radius of the circle
+
+    Returns:
+    out (ndarray):      truncated array
+    """
+    if len(arr.shape) != 2 or arr.shape != (ngrid, ngrid // 2 + 1):
+        raise ValueError("Input array must be a 2D square array")
+    # Create a meshgrid of frequency values
+    fy, fx = jnp.meshgrid(
+        jnp.fft.fftfreq(ngrid) * ngrid,
+        jnp.fft.rfftfreq(ngrid) * ngrid,
+        indexing="ij",
+    )
+
+    # Calculate distances in the frequency domain
+    d2 = fx**2 + fy**2
+    # Create a mask for distances greater than rcut
+    mask = d2 > rcut**2.0
+    # Apply the mask
+    out = jnp.where(mask, 1e5, arr)
+    return out

@@ -17,9 +17,8 @@ import jax
 import logging
 import numpy as np
 import jax.numpy as jnp
-from functools import partial
 from . import util
-from .shapelets import shapelets2d_real, get_shapelets_col_names
+from .shapelets import shapelets2d, get_shapelets_col_names
 from .detection import detlets2d, get_det_col_names
 
 
@@ -31,7 +30,7 @@ logging.basicConfig(
 
 
 class fpfs_base(object):
-    def __init__(self, nord, det_nrot):
+    def __init__(self, nord: int, det_nrot: int) -> None:
         self.nord = nord
         name_s, _ = get_shapelets_col_names(nord)
         name_d = get_det_col_names(det_nrot)
@@ -44,82 +43,74 @@ class fpfs_base(object):
         self.name_shapelets = name_s
         self.name_detect = name_d
         self.det_nrot = det_nrot
-        # jax.debug.print("debug: {}", self.name_shapelets)
+        self.prepare_dg1_mat()
+        self.prepare_dg2_mat()
+        # jax.debug.print("debug: {}", self.dg1_mat)
+        return
+
+    def prepare_dg1_mat(self):
+        out = []
+        for nn in self.name_shapelets:
+            tmp = jnp.zeros(self.ncol)
+            match nn:
+                case "m00":
+                    tmp = tmp.at[self.di["m22c"]].set(-jnp.sqrt(2.0))
+                case "m20":
+                    tmp = tmp.at[self.di["m42c"]].set(-jnp.sqrt(6.0))
+                case "m22c":
+                    tmp = tmp.at[self.di["m00"]].set(1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m40"]].set(-1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m44c"]].set(-jnp.sqrt(3.0))
+                case "m22s":
+                    tmp = tmp.at[self.di["m44s"]].set(-jnp.sqrt(3.0))
+                case "m42c":
+                    if self.nord >= 6:
+                        tmp = tmp.at[self.di["m20"]].set(jnp.sqrt(6.0) / 2.0)
+                        tmp = tmp.at[self.di["m60"]].set(-jnp.sqrt(6.0) / 2.0)
+            out.append(tmp)
+        for nn in self.name_detect[: self.det_nrot]:
+            tmp = jnp.zeros(self.ncol)
+            tmp = tmp.at[self.di[nn + "r1"]].set(1.0)
+            out.append(tmp)
+        for _ in range(self.det_nrot * 2):
+            out.append(jnp.zeros(self.ncol))
+        self.dg1_mat = jnp.vstack(out)
+        return
+
+    def prepare_dg2_mat(self):
+        out = []
+        for nn in self.name_shapelets:
+            tmp = jnp.zeros(self.ncol)
+            match nn:
+                case "m00":
+                    tmp = tmp.at[self.di["m22s"]].set(-jnp.sqrt(2.0))
+                case "m20":
+                    tmp = tmp.at[self.di["m42s"]].set(-jnp.sqrt(6.0))
+                case "m22c":
+                    tmp = tmp.at[self.di["m44s"]].set(-jnp.sqrt(3.0))
+                case "m22s":
+                    tmp = tmp.at[self.di["m00"]].set(1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m40"]].set(-1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m44c"]].set(jnp.sqrt(3.0))
+                case "m42c":
+                    if self.nord >= 6:
+                        tmp = tmp.at[self.di["m20"]].set(jnp.sqrt(6.0) / 2.0)
+                        tmp = tmp.at[self.di["m60"]].set(-jnp.sqrt(6.0) / 2.0)
+            out.append(tmp)
+        for nn in self.name_detect[: self.det_nrot]:
+            tmp = jnp.zeros(self.ncol)
+            tmp = tmp.at[self.di[nn + "r2"]].set(1.0)
+            out.append(tmp)
+        for _ in range(self.det_nrot * 2):
+            out.append(jnp.zeros(self.ncol))
+        self.dg2_mat = jnp.vstack(out)
         return
 
     def _dg1(self, x):
-        out = []
-        for nn in self.name_shapelets:
-            match nn:
-                case "m00":
-                    out.append(-jnp.sqrt(2.0) * x[self.di["m22c"]])
-                case "m20":
-                    out.append(-jnp.sqrt(6.0) * x[self.di["m42c"]])
-                case "m22c":
-                    out.append(
-                        (x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0)
-                        - jnp.sqrt(3.0) * x[self.di["m44c"]]
-                    )
-                case "m22s":
-                    out.append(-jnp.sqrt(3.0) * x[self.di["m44s"]])
-                case "m40":
-                    out.append(0.0)
-                case "m42c":
-                    if self.nord >= 6:
-                        out.append(
-                            jnp.sqrt(6.0)
-                            / 2.0
-                            * (x[self.di["m20"]] - x[self.di["m60"]])
-                        )
-                        #
-                    else:
-                        out.append(0.0)
-                case "m42s":
-                    out.append(0.0)
-                case _:
-                    out.append(0.0)
-        for nn in self.name_detect[: self.det_nrot]:
-            out.append(x[self.di[nn + "r1"]])
-        out = out + [0] * self.det_nrot * 2
-        return jnp.array(out)
+        return self.dg1_mat.dot(x)
 
     def _dg2(self, x):
-        out = []
-        for nn in self.name_shapelets:
-            match nn:
-                case "m00":
-                    out.append(-jnp.sqrt(2.0) * x[self.di["m22s"]])
-                case "m20":
-                    out.append(-jnp.sqrt(6.0) * x[self.di["m42s"]])
-                case "m22c":
-                    out.append(-jnp.sqrt(3.0) * x[self.di["m44s"]])
-                    #
-                case "m22s":
-                    out.append(
-                        (x[self.di["m00"]] - x[self.di["m40"]]) / jnp.sqrt(2.0)
-                        + jnp.sqrt(3.0) * x[self.di["m44c"]]
-                    )
-                    #
-                case "m40":
-                    out.append(0.0)
-                case "m42c":
-                    out.append(0.0)
-                case "m42s":
-                    if self.nord >= 6:
-                        out.append(
-                            jnp.sqrt(6.0)
-                            / 2.0
-                            * (x[self.di["m20"]] - x[self.di["m60"]])
-                        )
-                        #
-                    else:
-                        out.append(0.0)
-                case _:
-                    out.append(0.0)
-        for nn in self.name_detect[: self.det_nrot]:
-            out.append(x[self.di[nn + "r2"]])
-        out = out + [0] * self.det_nrot * 2
-        return jnp.array(out)
+        return self.dg2_mat.dot(x)
 
 
 class measure_base(fpfs_base):
@@ -132,18 +123,17 @@ class measure_base(fpfs_base):
     sigma_arcsec (float):   Shapelet kernel size
     nord (int):             the highest order of Shapelets radial
                             components [default: 4]
+    det_nrot (int):         number of rotation in the detection kernel
     """
-
-    _DefaultName = "measure_base"
 
     def __init__(
         self,
         psf_data,
-        pix_scale,
-        sigma_arcsec,
-        nord=4,
-        det_nrot=8,
-    ):
+        pix_scale: float,
+        sigma_arcsec: float,
+        nord: int = 4,
+        det_nrot: int = 8,
+    ) -> None:
         super().__init__(
             nord=nord,
             det_nrot=det_nrot,
@@ -153,8 +143,9 @@ class measure_base(fpfs_base):
         self.ngrid = psf_data.shape[0]
 
         # Preparing PSF
-        self.psf_fourier = jnp.fft.fftshift(jnp.fft.fft2(psf_data))
-        self.psf_pow = util.get_fourier_pow_fft(psf_data)
+        # psf_fourier = jnp.fft.fftshift(jnp.fft.fft2(psf_data))
+        psf_fourier = jnp.fft.rfft2(psf_data)
+        psf_pow = (jnp.abs(psf_fourier) ** 2.0).astype(jnp.float64)
 
         # A few import scales
         self.pix_scale = pix_scale
@@ -162,7 +153,6 @@ class measure_base(fpfs_base):
 
         # the following two assumes pixel_scale = 1
         self.sigmaf = float(self.pix_scale / sigma_arcsec)
-        sigma_pixf = self.sigmaf / self._dk
         logging.info("Order of the shear estimator: nord=%d" % self.nord)
         logging.info(
             "Shapelet kernel in configuration space: sigma= %.4f arcsec"
@@ -170,26 +160,25 @@ class measure_base(fpfs_base):
         )
         # effective nyquest wave number
         self.klim_pix = util.get_klim(
-            psf_array=self.psf_pow,
-            sigma=sigma_pixf / jnp.sqrt(2.0),
+            psf_pow=psf_pow,
+            sigma=self.sigmaf / np.sqrt(2.0),
             thres=1e-20,
         )  # in pixel units
-        self.klim_pix = min(self.klim_pix, self.ngrid // 2 - 1)
+        self.psf_fourier = util.truncate_psf_rfft(
+            psf_fourier, self.klim_pix, self.ngrid
+        )
+        self.psf_pow = util.truncate_psf_rfft(psf_pow, self.klim_pix, self.ngrid)
 
         self.klim = float(self.klim_pix * self._dk)
         logging.info("Maximum |k| is %.3f" % (self.klim))
 
-        self._indx = jnp.arange(
-            self.ngrid // 2 - self.klim_pix,
-            self.ngrid // 2 + self.klim_pix + 1,
-        )
-        self._indy = self._indx[:, None]
-        self._ind2d = jnp.ix_(self._indx, self._indx)
-
         self.prepare_fpfs_bases()
+
+        # Weight for rfft
+        _w = jnp.ones(psf_pow.shape) * 2.0
+        self._w = _w.at[:, 0].set(1.0).at[:, -1].set(1.0)
         return
 
-    @partial(jax.jit, static_argnames=["self"])
     def deconvolve(self, data, prder=1.0, frder=1.0):
         """Deconvolves input data with the PSF or PSF power
 
@@ -206,17 +195,12 @@ class measure_base(fpfs_base):
         out (ndarray):
             Deconvolved galaxy power [truncated at klim]
         """
-        out = jnp.zeros(data.shape, dtype=jnp.complex128)
-        out2 = out.at[self._ind2d].set(
-            data[self._ind2d]
-            / self.psf_pow[self._ind2d] ** prder
-            / self.psf_fourier[self._ind2d] ** frder
-        )
-        return out2
+        out = data / self.psf_pow**prder / self.psf_fourier**frder
+        return out
 
     def prepare_fpfs_bases(self):
         """This fucntion prepare the FPFS bases (shapelets and detectlets)"""
-        chi, snames = shapelets2d_real(
+        chi, snames = shapelets2d(
             ngrid=self.ngrid,
             nord=self.nord,
             sigma=self.sigmaf,
@@ -229,8 +213,7 @@ class measure_base(fpfs_base):
             det_nrot=self.det_nrot,
         )
         bnames = snames + dnames
-        bfunc = jnp.vstack([chi, psi])
-        self.bfunc = jnp.array(bfunc[:, self._indy, self._indx])
+        self.bfunc = jnp.vstack([chi, psi])
         self.byps = [("fpfs_%s" % _nn, "<f8") for _nn in bnames]
         return
 
@@ -244,18 +227,17 @@ class measure_noise_cov(measure_base):
     sigma_arcsec (float):   Shapelet kernel size
     nord (int):             the highest order of Shapelets radial
                             components [default: 4]
+    det_nrot (int):         number of rotation in the detection kernel
     """
-
-    _DefaultName = "measure_noise_cov"
 
     def __init__(
         self,
         psf_data,
-        pix_scale,
-        sigma_arcsec,
-        nord=4,
-        det_nrot=8,
-    ):
+        pix_scale: float,
+        sigma_arcsec: float,
+        nord: int = 4,
+        det_nrot: int = 8,
+    ) -> None:
         super().__init__(
             psf_data=psf_data,
             sigma_arcsec=sigma_arcsec,
@@ -274,16 +256,22 @@ class measure_noise_cov(measure_base):
         Return:
         cov_matrix (ndarray):   covariance matrix of FPFS basis modes
         """
-        noise_pf = jnp.array(noise_pf, dtype="<f8")
+        if noise_pf.shape == (self.ngrid, self.ngrid // 2 + 1):
+            # rfft
+            noise_pf = jnp.array(noise_pf, dtype=jnp.float64)
+        elif noise_pf.shape == (self.ngrid, self.ngrid):
+            # fft
+            noise_pf = jnp.fft.ifftshift(noise_pf)
+            noise_pf = jnp.array(noise_pf[:, : self.ngrid // 2 + 1], dtype=jnp.float64)
+        else:
+            raise ValueError("noise power not in correct shape")
         noise_pf_deconv = self.deconvolve(noise_pf, prder=1, frder=0)
         cov_matrix = (
-            jnp.real(
-                jnp.tensordot(
-                    self.bfunc * noise_pf_deconv[None, self._indy, self._indx],
-                    jnp.conjugate(self.bfunc),
-                    axes=((1, 2), (1, 2)),
-                )
-            )
+            jnp.tensordot(
+                self.bfunc * (self._w * noise_pf_deconv)[jnp.newaxis, :, :],
+                jnp.conjugate(self.bfunc),
+                axes=((1, 2), (1, 2)),
+            ).real
             / self.pix_scale**4.0
         )
         return cov_matrix
@@ -298,15 +286,16 @@ class measure_source(measure_base):
     sigma_arcsec (float):   Shapelet kernel size
     nord (int):             the highest order of Shapelets radial components
                             [default: 4]
+    det_nrot (int):         number of rotation in the detection kernel
     """
 
     def __init__(
         self,
         psf_data,
-        pix_scale,
-        sigma_arcsec,
-        nord=4,
-        det_nrot=8,
+        pix_scale: float,
+        sigma_arcsec: float,
+        nord: int = 4,
+        det_nrot: int = 8,
     ):
         super().__init__(
             psf_data=psf_data,
@@ -322,10 +311,10 @@ class measure_source(measure_base):
         img_data,
         psf_data,
         cov_elem,
-        fthres,
-        pthres=0.0,
-        pratio=0.02,
-        bound=None,
+        fthres: float,
+        pthres: float = 0.0,
+        pratio: float = 0.02,
+        bound: int | None = None,
     ):
         """Returns the coordinates of detected sources
 
@@ -335,7 +324,7 @@ class measure_source(measure_base):
         cov_elem (ndarray):         covariance matrix of the measurement error
         fthres (float):             n-sigma detection threshold (flux)
         pthres (float):             n-sigma detection threshold (peak)
-        pratio (float):          ratio between difference and flux
+        pratio (float):             ratio between difference and flux
         bound (int):                remove sources at boundary
 
         Returns:
@@ -355,8 +344,6 @@ class measure_source(measure_base):
             pratio=pratio,
             bound=bound,
         )
-        logging.info("Finish Detection")
-        logging.info("Detect sources %d" % len(out))
         return out
 
     def peak_detect(
@@ -384,8 +371,7 @@ class measure_source(measure_base):
         """
 
         std_modes = jnp.sqrt(jnp.diagonal(cov_elem))
-        idm00 = self.di["m00"]
-        t_tmp = fthres * std_modes[idm00] * self.pix_scale**2.0
+        fcut = fthres * std_modes[self.di["m00"]] * self.pix_scale**2.0
         std_v = jnp.average(
             jnp.array([std_modes[self.di["v%d" % _]] for _ in range(self.det_nrot)])
         )
@@ -395,48 +381,45 @@ class measure_source(measure_base):
         # Fourier transform
         npady = (ny - psf_data.shape[0]) // 2
         npadx = (nx - psf_data.shape[1]) // 2
-        # Gaussian kernel for shapelets
 
-        kernel, (kygrids, kxgrids) = util.gauss_kernel_rfft(
-            ny,
-            nx,
-            self.sigmaf,
-            self.klim,
-            return_grid=True,
-        )
-        imf = (
+        # Gaussian kernel for shapelets
+        img_conv = jnp.fft.irfft2(
             jnp.fft.rfft2(img_data)
             / jnp.fft.rfft2(
                 jnp.fft.ifftshift(
                     jnp.pad(psf_data, (npady, npadx), mode="constant"),
                 )
             )
-            * kernel
-        )
-        img_conv = jnp.fft.irfft2(imf, (ny, nx))
-        img_conv2 = jnp.fft.irfft2(
-            imf * (2.0 - (kxgrids**2.0 + kygrids**2.0) / self.sigmaf**2.0),
+            * util.gauss_kernel_rfft(
+                ny,
+                nx,
+                self.sigmaf,
+                self.klim,
+                return_grid=False,
+            ),
             (ny, nx),
         )
-        del imf, kernel, kxgrids, kygrids
-        sel = get_pixel_detect_mask(
-            jnp.logical_and(img_conv > t_tmp, img_conv2 > 0.0),
-            img_conv,
-            pcut,
-            pratio,
+        det = jnp.int_(
+            jnp.argwhere(
+                get_pixel_detect_mask(
+                    (img_conv > fcut),
+                    img_conv,
+                    pcut,
+                    pratio,
+                )
+            )
         )
-        det = jnp.int_(jnp.argwhere(sel))
-
-        msk = (
-            (det[:, 0] > bound)
-            & (det[:, 0] < ny - bound)
-            & (det[:, 1] > bound)
-            & (det[:, 1] < nx - bound)
-        )
-        det = det[msk]
-
+        det = det[
+            (
+                (det[:, 0] > bound)
+                & (det[:, 0] < ny - bound)
+                & (det[:, 1] > bound)
+                & (det[:, 1] < nx - bound)
+            )
+        ]
         func = lambda cc: self.determine_peak(cc, img_conv)
-        return jax.lax.map(func, jnp.atleast_2d(det))
+        det = jax.lax.map(func, jnp.atleast_2d(det))
+        return det
 
     def determine_peak(self, cc, image):
         out = (
@@ -456,19 +439,20 @@ class measure_source(measure_base):
         coords (ndarray):           coordinate array
 
         Returns:
-        out (ndarray):              FPFS moments
+        src (ndarray):              FPFS linear observables
         """
         if coords is None:
             coords = jnp.array(exposure.shape) // 2
-        func = lambda xi: self.measure_coord(xi, jnp.array(exposure))
-        return jax.lax.map(func, jnp.atleast_2d(coords))
+        func = lambda xi: self.measure_coord(xi, exposure)
+        src = jax.lax.map(func, jnp.atleast_2d(coords))
+        return src
 
-    def measure_coord(self, cc, image):
+    def measure_coord(self, cc, exposure):
         """This function measures the FPFS moments from a coordinate
 
         Args:
-        cc (ndarray):       galaxy peak coordinate
-        image (ndarray):    exposure
+        cc (ndarray):           galaxy peak coordinate
+        exposure (ndarray):     exposure
 
         Returns:
         mm (ndarray):       FPFS moments
@@ -476,7 +460,7 @@ class measure_source(measure_base):
         y = cc[0].astype(int)
         x = cc[1].astype(int)
         stamp = jax.lax.dynamic_slice(
-            image,
+            exposure,
             (y - self.ngrid // 2, x - self.ngrid // 2),
             (self.ngrid, self.ngrid),
         )
@@ -491,12 +475,13 @@ class measure_source(measure_base):
         Returns:
         mm (ndarray):       FPFS moments
         """
-        gal_fourier = jnp.fft.fftshift(jnp.fft.fft2(data))
+        # gal_fourier = jnp.fft.fftshift(jnp.fft.fft2(data))
+        gal_fourier = jnp.fft.rfft2(data)
         gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
         # jax.debug.print("debug: {}", mm)
         outcome = (
             jnp.sum(
-                gal_deconv[None, self._indy, self._indx] * self.bfunc,
+                (self._w * gal_deconv)[jnp.newaxis, :, :] * self.bfunc,
                 axis=(-1, -2),
             ).real
             / self.pix_scale**2.0
@@ -531,11 +516,10 @@ class measure_source(measure_base):
 
 @jax.jit
 def get_pixel_detect_mask(sel, img, pcut, pratio):
+    thres = -1.0 * (pcut + pratio * img)
     for ax in [-1, -2]:
         for shift in [-1, 1]:
-            filtered = img - jnp.roll(img, shift=shift, axis=ax)
             sel = jnp.logical_and(
-                sel,
-                (filtered + (pcut + pratio * img) > 0.0),
+                sel, img - jnp.roll(img, shift=shift, axis=ax) > thres
             )
     return sel

@@ -8,7 +8,6 @@ import fitsio
 import galsim
 import numpy as np
 from .util import make_isolate_sim
-from ..io import save_image
 from configparser import ConfigParser, ExtendedInterpolation
 
 logging.basicConfig(
@@ -201,7 +200,7 @@ class SimulationTask(object):
                     irot,
                     self.band,
                 )
-                save_image(gal_fname, sim_img[irot])
+                fitsio.write(gal_fname, sim_img[irot])
             gc.collect()
         logging.info("finish processing field ID: %d" % (ifield))
         return
