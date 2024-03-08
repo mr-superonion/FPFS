@@ -1,3 +1,4 @@
+import jax
 import math
 import jax.numpy as jnp
 
@@ -173,3 +174,31 @@ def truncate_psf_rfft(arr, rcut: float, ngrid: int):
     # Apply the mask
     out = jnp.where(mask, 1e5, arr)
     return out
+
+
+@jax.jit
+def rotate90(image):
+    """This code rotates an image wrt (ngrid//2, ngrid//2) counterclockwisely
+
+    Args:
+    image (ndarray):    image to rotate
+
+    Returns:
+    rotated_image (ndarray):    rotated image
+    """
+    ngrid = image.shape[0]
+    center = ngrid // 2
+    # Create an empty array of the same shape as the image
+    rotated_image = jnp.zeros_like(image)
+
+    # Compute new coordinates for each pixel after rotation
+    for i in range(ngrid):
+        for j in range(ngrid):
+            # Applying the correct transformation for 90-degree
+            # counterclockwise rotation
+            new_i = center + (j - center)
+            new_j = center - (i - center)
+            # Correctly access and set the pixel values
+            rotated_image = rotated_image.at[new_i, new_j].set(image[i, j])
+
+    return rotated_image
