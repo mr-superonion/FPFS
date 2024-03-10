@@ -114,11 +114,10 @@ class fpfs_base(object):
 
 
 class measure_base(fpfs_base):
-    """A base class for measurement, which is extended to measure_source and
-    measure_noise_cov
+    """A base class for measurement
 
     Args:
-    psf_data (ndarray):     an average PSF image used to initialize the task
+    psf_array (ndarray):    an average PSF image used to initialize the task
     pix_scale (float):      pixel scale in arcsec
     sigma_arcsec (float):   Shapelet kernel size
     nord (int):             the highest order of Shapelets radial
@@ -128,7 +127,7 @@ class measure_base(fpfs_base):
 
     def __init__(
         self,
-        psf_data,
+        psf_array,
         pix_scale: float,
         sigma_arcsec: float,
         nord: int = 4,
@@ -140,12 +139,15 @@ class measure_base(fpfs_base):
         )
         if sigma_arcsec <= 0.0 or sigma_arcsec > 5.0:
             raise ValueError("sigma_arcsec should be positive and less than 5 arcsec")
-        self.ngrid = psf_data.shape[0]
+        self.ngrid = psf_array.shape[0]
 
         # Preparing PSF
-        # psf_fourier = jnp.fft.fftshift(jnp.fft.fft2(psf_data))
-        psf_fourier = jnp.fft.rfft2(psf_data)
-        psf_pow = (jnp.abs(psf_fourier) ** 2.0).astype(jnp.float64)
+        psf_f = jnp.fft.rfft2(psf_array)
+        psf_pow = (jnp.abs(psf_f) ** 2.0).astype(jnp.float64)
+
+        psf_rot = util.rotate90(psf_array)
+        psf_rot_f = jnp.fft.rfft2(psf_rot)
+        psf_rot_pow = (jnp.abs(psf_rot_f) ** 2.0).astype(jnp.float64)
 
         # A few import scales
         self.pix_scale = pix_scale
@@ -164,13 +166,30 @@ class measure_base(fpfs_base):
             sigma=self.sigmaf / np.sqrt(2.0),
             thres=1e-20,
         )  # in pixel units
-        self.psf_fourier = util.truncate_psf_rfft(
-            psf_fourier, self.klim_pix, self.ngrid
-        )
-        self.psf_pow = util.truncate_psf_rfft(psf_pow, self.klim_pix, self.ngrid)
-
         self.klim = float(self.klim_pix * self._dk)
         logging.info("Maximum |k| is %.3f" % (self.klim))
+
+        self.psf_f = util.truncate_psf_rfft(
+            psf_f,
+            self.klim_pix,
+            self.ngrid,
+        )
+        self.psf_pow = util.truncate_psf_rfft(
+            psf_pow,
+            self.klim_pix,
+            self.ngrid,
+        )
+
+        self.psf_rot_f = util.truncate_psf_rfft(
+            psf_rot_f,
+            self.klim_pix,
+            self.ngrid,
+        )
+        self.psf_rot_pow = util.truncate_psf_rfft(
+            psf_rot_pow,
+            self.klim_pix,
+            self.ngrid,
+        )
 
         self.prepare_fpfs_bases()
 
@@ -178,25 +197,6 @@ class measure_base(fpfs_base):
         _w = jnp.ones(psf_pow.shape) * 2.0
         self._w = _w.at[:, 0].set(1.0).at[:, -1].set(1.0)
         return
-
-    def deconvolve(self, data, prder=1.0, frder=1.0):
-        """Deconvolves input data with the PSF or PSF power
-
-        Args:
-        data (ndarray):
-            galaxy power or galaxy Fourier transfer, origin is set to
-            [ngrid//2,ngrid//2]
-        prder (float):
-            deconvlove order of PSF FT power
-        frder (float):
-            deconvlove order of PSF FT
-
-        Returns:
-        out (ndarray):
-            Deconvolved galaxy power [truncated at klim]
-        """
-        out = data / self.psf_pow**prder / self.psf_fourier**frder
-        return out
 
     def prepare_fpfs_bases(self):
         """This fucntion prepare the FPFS bases (shapelets and detectlets)"""
@@ -222,7 +222,7 @@ class measure_noise_cov(measure_base):
     """A class to measure FPFS noise covariance of basis modes
 
     Args:
-    psf_data (ndarray):     an average PSF image used to initialize the task
+    psf_array (ndarray):     an average PSF image used to initialize the task
     pix_scale (float):      pixel scale in arcsec
     sigma_arcsec (float):   Shapelet kernel size
     nord (int):             the highest order of Shapelets radial
@@ -232,14 +232,14 @@ class measure_noise_cov(measure_base):
 
     def __init__(
         self,
-        psf_data,
+        psf_array,
         pix_scale: float,
         sigma_arcsec: float,
         nord: int = 4,
         det_nrot: int = 8,
     ) -> None:
         super().__init__(
-            psf_data=psf_data,
+            psf_array=psf_array,
             sigma_arcsec=sigma_arcsec,
             nord=nord,
             pix_scale=pix_scale,
@@ -265,7 +265,8 @@ class measure_noise_cov(measure_base):
             noise_pf = jnp.array(noise_pf[:, : self.ngrid // 2 + 1], dtype=jnp.float64)
         else:
             raise ValueError("noise power not in correct shape")
-        noise_pf_deconv = self.deconvolve(noise_pf, prder=1, frder=0)
+
+        noise_pf_deconv = noise_pf / self.psf_pow
         cov_matrix = (
             jnp.tensordot(
                 self.bfunc * (self._w * noise_pf_deconv)[jnp.newaxis, :, :],
@@ -281,7 +282,7 @@ class measure_source(measure_base):
     """A class to measure FPFS shapelet mode estimation
 
     Args:
-    psf_data (ndarray):     an average PSF image used to initialize the task
+    psf_array (ndarray):     an average PSF image used to initialize the task
     pix_scale (float):      pixel scale in arcsec
     sigma_arcsec (float):   Shapelet kernel size
     nord (int):             the highest order of Shapelets radial components
@@ -291,14 +292,14 @@ class measure_source(measure_base):
 
     def __init__(
         self,
-        psf_data,
+        psf_array,
         pix_scale: float,
         sigma_arcsec: float,
         nord: int = 4,
         det_nrot: int = 8,
     ):
         super().__init__(
-            psf_data=psf_data,
+            psf_array=psf_array,
             sigma_arcsec=sigma_arcsec,
             nord=nord,
             pix_scale=pix_scale,
@@ -308,19 +309,20 @@ class measure_source(measure_base):
 
     def detect_source(
         self,
-        img_data,
-        psf_data,
+        img_array,
+        psf_array,
         cov_elem,
         fthres: float,
         pthres: float = 0.0,
         pratio: float = 0.02,
         bound: int | None = None,
+        noise_array=None,
     ):
         """Returns the coordinates of detected sources
 
         Args:
-        img_data (ndarray):         observed image
-        psf_data (ndarray):         PSF image [must be well-centered]
+        img_array (ndarray):         observed image
+        psf_array (ndarray):         PSF image [must be well-centered]
         cov_elem (ndarray):         covariance matrix of the measurement error
         fthres (float):             n-sigma detection threshold (flux)
         pthres (float):             n-sigma detection threshold (peak)
@@ -335,32 +337,36 @@ class measure_source(measure_base):
             raise ValueError("Peak detection threshold should be positive")
         if bound is None:
             bound = self.ngrid // 2 + 5
-        out = self.peak_detect(
-            img_data=img_data,
-            psf_data=psf_data,
+        if noise_array is None:
+            noise_array = jnp.zeros_like(img_array)
+        out = self._detect_source(
+            img_array=img_array,
+            psf_array=psf_array,
             cov_elem=cov_elem,
             fthres=fthres,
             pthres=pthres,
             pratio=pratio,
             bound=bound,
+            noise_array=noise_array,
         )
         return out
 
-    def peak_detect(
+    def _detect_source(
         self,
-        img_data,
-        psf_data,
+        img_array,
+        psf_array,
         cov_elem,
         fthres,
         pthres,
         pratio,
         bound,
+        noise_array,
     ):
         """This function convolves an image to transform the PSF to a Gaussian
 
         Args:
-        img_data (ndarray):     image data
-        psf_data (ndarray):     psf data
+        img_array (ndarray):     image data
+        psf_array (ndarray):     psf data
         fthres (float):         n-sigma threshold of Gaussian flux
         pthres (float):         n-sigma detection threshold (difference)
         pratio (float):         ratio between difference and flux
@@ -377,17 +383,33 @@ class measure_source(measure_base):
         )
         pcut = std_v * self.pix_scale**2.0 * pthres
 
-        ny, nx = img_data.shape
+        ny, nx = img_array.shape
         # Fourier transform
-        npady = (ny - psf_data.shape[0]) // 2
-        npadx = (nx - psf_data.shape[1]) // 2
+        npady = (ny - psf_array.shape[0]) // 2
+        npadx = (nx - psf_array.shape[1]) // 2
 
         # Gaussian kernel for shapelets
         img_conv = jnp.fft.irfft2(
-            jnp.fft.rfft2(img_data)
-            / jnp.fft.rfft2(
-                jnp.fft.ifftshift(
-                    jnp.pad(psf_data, (npady, npadx), mode="constant"),
+            (
+                jnp.fft.rfft2(img_array)
+                / jnp.fft.rfft2(
+                    jnp.fft.ifftshift(
+                        jnp.pad(
+                            psf_array,
+                            (npady, npadx),
+                            mode="constant",
+                        ),
+                    )
+                )
+                + jnp.fft.rfft2(noise_array)
+                / jnp.fft.rfft2(
+                    jnp.fft.ifftshift(
+                        jnp.pad(
+                            util.rotate90(psf_array),
+                            (npady, npadx),
+                            mode="constant",
+                        ),
+                    )
                 )
             )
             * util.gauss_kernel_rfft(
@@ -399,6 +421,7 @@ class measure_source(measure_base):
             ),
             (ny, nx),
         )
+
         det = jnp.int_(
             jnp.argwhere(
                 get_pixel_detect_mask(
@@ -431,28 +454,44 @@ class measure_source(measure_base):
         out = jnp.append(cc, out)
         return out
 
-    def measure(self, exposure, coords=None):
+    def measure(self, exposure, coords=None, psf_f=None):
         """This function measures the FPFS moments
 
         Args:
         exposure (ndarray):         galaxy image
-        coords (ndarray):           coordinate array
+        coords (ndarray|None):      coordinate array
+        psf_f (ndarray|None):       rfft2 of PSF (image in real space centered
+                                    at ngrid//2)
 
         Returns:
         src (ndarray):              FPFS linear observables
         """
         if coords is None:
             coords = jnp.array(exposure.shape) // 2
-        func = lambda xi: self.measure_coord(xi, exposure)
-        src = jax.lax.map(func, jnp.atleast_2d(coords))
+        if psf_f is None:
+            psf_f = self.psf_f
+        if not (
+            psf_f.shape[-1] == self.ngrid // 2 + 1 and psf_f.shape[-2] == self.ngrid
+        ):
+            raise ValueError("psf_f not in correct shape")
+        func = lambda x: self.measure_coord(
+            exposure=exposure,
+            cc=x,
+            psf_f=psf_f,
+        )
+        src = jax.lax.map(
+            func,
+            jnp.atleast_2d(coords),
+        )
         return src
 
-    def measure_coord(self, cc, exposure):
+    def measure_coord(self, exposure, cc, psf_f):
         """This function measures the FPFS moments from a coordinate
 
         Args:
-        cc (ndarray):           galaxy peak coordinate
         exposure (ndarray):     exposure
+        cc (ndarray):           galaxy peak coordinate
+        psf_f (ndarray):        rfft2 of PSF
 
         Returns:
         mm (ndarray):       FPFS moments
@@ -464,20 +503,7 @@ class measure_source(measure_base):
             (y - self.ngrid // 2, x - self.ngrid // 2),
             (self.ngrid, self.ngrid),
         )
-        return self.measure_stamp(stamp)
-
-    def measure_stamp(self, data):
-        """This function measures the FPFS moments from a stamp
-
-        Args:
-        data (ndarray):     galaxy image array
-
-        Returns:
-        mm (ndarray):       FPFS moments
-        """
-        # gal_fourier = jnp.fft.fftshift(jnp.fft.fft2(data))
-        gal_fourier = jnp.fft.rfft2(data)
-        gal_deconv = self.deconvolve(gal_fourier, prder=0.0, frder=1)
+        gal_deconv = jnp.fft.rfft2(stamp) / psf_f
         # jax.debug.print("debug: {}", mm)
         outcome = (
             jnp.sum(

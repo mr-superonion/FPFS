@@ -14,7 +14,7 @@ def test_rotate():
     psf_ini[ngrid // 2, ngrid // 2] = 1.0
     # test shear estimation
     task = fpfs.image.measure_source(
-        psf_data=psf_ini,
+        psf_array=psf_ini,
         pix_scale=scale,
         sigma_arcsec=0.53,
         nord=4,

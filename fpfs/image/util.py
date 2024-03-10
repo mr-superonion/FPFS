@@ -123,7 +123,7 @@ def truncate_circle(arr, rcut: float) -> None:
     return
 
 
-def truncate_psf(arr, rcut: float):
+def truncate_psf_fft(arr, rcut: float):
     """Truncate the input PSF array in Fourier space with circle
 
     Args:
@@ -148,12 +148,15 @@ def truncate_psf(arr, rcut: float):
     return out
 
 
-def truncate_psf_rfft(arr, rcut: float, ngrid: int):
-    """Truncate the input PSF array in Fourier (rfft) space with circle
+def truncate_psf_rfft(arr, klim_pix: float, ngrid: int):
+    """Truncate the input PSF array in Fourier (rfft) space with circle.
+    Note that this function is only used for truncation in PSF deconvolution,
+    and the input array is the psf to be deconvolved
 
     Args:
     arr (ndarray):      image array
-    rcut (float):       radius of the circle
+    klim_pix (float):   radius of the circle in units of pixel
+    ngrid (int):        number of pixel grids
 
     Returns:
     out (ndarray):      truncated array
@@ -169,8 +172,8 @@ def truncate_psf_rfft(arr, rcut: float, ngrid: int):
 
     # Calculate distances in the frequency domain
     d2 = fx**2 + fy**2
-    # Create a mask for distances greater than rcut
-    mask = d2 > rcut**2.0
+    # Create a mask for distances greater tha  klim_pix
+    mask = d2 > klim_pix**2.0
     # Apply the mask
     out = jnp.where(mask, 1e5, arr)
     return out
@@ -200,5 +203,4 @@ def rotate90(image):
             new_j = center - (i - center)
             # Correctly access and set the pixel values
             rotated_image = rotated_image.at[new_i, new_j].set(image[i, j])
-
     return rotated_image
