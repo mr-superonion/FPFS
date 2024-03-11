@@ -13,12 +13,14 @@
 #
 # python lib
 
-import os
 import gc
-import galsim
 import logging
-import numpy as np
+import os
+
 import astropy.io.fits as pyfits
+import galsim
+import numpy as np
+
 from ..__data_dir__ import __data_dir__
 
 logging.basicConfig(

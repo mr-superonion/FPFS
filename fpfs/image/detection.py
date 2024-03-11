@@ -13,8 +13,8 @@
 #
 # python lib
 
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 
 from . import util
 

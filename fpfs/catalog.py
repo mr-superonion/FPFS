@@ -12,11 +12,10 @@
 # GNU General Public License for more details.
 #
 # python lib
-import jax
-import numpy as np
-import jax.numpy as jnp
-
 import fitsio
+import jax
+import jax.numpy as jnp
+import numpy as np
 import numpy.lib.recfunctions as rfn
 
 from .image.image import fpfs_base

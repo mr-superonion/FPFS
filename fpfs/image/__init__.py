@@ -1,5 +1,3 @@
 # flake8: noqa
+from . import detection, shapelets, util
 from .image import *
-from . import util
-from . import shapelets
-from . import detection

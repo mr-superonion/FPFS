@@ -1,16 +1,41 @@
+fail_fast: true
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+
+    # basics
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:
-    -   id: check-yaml
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
-    -   id: requirements-txt-fixer
--   repo: https://github.com/psf/black
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+    # Black
+  - repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
-    -   id: black
--   repo: https://github.com/PyCQA/flake8
+      - id: black
+
+    # Flake8
+  - repo: https://github.com/PyCQA/flake8
     rev: 6.0.0
     hooks:
-    -   id: flake8
+      - id: flake8
+
+    # Automatically sort the imports used in .py files
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: Run isort
+        description: Sort and organize imports in .py and .pyi files.
+        types_or: [python, pyi]
+
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: Run unit tests
+        description: Run unit tests with pytest.
+        entry: bash -c "if python -m pytest --co -qq; then python -m pytest --cov=./yaipe --cov-report=html; fi"
+        language: system
+        pass_filenames: false
+        always_run: true

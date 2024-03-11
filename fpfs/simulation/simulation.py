@@ -1,14 +1,15 @@
-import os
 import gc
-import json
 import glob
+import json
 import logging
+import os
+from configparser import ConfigParser, ExtendedInterpolation
 
 import fitsio
 import galsim
 import numpy as np
+
 from .util import make_isolate_sim
-from configparser import ConfigParser, ExtendedInterpolation
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",

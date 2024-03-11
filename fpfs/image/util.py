@@ -1,5 +1,6 @@
-import jax
 import math
+
+import jax
 import jax.numpy as jnp
 
 

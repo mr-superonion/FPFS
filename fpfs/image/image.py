@@ -13,14 +13,15 @@
 #
 # python lib
 
-import jax
 import logging
-import numpy as np
-import jax.numpy as jnp
-from . import util
-from .shapelets import shapelets2d, get_shapelets_col_names
-from .detection import detlets2d, get_det_col_names
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+
+from . import util
+from .detection import detlets2d, get_det_col_names
+from .shapelets import get_shapelets_col_names, shapelets2d
 
 logging.basicConfig(
     format="%(asctime)s %(message)s",
