@@ -1,7 +1,6 @@
 # flake8: noqa
 import os
 
-# We need accuracy is below 1e-6
 from jax import config
 
 from . import catalog, image, simulation
