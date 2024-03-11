@@ -1,7 +1,8 @@
-import fpfs
 import galsim
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
+
+import fpfs
 
 
 def simulate_gal_psf(scale, ind0, rcut, gcomp="g1"):
@@ -105,7 +106,7 @@ def do_test(scale, ind0, rcut, gcomp):
     # test detection
     p1 = gal_data.shape[0] // 2 - rcut
     p2 = gal_data.shape[1] // 2 - rcut
-    psf_data2 = jnp.pad(psf_data, ((p1, p1), (p2, p2)))
+    psf_data2 = np.pad(psf_data, ((p1, p1), (p2, p2)))
     print("run detection")
     coords2 = task.detect_source(
         gal_data,

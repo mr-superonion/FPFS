@@ -14,8 +14,9 @@
 # python lib
 
 import math
-import jax.numpy as jnp
+
 import numpy as np
+
 from . import util
 
 
@@ -169,4 +170,4 @@ def shapelets2d(ngrid: int, nord: int, sigma: float, klim: float):
         else:
             chi_2[i] = chi[ind[0]].real
     del chi
-    return jnp.array(chi_2), name_s
+    return chi_2, name_s

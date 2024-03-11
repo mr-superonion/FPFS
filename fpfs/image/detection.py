@@ -14,7 +14,6 @@
 # python lib
 
 import numpy as np
-import jax.numpy as jnp
 
 from . import util
 
@@ -70,6 +69,6 @@ def detlets2d(
         psi[0, irot] = gauss_ker - gauss_ker * foub
         psi[1, irot] = q1_ker - (q1_ker + x * d1_ker - y * d2_ker) * foub
         psi[2, irot] = q2_ker - (q2_ker + y * d1_ker + x * d2_ker) * foub
-    psi = jnp.vstack(psi)
+    psi = psi.reshape(3 * det_nrot, ny, nx)
     name_d = get_det_col_names(det_nrot)
     return psi, name_d

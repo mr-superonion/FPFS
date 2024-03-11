@@ -1,6 +1,5 @@
-import jax
-import math
-import jax.numpy as jnp
+import numba
+import numpy as np
 
 
 def get_klim(psf_pow, sigma: float, thres: float = 1e-20) -> float:
@@ -17,11 +16,11 @@ def get_klim(psf_pow, sigma: float, thres: float = 1e-20) -> float:
     klim (float):           the limit radius
     """
     ngrid = psf_pow.shape[0]
-    gaussian, (y, x) = gauss_kernel_rfft(ngrid, ngrid, sigma, jnp.pi, return_grid=True)
-    r = jnp.sqrt(x**2.0 + y**2.0)  # radius
+    gaussian, (y, x) = gauss_kernel_rfft(ngrid, ngrid, sigma, np.pi, return_grid=True)
+    r = np.sqrt(x**2.0 + y**2.0)  # radius
     mask = gaussian / psf_pow < thres
-    dk = 2.0 * math.pi / ngrid
-    klim_pix = round(float(jnp.min(r[mask]) / dk))
+    dk = 2.0 * np.pi / ngrid
+    klim_pix = round(float(np.min(r[mask]) / dk))
     klim_pix = min(max(klim_pix, ngrid // 5), ngrid // 2 - 1)
     return klim_pix
 
@@ -45,12 +44,12 @@ def gauss_kernel_fft(
     xgrid,ygrid (typle):    grids for [y, x] axes if return_grid
     """
     # mask
-    x = jnp.fft.fftshift(jnp.fft.fftfreq(nx, 1 / jnp.pi / 2.0))
-    y = jnp.fft.fftshift(jnp.fft.fftfreq(ny, 1 / jnp.pi / 2.0))
-    ygrid, xgrid = jnp.meshgrid(y, x, indexing="ij")
+    x = np.fft.fftshift(np.fft.fftfreq(nx, 1 / np.pi / 2.0))
+    y = np.fft.fftshift(np.fft.fftfreq(ny, 1 / np.pi / 2.0))
+    ygrid, xgrid = np.meshgrid(y, x, indexing="ij")
     r2 = xgrid**2.0 + ygrid**2.0
-    mask = (r2 <= klim**2).astype(jnp.float64)
-    out = jnp.exp(-r2 / 2.0 / sigma**2.0) * mask
+    mask = (r2 <= klim**2).astype(np.float64)
+    out = np.exp(-r2 / 2.0 / sigma**2.0) * mask
     if not return_grid:
         return out
     else:
@@ -74,12 +73,12 @@ def gauss_kernel_rfft(
     out (ndarray):          Gaussian on grids
     ygrid, xgrid (typle):   grids for [y, x] axes, if return_grid
     """
-    x = jnp.fft.rfftfreq(nx, 1 / jnp.pi / 2.0)
-    y = jnp.fft.fftfreq(ny, 1 / jnp.pi / 2.0)
-    ygrid, xgrid = jnp.meshgrid(y, x, indexing="ij")
+    x = np.fft.rfftfreq(nx, 1 / np.pi / 2.0)
+    y = np.fft.fftfreq(ny, 1 / np.pi / 2.0)
+    ygrid, xgrid = np.meshgrid(y, x, indexing="ij")
     r2 = xgrid**2.0 + ygrid**2.0
     mask = (r2 <= klim**2).astype(int)
-    out = jnp.exp(-r2 / 2.0 / sigma**2.0) * mask
+    out = np.exp(-r2 / 2.0 / sigma**2.0) * mask
     if not return_grid:
         return out
     else:
@@ -114,7 +113,7 @@ def truncate_circle(arr, rcut: float) -> None:
     if len(arr.shape) != 2 or arr.shape[0] != arr.shape[1]:
         raise ValueError("Input array must be a 2D square array")
     ngrid = arr.shape[0]
-    y, x = jnp.ogrid[0:ngrid, 0:ngrid]
+    y, x = np.ogrid[0:ngrid, 0:ngrid]
     center_x, center_y = ngrid // 2, ngrid // 2
     # Compute the squared distance to the center
     distance_squared = (x - center_x) ** 2 + (y - center_y) ** 2
@@ -138,13 +137,13 @@ def truncate_psf_fft(arr, rcut: float):
     ngrid = arr.shape[0]
     center = ngrid // 2
     # Create a meshgrid for x and y coordinates
-    y, x = jnp.ogrid[:ngrid, :ngrid]
+    y, x = np.ogrid[:ngrid, :ngrid]
     # Calculate the distance from the center
     distance_squared = (x - center) ** 2 + (y - center) ** 2.0
     # Create a mask for pixels outside the radius rcut
     mask = distance_squared > rcut**2.0
     # Set pixels outside rcut to 1e5
-    out = jnp.where(mask, 1e5, arr)
+    out = np.where(mask, 1e5, arr)
     return out
 
 
@@ -164,9 +163,9 @@ def truncate_psf_rfft(arr, klim_pix: float, ngrid: int):
     if len(arr.shape) != 2 or arr.shape != (ngrid, ngrid // 2 + 1):
         raise ValueError("Input array must be a 2D square array")
     # Create a meshgrid of frequency values
-    fy, fx = jnp.meshgrid(
-        jnp.fft.fftfreq(ngrid) * ngrid,
-        jnp.fft.rfftfreq(ngrid) * ngrid,
+    fy, fx = np.meshgrid(
+        np.fft.fftfreq(n=ngrid, d=1.0 / ngrid),
+        np.fft.rfftfreq(n=ngrid, d=1.0 / ngrid),
         indexing="ij",
     )
 
@@ -175,11 +174,11 @@ def truncate_psf_rfft(arr, klim_pix: float, ngrid: int):
     # Create a mask for distances greater tha  klim_pix
     mask = d2 > klim_pix**2.0
     # Apply the mask
-    out = jnp.where(mask, 1e5, arr)
+    out = np.where(mask, 1e5, arr)
     return out
 
 
-@jax.jit
+@numba.njit(fastmath=True)
 def rotate90(image):
     """This code rotates an image wrt (ngrid//2, ngrid//2) counterclockwisely
 
@@ -192,7 +191,7 @@ def rotate90(image):
     ngrid = image.shape[0]
     center = ngrid // 2
     # Create an empty array of the same shape as the image
-    rotated_image = jnp.zeros_like(image)
+    rotated_image = np.zeros_like(image)
 
     # Compute new coordinates for each pixel after rotation
     for i in range(ngrid):
@@ -202,5 +201,5 @@ def rotate90(image):
             new_i = center + (j - center)
             new_j = center - (i - center)
             # Correctly access and set the pixel values
-            rotated_image = rotated_image.at[new_i, new_j].set(image[i, j])
+            rotated_image[new_i, new_j] = image[i, j]
     return rotated_image
