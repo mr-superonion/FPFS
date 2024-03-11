@@ -222,7 +222,73 @@ class catalog_base(fpfs_base):
         # detection threshold
         self.pcut = pthres * std_v
         self.pratio = pratio
+        self.prepare_dg1_mat()
+        self.prepare_dg2_mat()
         return
+
+    def prepare_dg1_mat(self):
+        out = []
+        for nn in self.name_shapelets:
+            tmp = jnp.zeros(self.ncol)
+            match nn:
+                case "m00":
+                    tmp = tmp.at[self.di["m22c"]].set(-jnp.sqrt(2.0))
+                case "m20":
+                    tmp = tmp.at[self.di["m42c"]].set(-jnp.sqrt(6.0))
+                case "m22c":
+                    tmp = tmp.at[self.di["m00"]].set(1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m40"]].set(-1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m44c"]].set(-jnp.sqrt(3.0))
+                case "m22s":
+                    tmp = tmp.at[self.di["m44s"]].set(-jnp.sqrt(3.0))
+                case "m42c":
+                    if self.nord >= 6:
+                        tmp = tmp.at[self.di["m20"]].set(jnp.sqrt(6.0) / 2.0)
+                        tmp = tmp.at[self.di["m60"]].set(-jnp.sqrt(6.0) / 2.0)
+            out.append(tmp)
+        for nn in self.name_detect[: self.det_nrot]:
+            tmp = jnp.zeros(self.ncol)
+            tmp = tmp.at[self.di[nn + "r1"]].set(1.0)
+            out.append(tmp)
+        for _ in range(self.det_nrot * 2):
+            out.append(jnp.zeros(self.ncol))
+        self.dg1_mat = jnp.vstack(out)
+        return
+
+    def prepare_dg2_mat(self):
+        out = []
+        for nn in self.name_shapelets:
+            tmp = jnp.zeros(self.ncol)
+            match nn:
+                case "m00":
+                    tmp = tmp.at[self.di["m22s"]].set(-jnp.sqrt(2.0))
+                case "m20":
+                    tmp = tmp.at[self.di["m42s"]].set(-jnp.sqrt(6.0))
+                case "m22c":
+                    tmp = tmp.at[self.di["m44s"]].set(-jnp.sqrt(3.0))
+                case "m22s":
+                    tmp = tmp.at[self.di["m00"]].set(1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m40"]].set(-1.0 / jnp.sqrt(2.0))
+                    tmp = tmp.at[self.di["m44c"]].set(jnp.sqrt(3.0))
+                case "m42c":
+                    if self.nord >= 6:
+                        tmp = tmp.at[self.di["m20"]].set(jnp.sqrt(6.0) / 2.0)
+                        tmp = tmp.at[self.di["m60"]].set(-jnp.sqrt(6.0) / 2.0)
+            out.append(tmp)
+        for nn in self.name_detect[: self.det_nrot]:
+            tmp = jnp.zeros(self.ncol)
+            tmp = tmp.at[self.di[nn + "r2"]].set(1.0)
+            out.append(tmp)
+        for _ in range(self.det_nrot * 2):
+            out.append(jnp.zeros(self.ncol))
+        self.dg2_mat = jnp.vstack(out)
+        return
+
+    def _dg1(self, x):
+        return self.dg1_mat.dot(x)
+
+    def _dg2(self, x):
+        return self.dg2_mat.dot(x)
 
     def _wsel(self, x):
         # selection on flux
