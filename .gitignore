@@ -38,3 +38,4 @@ cat_try*/
 sum_try*/
 gist
 *_test/*
+.coverage
