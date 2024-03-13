@@ -272,8 +272,6 @@ class measure_source(measure_base):
             raise ValueError("Peak detection threshold should be positive")
         if bound is None:
             bound = self.ngrid // 2 + 5
-        if noise_array is None:
-            noise_array = jnp.zeros_like(img_array)
         out = self._detect_source(
             img_array=img_array,
             psf_array=psf_array,
@@ -323,9 +321,41 @@ class measure_source(measure_base):
         npady = (ny - psf_array.shape[0]) // 2
         npadx = (nx - psf_array.shape[1]) // 2
 
-        # Gaussian kernel for shapelets
-        img_conv = jnp.fft.irfft2(
-            (
+        if noise_array is not None:
+            img_conv = jnp.fft.irfft2(
+                (
+                    jnp.fft.rfft2(img_array)
+                    / jnp.fft.rfft2(
+                        jnp.fft.ifftshift(
+                            jnp.pad(
+                                psf_array,
+                                (npady, npadx),
+                                mode="constant",
+                            ),
+                        )
+                    )
+                    + jnp.fft.rfft2(noise_array)
+                    / jnp.fft.rfft2(
+                        jnp.fft.ifftshift(
+                            jnp.pad(
+                                util.rotate90(psf_array),
+                                (npady, npadx),
+                                mode="constant",
+                            ),
+                        )
+                    )
+                )
+                * util.gauss_kernel_rfft(
+                    ny,
+                    nx,
+                    self.sigmaf,
+                    self.klim,
+                    return_grid=False,
+                ),
+                (ny, nx),
+            )
+        else:
+            img_conv = jnp.fft.irfft2(
                 jnp.fft.rfft2(img_array)
                 / jnp.fft.rfft2(
                     jnp.fft.ifftshift(
@@ -336,26 +366,15 @@ class measure_source(measure_base):
                         ),
                     )
                 )
-                + jnp.fft.rfft2(noise_array)
-                / jnp.fft.rfft2(
-                    jnp.fft.ifftshift(
-                        jnp.pad(
-                            util.rotate90(psf_array),
-                            (npady, npadx),
-                            mode="constant",
-                        ),
-                    )
-                )
+                * util.gauss_kernel_rfft(
+                    ny,
+                    nx,
+                    self.sigmaf,
+                    self.klim,
+                    return_grid=False,
+                ),
+                (ny, nx),
             )
-            * util.gauss_kernel_rfft(
-                ny,
-                nx,
-                self.sigmaf,
-                self.klim,
-                return_grid=False,
-            ),
-            (ny, nx),
-        )
 
         det = jnp.int_(
             jnp.argwhere(
@@ -475,7 +494,6 @@ class measure_source(measure_base):
         return coords
 
 
-@jax.jit
 def get_pixel_detect_mask(sel, img, pcut, pratio):
     thres = -1.0 * (pcut + pratio * img)
     for ax in [-1, -2]:
