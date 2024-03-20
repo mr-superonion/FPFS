@@ -15,7 +15,7 @@
 #
 import schwimmbad
 from argparse import ArgumentParser
-from fpfs.tasks import SimulationTask
+from fpfs.simulation import SimulationTask
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="fpfs simulation")
