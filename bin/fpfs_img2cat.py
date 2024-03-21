@@ -16,8 +16,7 @@
 
 import schwimmbad
 from argparse import ArgumentParser
-from configparser import ConfigParser, ExtendedInterpolation
-from fpfs.tasks import ProcessSimulationTask
+from fpfs.simulation import ProcessSimulationTask
 
 
 if __name__ == "__main__":
