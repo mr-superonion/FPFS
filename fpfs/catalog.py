@@ -244,7 +244,8 @@ class catalog_base(fpfs_base):
         return 0.0
 
     def _we1(self, x):
-        return self._wsel(x) * self._e1(x) * self._wdet(x)
+        # return self._wsel(x) * self._e1(x) * self._wdet(x)
+        return self._e1(x)
 
     def _we2(self, x):
         return self._wsel(x) * self._e2(x) * self._wdet(x)
