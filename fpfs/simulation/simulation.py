@@ -193,6 +193,7 @@ class SimulationTask(object):
                 nrot_per_gal=1,
                 min_hlr=None,  # set the minimum hlr to 0
                 max_hlr=None,  # set maximum hlr (sersic fit)
+                max_mag=26.0,
                 rot_field=self.rot_list,
                 gal_type=self.gal_type,
                 buff=self.buff,
@@ -284,7 +285,10 @@ def get_random_seed_from_fname(fname, band, nrot=2):
 
 
 class ProcessSimulationTask(object):
-    def __init__(self, config_name):
+    def __init__(
+        self,
+        config_name,
+    ):
         cparser = ConfigParser(interpolation=ExtendedInterpolation())
         cparser.read(config_name)
         self.nrot = cparser.getint("simulation", "nrot")
