@@ -1,6 +1,6 @@
 import os
-from setuptools import setup, find_packages
 
+from setuptools import find_packages, setup
 
 this_dir = os.path.dirname(os.path.realpath(__file__))
 __version__ = ""
@@ -12,11 +12,6 @@ long_description = open(os.path.join(this_dir, "README.md")).read()
 
 scripts = [
     "bin/fpfs_config",
-    "bin/fpfs_sim.py",
-    "bin/fpfs_process_sim.py",
-    "bin/fpfs_summary_sim.py",
-    "bin/fpfs_process_descsim.py",
-    "bin/fpfs_summary_descsim.py",
 ]
 
 
