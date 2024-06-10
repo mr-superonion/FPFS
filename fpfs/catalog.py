@@ -22,7 +22,7 @@ import numpy.lib.recfunctions as rfn
 from .image.image import fpfs_base
 
 
-def read_catalog(fname, nord):
+def read_catalog(fname, nord=4):
     x = fitsio.read(fname)
     if x.dtype.names is not None:
         x = rfn.structured_to_unstructured(
