@@ -63,6 +63,8 @@ def get_shapelets_col_names(nord: int) -> tuple[list, list]:
             "m44c",
             "m44s",
             "m60",
+            "m64c",
+            "m64s",
         ]
         ind_s = [
             [0, False],
@@ -75,6 +77,8 @@ def get_shapelets_col_names(nord: int) -> tuple[list, list]:
             [32, False],
             [32, True],
             [42, False],
+            [46, False],
+            [46, True],
         ]
     else:
         raise ValueError(
